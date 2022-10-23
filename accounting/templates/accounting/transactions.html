@@ -1,0 +1,11 @@
+{% extends "accounting/base.html" %}
+{% block content %}
+<h1>Alle Transaktionen</h1>
+<br>
+<h5>Konto: {{ account }}</h5>
+<p>Kontostand:
+    <span class="{% if acc.get_balance <= 0.0 %} text-danger {% else %} text-success{% endif %}">{{ account.get_balance }}</span>
+</p>
+<br>
+{% include "accounting/transactions_table.html" with transactions=transactions %}
+{% endblock content %}

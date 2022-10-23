@@ -1,0 +1,86 @@
+{% extends "accounting/base.html" %}
+{% load crispy_forms_tags %}
+{% load fontawesome_5 %}
+{% load static %}
+{% block content %}
+<div class="content-section">
+  <form method="POST">
+    {% csrf_token %}
+    <fieldset class="form-group">
+      {% if form.instance.pk %}
+        <legend class="border-bottom mb-4">Transaktion ändern</legend>
+      {% else %}
+        <legend class="border-bottom mb-4">Neue Transaktion hinzufügen</legend>
+      {% endif %}
+      <div class="row">
+        <div class="col md-4">
+          <div class="form-group mb-0">
+            {{ form.bank_account|as_crispy_field }}
+          </div>
+        </div>
+        <div class="col md-4"></div>
+        <div class="col md-4"></div>
+      </div>
+
+      <div class="row">
+        <div class="col md-4">
+          <div class="form-group mb-0">
+            {{ form.amount|as_crispy_field }}
+          </div>
+        </div>
+        <div class="col md-4">
+          <div class="form-group mb-0">
+            {{ form.recipient|as_crispy_field }}
+          </div>
+        </div>
+        <div class="col md-4"></div>
+      </div>
+
+      <div class="row">
+        <div class="col md-4">
+          <div class="form-group mb-0">
+            {{ form.date_issue|as_crispy_field }}
+          </div>
+        </div>
+        <div class="col md-4">
+          <div class="form-group mb-0">
+            {{ form.date_booking|as_crispy_field }}
+          </div>
+        </div>
+        <div class="col md-4"></div>
+      </div>
+
+      <div class="form-group mb-0">
+            {{ form.categories|as_crispy_field }} {{form.media}}
+      </div>
+
+      <div class="form-group mb-0">
+            {{ form.subject|as_crispy_field }}
+      </div>
+
+      <div class="form-group mb-0">
+            {{ form.full_subject_string|as_crispy_field }}
+      </div>
+    </fieldset>
+    <div class="form-group">
+      <button class="btn btn-outline-secondary" type="submit">Speichern</button>
+    </div>
+  </form>
+</div>
+{% endblock content %}
+
+{% block javascript %}
+<script src="{% static 'recipes/js/selectpicker.js' %}"></script>
+<script type="text/javascript">
+  // Hack to re-render the category selector if a new category was added
+  // listening to on('change') does not work
+  let oldLen = 0
+  setInterval(() => {
+    const newLen = $('#id_categories option').length
+    if (newLen != oldLen) {
+      oldLen = newLen
+      $('#id_categories').selectpicker('refresh')
+    }
+  }, 500)
+</script>
+{% endblock javascript %}

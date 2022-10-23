@@ -1,0 +1,43 @@
+{% extends "accounting/base.html" %}
+{% block content %}
+<div class="row my-4 mx-2">
+    <h3 class="text-truncate d-inline">Detailansicht Transaktion</h3>
+    <div class="ml-auto">
+        <!-- update and delete -->
+        <a href="{% url 'transaction-update' acc_pk=transaction.bank_account.id t_pk=transaction.id %}" class="btn text-dark"><i class="fas fa-edit"></i></a>
+        <a href="#" class="btn text-danger"><i class="fas fa-trash"></i></a>
+    </div>
+</div>
+<hr>
+<div>
+    <div class="row">
+        <div class="col-md-3">
+            <p><i class="fas fa-piggy-bank"></i> Konto</p>
+            <p><i class="fas fa-euro-sign"></i> Betrag</p>
+            <p><i class="fas fa-user"></i> Empfänger</p>
+            <p><i class="fas fa-file-alt"></i> Betreff</p>
+            <p><i class="fas fa-calendar-day"></i> Buchungstag</p>
+            <p><i class="fas fa-calendar-day"></i> Wertstellungstag</p>
+            <p><i class="fas fa-icons"></i> Kategorien</p>
+        </div>
+        <div class="col-md-9">
+            <p>
+                <a href="{% url 'transactions' transaction.bank_account.pk %}">
+                    {{ transaction.bank_account }}
+                </a>
+            </p>
+            <p class="{% if transaction.amount < 0.0 %} text-danger {% else %} text-success{% endif %}">
+                {{ transaction.amount }}€
+            </p>
+            <p>{{ transaction.recipient }}</p>
+            <p>{{ transaction.subject }}</p>
+            <p>{{ transaction.date_issue }}</p>
+            <p> {{ transaction.date_booking }}</p>
+            {% for cat in transaction.get_categories %}
+                <a href="#" class="badge badge-light">{{ cat.name }}</a>
+            {% endfor %}
+        </div>
+    </div>
+
+</div>
+{% endblock content %}

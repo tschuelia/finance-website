@@ -1,0 +1,24 @@
+{% extends "accounting/base.html" %}
+{% block content %}
+<h1>Übersicht Konten</h1>
+<br>
+<div class="table-responsive">
+    <table class="table">
+        <tr>
+            <th>Bankkonto</th>
+            <th>Startguthaben</th>
+            <th>Kontostand</th>
+        </tr>
+        {% for acc in accounts %}
+        <tr>
+            <td><a href="{% url 'transactions' acc.pk %}">{{ acc }}</a></td>
+            <td>{{ acc.current_amount }}€</td>
+            <td class="{% if acc.get_balance < 0.0 %} text-danger {% else %} text-success{% endif %}">
+                  {{ acc.get_balance }}€
+              </td>
+        </tr>
+        {% endfor %}
+    </table>
+
+
+{% endblock content %}

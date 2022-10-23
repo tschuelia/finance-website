@@ -1,0 +1,33 @@
+<div class="table-responsive">
+    <table class="table">
+        <tr>
+            <th>Buchungsdatum</th>
+            <th>Wertstellungsdatum</th>
+            <th>Zahlung an/von</th>
+            <th>Betrag</th>
+            <th>Betreff</th>
+            <th>Kategorien</th>
+            <th>Aktionen</th>
+        </tr>
+        {% for t in transactions %}
+        <tr>
+            <td>{{ t.date_issue|date:"d.m.Y"  }}</td>
+            <td>{{ t.date_booking|date:"d.m.Y" }}</td>
+            <td>{{ t.recipient }}</td>
+            <td class="{% if t.amount <= 0.0 %} text-danger {% else %} text-success{% endif %}">
+                {{ t.amount }}€
+            </td>
+            <td>{{ t.subject }}</td>
+            <td>
+                {% for cat in t.get_categories %}
+                    <a href="#" class="badge badge-light">{{ cat.name }}</a>
+                {% endfor %}
+            <td>
+                <a href="{% url 'transaction-detail' acc_pk=t.bank_account.pk t_pk=t.pk %}" class="btn text-dark"><i class="fas fa-info-circle fa-sm"></i></a>
+                <a href="{% url 'transaction-update' acc_pk=t.bank_account.pk t_pk=t.pk %}" class="btn text-dark"><i class="fas fa-edit fa-sm"></i></a>
+                <a href="#" class="btn text-danger"><i class="fas fa-trash fa-sm"></i></a>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>

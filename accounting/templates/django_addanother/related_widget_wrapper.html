@@ -1,0 +1,25 @@
+{% load i18n static %}
+<div class="related-widget-wrapper">
+    <div class="row">
+        <div class="col md-8">
+            {{ widget }}
+        </div>
+        <div class="col md-4">
+            {% if edit_related_url %}
+            <a class="related-widget-wrapper-link change-related" id="change_id_{{ name }}"
+                href=""
+                data-href-template="{{ edit_related_url }}?{{ url_params }}"
+                title="{% blocktrans %}Edit related{% endblocktrans %}">
+                <img src="{% static edit_icon %}" alt="{% trans 'Edit' %}"/>
+            </a>
+            {% endif %}
+
+            {% if add_related_url %}
+            <a class="btn btn-light my-2 related-widget-wrapper-link add-related" id="add_id_{{ name }}"
+                href="{{ add_related_url }}?{{ url_params }}"
+                title="{% blocktrans %}Add another{% endblocktrans %}">Neue Kategorie erstellen <i class="col-2 fas fa-plus"></i>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
