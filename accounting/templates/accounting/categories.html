@@ -1,0 +1,29 @@
+{% extends "accounting/base.html" %}
+{% block content %}
+<div class="row my-4 mx-2">
+    <h1 class="text-truncate d-inline">Alle Kategorien</h1>
+    <div class="ml-auto">
+        <a href="{% url 'create-category' %}" class="btn btn-light btn active" role="button" aria-pressed="true"><i class="fas fa-plus"></i></a>
+    </div>
+</div>
+<div>
+    <table class="table">
+        <tr>
+            <th>Titel</th>
+            <th>Pattern</th>
+            <th>Aktionen</th>
+        </tr>
+        {% for cat in categories %}
+            <tr>
+                <td>{{ cat }}</td>
+                <td>{{ cat.print_patterns }}</td>
+                <td>
+                    <a href="{% url 'update-category' pk=cat.pk %}" class="btn text-dark"><i class="fas fa-edit fa-sm"></i></a>
+                    <a href="#" class="btn text-danger"><i class="fas fa-trash fa-sm"></i></a>
+             </td>
+            </tr>
+        {% endfor %}
+    </table>
+</div>
+
+{% endblock content %}

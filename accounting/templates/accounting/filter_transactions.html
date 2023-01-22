@@ -1,0 +1,34 @@
+{% load crispy_forms_tags %}
+<form method="GET">
+    <div class="row">
+        <div class="col-2 col-sm-2 col-md-2 col-lg-1"><b>Suche</b></div>
+        <div class="col-8 col-sm-8 col-md-8 col-lg-4"><input class="form-control" name="q" value="{{request.GET.q}}" placeholder="Suche nach Transaktionen"></div>
+        <div class="col-2 col-sm-2 col-md-2 col-lg-7"><span></span></div>
+    </div>
+    <br>
+    <div class="row">
+        <div class="col-2 col-sm-2 col-md-2 col-lg-1"><b>Datum</b></div>
+        <div class="col-5 col-sm-5 col-md-4 col-lg-2"><div class="form-group mb-0">{{ form.date_start|as_crispy_field }}</div></div>
+        <div class="col-5 col-sm-5 col-md-4 col-lg-2"><div class="form-group mb-0">{{ form.date_end|as_crispy_field }}</div></div>
+        <div class="col-0 col-sm-0 col-md-2 col-lg-7"><span></span></div>
+    </div>
+    <br>
+    <div class="row">
+        <div class="col-2 col-sm-2 col-md-2 col-lg-1"><b>Betrag</b></div>
+        <div class="col-5 col-sm-5 col-md-4 col-lg-2"><div class="form-group mb-0">{{ form.amount_min|as_crispy_field }}</div></div>
+        <div class="col-5 col-sm-5 col-md-4 col-lg-2"><div class="form-group mb-0">{{ form.amount_max|as_crispy_field }}</div></div>
+        <div class="col-0 col-sm-0 col-md-2 col-lg-7"><span></span></div>
+    </div>
+    <br>
+    <div class="row">
+        <div class="col-2 col-sm-2 col-md-2 col-lg-1"><b>Kategorien</b></div>
+        <div class="col-8 col-sm-8 col-md-8 col-lg-4">{{ form.categories|as_crispy_field }}</div>
+        <div class="col-2 col-sm-2 col-md-2 col-lg-7"><span></span></div>
+    </div>
+
+    <div class="row">
+        <div class="col-3 col-sm-4 col-md-4 col-lg-4"><a href="{% url 'transactions' account.pk %}" class="btn btn-light" role="button" aria-pressed="true">Reset</a></div>
+        <div class="col-3 col-sm-4 col-md-4 col-lg-1"><input class="btn btn-light btn active" type="submit" value="Filtern"></div>
+        <div class="col-6 col-sm-4 col-md-4 col-lg-7"><span></span></div>
+    </div>
+</form>

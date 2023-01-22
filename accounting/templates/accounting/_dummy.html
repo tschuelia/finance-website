@@ -1,0 +1,11 @@
+{% extends "accounting/base.html" %}
+{% block content %}
+<br>
+<h3>WELCOME TO THE DUMMY PAGE</h3>
+<p>whatever you are looking for is not implemented yet</p>
+
+{% if content_to_display %}
+    <p>Here is the content that was sent: </p>
+    {{ content_to_display }}
+{% endif %}
+{% endblock content %}

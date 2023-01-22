@@ -22,19 +22,48 @@
         <span class="navbar-toggler-icon"></span>
     </button>
     <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
-        <div class="navbar-nav">
-            <a class="nav-item nav-link active" href="#">Home <span class="sr-only">(current)</span></a>
-            <a class="nav-item nav-link" href="{% url 'accounts' %}">Konten</a>
+        <ul class="navbar-nav ml-auto">
+            <li class="nav-item">
+            </li>
+            <li class="nav-item">
+                <a class="nav-item nav-link" href="{% url 'accounts' %}">Konten</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-item nav-link" href="{% url 'charts' %}">Charts</a>
+            </li>
+            <li class="nav-item">
+                 <a class="nav-item nav-link" href="{% url 'categories' %}">Kategorien</a>
+            </li>
+            {% if user.is_authenticated %}
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown"
+                    aria-haspopup="true" aria-expanded="false">
+                    <i class="fas fa-user"></i>
+                </a>
+                <div class="dropdown-menu dropdown-menu-right" aria-labelledby="navbarDropdown">
+                    <a class="dropdown-item" href="{% url 'logout' %}">Logout</a>
+                </div>
+            </li>
+            {% else %}
+            <li class="nav-item">
+                <a class="nav-link " href="{% url 'login' %}">Login</a>
+            </li>
+            {% endif %}
+        </ul>
         </div>
     </div>
 </nav>
+<br>
 <main role="main" class="container">
     {% if messages %}
-    {% for msg in messages %}
-    <div class="alert alert-{{ msg.tags }}">
-        {{ msg }}
-    </div>
-    {% endfor %}
+        {% for message in messages %}
+            <div class="alert {{ message.tags|default:'alert-danger' }} alert-dismissible" role="alert">
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                {{ message }}
+            </div>
+        {% endfor %}
     {% endif %}
 
     {% block content %}

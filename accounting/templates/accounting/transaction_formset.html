@@ -1,0 +1,73 @@
+{% extends "accounting/base.html" %}
+{% load crispy_forms_tags %}
+{% load static %}
+{% block content %}
+<div class="content-section">
+  <h3>Transaktionen hinzufügen</h3>
+  <p>Konto: {{ account }}</p>
+  <hr>
+  <form method="POST" action="{% url 'transaction-multi-add' account.pk %}">
+    {% csrf_token %}
+    <fieldset class="form-group">
+      <table class="table table-striped">
+        <tr>
+          <th>Empfänger/Versender</th>
+          <th>Betrag</th>
+          <th>Kategorien</th>
+          <th>Buchungsinformation</th>
+          <th>Buchung</th>
+          <th>Wertstellung</th>
+          <th>gesamte Buchungsreferenz</th>
+          <th>Löschen</th>
+        </tr>
+        {{ formset.management_form|crispy }}
+        {% for form in formset %}
+          <tr class="formset-{{ formset.prefix }}">
+              {% for field in form.visible_fields %}
+              <td>
+                {# Include the hidden fields in the form #}
+                {% if forloop.first %}
+                  {% for hidden in form.hidden_fields %}
+                    {{ hidden }}
+                  {% endfor %}
+                {% endif %}
+                {{ field.errors.as_ul }}
+                {{ field|as_crispy_field }}
+              </td>
+              {% endfor %}
+          </tr>
+        {% endfor %}
+      </table>
+      <script src="{% static 'accounting/js/jquery.formset.js' %}"></script>
+      <script type="text/javascript">
+        $('.formset-{{ formset.prefix }}').formset({
+          addText: '<i class="fas fa-plus"></i>',
+          deleteText: '<i class="fas fa-trash"></i>',
+          prefix: '{{ formset.prefix }}',
+          addCssClass: 'btn btn-secondary',
+          deleteCssClass: 'btn text-danger'
+        });
+      </script>
+    </fieldset>
+    <div class="form-group">
+      <button class="btn btn-outline-secondary" type="submit">Importieren</button>
+    </div>
+  </form>
+</div>
+{% endblock content %}
+
+{% block javascript %}
+<script src="{% static 'accounting/js/selectpicker.js' %}"></script>
+<script type="text/javascript">
+  // Hack to re-render the category selector if a new category was added
+  // listening to on('change') does not work
+  let oldLen = 0
+  setInterval(() => {
+    const newLen = $('#category option').length
+    if (newLen != oldLen) {
+      oldLen = newLen
+      $('#category').selectpicker('refresh')
+    }
+  }, 500)
+</script>
+{% endblock javascript %}

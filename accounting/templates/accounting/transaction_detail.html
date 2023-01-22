@@ -19,6 +19,7 @@
             <p><i class="fas fa-calendar-day"></i> Buchungstag</p>
             <p><i class="fas fa-calendar-day"></i> Wertstellungstag</p>
             <p><i class="fas fa-icons"></i> Kategorien</p>
+            <p><i class="fas fa-icons"></i> Gesamte Buchungsreferenz</p>
         </div>
         <div class="col-md-9">
             <p>
@@ -33,9 +34,8 @@
             <p>{{ transaction.subject }}</p>
             <p>{{ transaction.date_issue }}</p>
             <p> {{ transaction.date_booking }}</p>
-            {% for cat in transaction.get_categories %}
-                <a href="#" class="badge badge-light">{{ cat.name }}</a>
-            {% endfor %}
+            <p><a href="#" class="badge badge-light">{{ cat.name }}</a></p>
+            <p>{{ transaction.full_subject_string }}</p>
         </div>
     </div>
 

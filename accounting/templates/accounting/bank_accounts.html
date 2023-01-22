@@ -6,16 +6,18 @@
     <table class="table">
         <tr>
             <th>Bankkonto</th>
-            <th>Startguthaben</th>
             <th>Kontostand</th>
+            <th>Aktionen</th>
         </tr>
         {% for acc in accounts %}
         <tr>
             <td><a href="{% url 'transactions' acc.pk %}">{{ acc }}</a></td>
-            <td>{{ acc.current_amount }}€</td>
             <td class="{% if acc.get_balance < 0.0 %} text-danger {% else %} text-success{% endif %}">
                   {{ acc.get_balance }}€
-              </td>
+            </td>
+            <td>
+                <a href="{% url 'transactions' acc.pk %}" class="btn btn-light btn active" role="button"><i class="fas fa-search-dollar fa-lg"></i> Transaktionen</a>
+            </td>
         </tr>
         {% endfor %}
     </table>

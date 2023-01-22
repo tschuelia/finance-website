@@ -1,0 +1,8 @@
+{% extends "accounting/base.html" %}
+{%load plotly_dash%}
+{% block content %}
+<div class="{%plotly_class name='Charts'%}" style="height: 100%; width: 100%">
+    {% plotly_app_bootstrap name="Charts" aspect="1by1" %}
+</div>
+{% endblock content %}
+

@@ -51,7 +51,7 @@
       </div>
 
       <div class="form-group mb-0">
-            {{ form.categories|as_crispy_field }} {{form.media}}
+            {{ form.category|as_crispy_field }} {{form.media}}
       </div>
 
       <div class="form-group mb-0">
@@ -70,16 +70,16 @@
 {% endblock content %}
 
 {% block javascript %}
-<script src="{% static 'recipes/js/selectpicker.js' %}"></script>
+<script src="{% static 'accounting/js/selectpicker.js' %}"></script>
 <script type="text/javascript">
   // Hack to re-render the category selector if a new category was added
   // listening to on('change') does not work
   let oldLen = 0
   setInterval(() => {
-    const newLen = $('#id_categories option').length
+    const newLen = $('#id_category option').length
     if (newLen != oldLen) {
       oldLen = newLen
-      $('#id_categories').selectpicker('refresh')
+      $('#id_category').selectpicker('refresh')
     }
   }, 500)
 </script>

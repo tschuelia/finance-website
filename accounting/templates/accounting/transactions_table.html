@@ -19,9 +19,9 @@
             </td>
             <td>{{ t.subject }}</td>
             <td>
-                {% for cat in t.get_categories %}
-                    <a href="#" class="badge badge-light">{{ cat.name }}</a>
-                {% endfor %}
+                {% if t.category %}
+                    <a href="#" class="badge badge-light">{{ t.category }}</a>
+                {% endif %}
             <td>
                 <a href="{% url 'transaction-detail' acc_pk=t.bank_account.pk t_pk=t.pk %}" class="btn text-dark"><i class="fas fa-info-circle fa-sm"></i></a>
                 <a href="{% url 'transaction-update' acc_pk=t.bank_account.pk t_pk=t.pk %}" class="btn text-dark"><i class="fas fa-edit fa-sm"></i></a>
