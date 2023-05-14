@@ -4,8 +4,7 @@ import io
 import pandas as pd
 from typing import Dict
 
-from .models import get_category_for_pattern, get_category
-
+from .models import get_category
 
 
 def categorize(df):
@@ -92,23 +91,41 @@ def extract_subject_info_comdirect(df):
     return df
 
 
-def read_comdirect_export(f, header_line: int, columns: Dict[str, str]):
-    df = pd.read_csv(
-        f,
+def parse_csv_to_dataframe(csv_file, columns):
+    content = csv_file.read().decode(encoding="latin-1")
+    header_line = content.find("\"Buchungstag")
+    footer_line = content.find("\"Alter Kontostand")
+    content = content[header_line:footer_line]
+
+    transactions_df = pd.read_csv(
+        io.StringIO(content),
         sep=";",
         encoding="latin-1",
-        header=header_line,
+        header=0,
         dtype=str,
     )
 
-    df = df[columns.keys()]
-    df = df.rename(columns=columns)
-    df = df.dropna()
-    df = extract_subject_info_comdirect(df)
-    df = categorize(df)
-    df = reformat_german_float_to_python_float(df)
+    transactions_df = transactions_df[columns.keys()]
+    transactions_df.rename(columns=columns, inplace=True)
 
-    return df
+    # only add transactions that have an issue and a booking date
+    transactions_df = transactions_df[lambda x: x.date_booking != "offen"]
+    transactions_df = transactions_df[lambda x: x.date_issue != "offen"]
+
+    return transactions_df
+
+
+def correct_dataframe(transactions_df, fillna_recipient=""):
+    transactions_df.dropna(subset=["date_issue", "date_booking", "amount", "subject", "recipient"], how="all", inplace=True)
+    transactions_df = german_date_to_python_date(transactions_df, "date_issue")
+    transactions_df = german_date_to_python_date(transactions_df, "date_booking")
+
+    transactions_df.recipient.fillna(fillna_recipient, inplace=True)
+    transactions_df.subject.fillna("", inplace=True)
+
+    transactions_df = reformat_german_float_to_python_float(transactions_df)
+    transactions_df = categorize(transactions_df)
+    return transactions_df
 
 
 def parse_comdirect_csv_to_dataframe(csv_file):
@@ -120,27 +137,35 @@ def parse_comdirect_csv_to_dataframe(csv_file):
         "Umsatz in EUR": "amount",
     }
 
-    content = csv_file.read().decode(encoding="latin-1")
-    header_line = content.find("\"Buchungstag")
-    content = content[header_line:]
+    df = parse_csv_to_dataframe(csv_file, columns)
+    df = extract_subject_info_comdirect(df)
+    df = correct_dataframe(df)
+    return df
 
-    transactions_df = read_comdirect_export(
-        io.StringIO(content),
-        header_line=0,
-        columns=columns,
-    )
 
-    # only add transactions that have an issue and a booking date
-    transactions_df = transactions_df[lambda x: x.date_booking != "offen"]
-    transactions_df = transactions_df[lambda x: x.date_issue != "offen"]
+def parse_dkb_csv_to_dataframe(csv_file):
+    columns = {
+        "Buchungstag": "date_issue",
+        "Wertstellung": "date_booking",
+        "Buchungstext": "event",
+        "Betrag (EUR)": "amount",
+        "Auftraggeber / Begünstigter": "recipient",
+        "Verwendungszweck": "subject"
+    }
 
-    transactions_df = german_date_to_python_date(transactions_df, "date_issue")
-    transactions_df = german_date_to_python_date(transactions_df, "date_booking")
+    df = parse_csv_to_dataframe(csv_file, columns)
+    df["full_subject_string"] = df["subject"]
+    df = correct_dataframe(df, fillna_recipient="DKB AG")
 
-    return transactions_df
+    return df
 
 
 def csv_to_transactions(csv_file, account):
-    transaction_df = parse_comdirect_csv_to_dataframe(csv_file)
+    if account.bank.lower() == "comdirect":
+        transaction_df = parse_comdirect_csv_to_dataframe(csv_file)
+    elif account.bank.lower() == "dkb":
+        transaction_df = parse_dkb_csv_to_dataframe(csv_file)
+    else:
+        raise ValueError("At the moment only CSV exports of Comdirect and DKB are supported.")
     transaction_df["bank_account"] = account
     return transaction_df.to_dict("records")

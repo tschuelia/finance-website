@@ -24,6 +24,7 @@ from .forms import (
 )
 from .csv_to_transactions import csv_to_transactions
 
+
 TRANSACTIONS_PAGE_LIMIT = 100
 
 #################################
@@ -90,21 +91,12 @@ def transactions_add_multiple(request, pk):
                 {"formset": transactions_formset, "account": account},
             )
 
-        n_duplicate_transactions, n_added_transactions = process_transactions_formset(
+        n_added_transactions = process_transactions_formset(
             transactions_formset, account
         )
-        n_total = n_duplicate_transactions + n_added_transactions
         if n_added_transactions > 0:
             messages.add_message(
                 request, messages.INFO, f"{n_added_transactions} transactions added."
-            )
-
-        if n_duplicate_transactions > 0:
-            # if there are any duplicate transactions: issue a warning to the user
-            messages.add_message(
-                request,
-                messages.WARNING,
-                f"{n_duplicate_transactions} of {n_total} not added (duplicates).",
             )
 
         return redirect("transactions", pk=pk)

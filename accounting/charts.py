@@ -22,7 +22,7 @@ dd = DjangoDash("Charts", add_bootstrap_links=True)
 
 dd.layout = html.Div(
     [
-        html.Div("", id="_dummy", hidden=True),
+        html.Div(children=[], id="_dummy", hidden=True),
         # Bank account dropdown
         html.Div(
             [
@@ -240,7 +240,8 @@ def _django_transactions_to_pandas_dataframe(transactions):
     return df
 
 
-@dd.expanded_callback(
+
+@dd.callback(
     Output("account", "options"),
     Output("account", "value"),
     Input("_dummy", "children"),
@@ -253,17 +254,17 @@ def populate_bank_account_dropdown(_, **kwargs):
     return options, accounts[0].pk
 
 
-@dd.expanded_callback(
+@dd.callback(
     Output("transaction-type", "options"),
     Output("transaction-type", "value"),
     Input("_dummy", "children"),
 )
 def populate_transaction_type_dropdown(_):
     values = [{"label": ta.value, "value": ta.value} for ta in TransactionType]
-    return values, TransactionType.EXPENSE.value
+    return values, TransactionType.ALL.value
 
 
-@dd.expanded_callback(
+@dd.callback(
     # chart 1
     Output("monthly-month1", "options"),
     Output("monthly-month1", "value"),
@@ -315,48 +316,93 @@ def populate_monthly_spendings_month_dropdown(account, _):
     return *settings1, *settings2, *settings3
 
 
-@dd.expanded_callback(
+@dd.callback(
     Output("categories", "options"),
     Output("categories", "value"),
     Input("_dummy", "children"),
 )
-def populate_categories_dropdown(_, **kwargs):
+def populate_categories_dropdown(_):
     categories = Category.objects.all()
     if len(categories) == 0:
         return [], "Es gibt noch keine Kategorien."
     options = [{"label": str(acc), "value": acc.pk} for acc in categories]
     return options, None
 
-@dd.expanded_callback(
-    Output("date-start", "value"),
-    Output("date-end", "value"),
-    Output("amount-min", "value"),
-    Output("amount-max", "value"),
-    Output("categories", "value"),
-    Input("reset-filter", "n_clicks")
-)
-def reset_filter(_):
-    print("RESET")
-    return None, None, None, None, -1
+
+# @dd.callback(
+#     Output("date-start", "value"),
+#     Output("date-end", "value"),
+#     Output("amount-min", "value"),
+#     Output("amount-max", "value"),
+#     Input("reset-filter", "n_clicks")
+# )
+# def reset_filter(_):
+#     print("RESET")
+#     populate_categories_dropdown("")
+#     return None, None, None, -1
 
 
 def _accumulate_by_categories(transactions):
-    category_spendings = defaultdict(decimal.Decimal)
+    category_transactions = defaultdict(lambda: (decimal.Decimal(), decimal.Decimal()))  # (spending, income)
 
     for t in transactions:
-        if t.category:
-            category_spendings[t.category.name] += abs(t.amount)
-        else:
-            category_spendings["ohne Kategorie"] += abs(t.amount)
+        category = t.category.name if t.category else "ohne Kategorie"
+        _spending, _income = category_transactions[category]
 
-    category_spendings = dict(
-        sorted(category_spendings.items(), key=lambda item: item[1], reverse=True)
+        if t.amount >= 0:
+            _income += t.amount
+        else:
+            _spending += abs(t.amount)
+
+        category_transactions[category] = (_spending, _income)
+
+    category_transactions = dict(
+        sorted(category_transactions.items(), key=lambda item: item[1][0], reverse=True)
     )
 
-    return category_spendings
+    return category_transactions
 
 
-@dd.expanded_callback(
+def _plot_category_bar(transaction_type, category_transactions):
+    categories = list(category_transactions.keys())
+    spendings = [value[0] for value in category_transactions.values()]
+    incomes = [value[1] for value in category_transactions.values()]
+
+    transaction_type = TransactionType(transaction_type)
+
+    plot_income = transaction_type in [TransactionType.INCOME, TransactionType.ALL]
+    plot_spending = transaction_type in [TransactionType.EXPENSE, TransactionType.ALL]
+
+    fig = go.Figure()
+
+    if plot_spending:
+        fig.add_trace(
+            go.Bar(
+                x=categories,
+                y=spendings,
+                marker_color=COLOR_EXPENSE,
+                name="Ausgaben"
+            )
+        )
+
+    if plot_income:
+        fig.add_trace(
+            go.Bar(
+                x=categories,
+                y=incomes,
+                marker_color=COLOR_INCOME,
+                name="Einnahmen"
+            )
+        )
+
+    fig.update_xaxes(title="Kategorie")
+    fig.update_yaxes(title="Betrag", ticksuffix="€")
+    fig.update_layout(template=TEMPLATE)
+
+    return fig
+
+
+@dd.callback(
     Output("category-chart", "figure"),
     Input("account", "value"),
     Input("filter", "n_clicks"),
@@ -372,15 +418,6 @@ def spendings_category_chart(
 ):
     account = get_object_or_404(BankAccount, pk=account)
 
-    transaction_type = TransactionType(transaction_type)
-
-    if transaction_type == TransactionType.INCOME:
-        marker_color = COLOR_INCOME
-    elif transaction_type == TransactionType.EXPENSE:
-        marker_color = COLOR_EXPENSE
-    else:
-        marker_color = "blue"
-
     transactions = account.get_transactions(
         search_term=None,
         date_start=date_start,
@@ -391,21 +428,9 @@ def spendings_category_chart(
         transaction_type=TransactionType(transaction_type)
     )
 
-    category_spendings = _accumulate_by_categories(transactions)
+    category_transactions = _accumulate_by_categories(transactions)
 
-    fig = go.Figure(
-        go.Bar(
-            x=list(category_spendings.keys()),
-            y=list(category_spendings.values()),
-            marker_color=marker_color
-        )
-    )
-
-    fig.update_xaxes(title="Kategorie")
-    fig.update_yaxes(title="Betrag", ticksuffix="€")
-    fig.update_layout(template=TEMPLATE)
-
-    return fig
+    return _plot_category_bar(transaction_type, category_transactions)
 
 
 def _get_categorized_transactions_for_month(
@@ -433,35 +458,15 @@ def _get_categorized_transactions_for_month(
 
 
 def _plot_categories_for_month(account, month1, year1, amount_min, amount_max, categories, transaction_type):
-    category_spendings = _get_categorized_transactions_for_month(
+    category_transactions = _get_categorized_transactions_for_month(
         account, month1, year1, amount_min, amount_max, categories, transaction_type
     )
 
-    transaction_type = TransactionType(transaction_type)
-
-    if transaction_type == TransactionType.EXPENSE:
-        marker_color = COLOR_EXPENSE
-    elif transaction_type == TransactionType.INCOME:
-        marker_color = COLOR_INCOME
-    else:
-        marker_color = "blue"
-
-    fig = go.Figure(
-        go.Bar(
-            x=list(category_spendings.keys()),
-            y=list(category_spendings.values()),
-            showlegend=False,
-            marker_color=marker_color
-        )
-    )
-    fig.update_xaxes(title="Kategorie")
-    fig.update_yaxes(title="Betrag", ticksuffix="€")
-    fig.update_layout(template=TEMPLATE)
-
-    return fig
+    return _plot_category_bar(transaction_type, category_transactions)
 
 
-@dd.expanded_callback(
+
+@dd.callback(
     Output("category-chart-monthly-month1", "figure"),
     Output("category-chart-monthly-month2", "figure"),
     Output("category-chart-monthly-month3", "figure"),
@@ -492,7 +497,7 @@ def spendings_category_chart_monthly(account, _, month1, year1, month2, year2, m
     return fig1, fig2, fig3
 
 
-@dd.expanded_callback(
+@dd.callback(
     Output("time-series-spendings", "figure"),
     Input("account", "value"),
     Input("filter", "n_clicks"),

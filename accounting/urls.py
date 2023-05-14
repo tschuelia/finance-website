@@ -15,6 +15,9 @@ from .views import (
     charts_view,
 )
 
+from . import charts
+
+
 
 urlpatterns = [
     # Account views

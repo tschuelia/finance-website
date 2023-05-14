@@ -142,7 +142,7 @@ class Transaction(models.Model):
     recipient = models.CharField(max_length=255, verbose_name="Empfänger/Versender")
     amount = models.DecimalField(decimal_places=2, max_digits=10, verbose_name="Betrag")
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, blank=True, null=True, verbose_name="Kategorie")
-    subject = models.CharField(max_length=255, verbose_name="Buchungsinformation")
+    subject = models.CharField(max_length=1024, verbose_name="Buchungsinformation")
     date_issue = models.DateField(verbose_name="Buchungstag")
     date_booking = models.DateField(
         verbose_name="Wertstellungstag", blank=True, null=True
@@ -178,7 +178,7 @@ def get_bank_accounts_for_user(user):
 
 def check_any_pattern_in_string(string, patterns):
     for p in patterns:
-        if p in string:
+        if p.lower() in string.lower():
             return True
 
     return False

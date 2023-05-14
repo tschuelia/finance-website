@@ -1,11 +1,9 @@
-import datetime
-
 from django import forms
 from django.urls import reverse_lazy
 from django_addanother.widgets import AddAnotherWidgetWrapper
 
 
-from .models import Transaction, Category, transaction_exists
+from .models import Transaction, Category
 
 
 class DateInput(forms.DateInput):
@@ -38,7 +36,7 @@ class TransactionForm(forms.ModelForm):
 class TransactionFormTableRow(forms.ModelForm):
     recipient = forms.CharField(label="", required=False,)
     amount = forms.DecimalField(decimal_places=2, label="")
-    subject = forms.CharField(label="", required=False,)
+    subject = forms.CharField(label="", required=False)
     date_issue = forms.DateField(label="")
     date_booking = forms.DateField(label="")
     full_subject_string = forms.CharField(label="")
@@ -101,17 +99,12 @@ class FilterTransactionsForm(forms.Form):
 
 
 def process_transactions_formset(transactions_formset, bank_account):
-    n_duplicate_transactions = 0
     n_added_transactions = 0
 
     for form in transactions_formset:
         data = form.cleaned_data
 
         if not data:
-            continue
-
-        if transaction_exists(data, bank_account):
-            n_duplicate_transactions += 1
             continue
 
         recipient = data["recipient"]
@@ -132,6 +125,6 @@ def process_transactions_formset(transactions_formset, bank_account):
         t.save()
         n_added_transactions += 1
 
-    return n_duplicate_transactions, n_added_transactions
+    return n_added_transactions
 
 
