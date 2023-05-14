@@ -3,6 +3,7 @@ django-crispy-forms<2
 django-fontawesome-5
 django-addanother
 django-plotly-dash==2.1.3
+dpd_static_support
 django-tables2
 django-bootstrap4
 dash
