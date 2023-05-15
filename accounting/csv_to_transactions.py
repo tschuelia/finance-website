@@ -7,6 +7,21 @@ from typing import Dict
 from .models import get_category
 
 
+# TODO: hack for now, replace with proper model and allow setting on website
+subject_mappings = {
+    "fuellhorn": "Füllhorn",
+    "alnatura": "Alnatura",
+    "rewe": "Rewe",
+    "edeka": "Edeka",
+    "dm ": "DM",
+    "miete juni": "Miete Jonas",
+    "bargeldauszahlung": "Bargeld",
+    "ettli kaffee": "Ettli Kaffee",
+    "yello strom": "Gas",
+    "edeltraud majer": "Miete Amalienstraße",
+    "julia schmidkto": "GEZ Rücklage"
+}
+
 def categorize(df):
     categories = []
     for idx, row in df.iterrows():
@@ -74,16 +89,23 @@ def extract_subject_info_comdirect(df):
         if "auftraggeber:" in subj and "buchungstext:" in subj:
             recipient, subject = subj.split("buchungstext:")
             _, recipient = recipient.split("auftraggeber:")
-            recipients.append(recipient.strip())
-            subjects.append(subject.strip())
+            rec = recipient.strip()
+            subj = subject.strip()
         elif "empfänger:" in subj and "buchungstext:" in subj:
             recipient, subject = subj.split("buchungstext:")
             _, recipient = recipient.split("empfänger:")
-            recipients.append(recipient.strip())
-            subjects.append(subject.strip())
+            rec = recipient.strip()
+            subj = subject.strip()
         else:
-            recipients.append(None)
-            subjects.append(subj)
+            rec = None
+
+        for k, v in subject_mappings.items():
+            if k in subj:
+                subj = v
+                break
+
+        subjects.append(subj)
+        recipients.append(rec)
 
     df["recipient"] = recipients
     df["subject"] = subjects
