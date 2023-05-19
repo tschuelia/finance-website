@@ -60,7 +60,7 @@ def transactions_overview(request, pk):
         date_end=request.GET.get("date_end"),
         amount_min=request.GET.get("amount_min"),
         amount_max=request.GET.get("amount_max"),
-        categories=request.GET.get("categories"),
+        categories=request.GET.getlist("categories"),
     )
 
     paginator = Paginator(transactions, TRANSACTIONS_PAGE_LIMIT)
