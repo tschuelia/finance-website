@@ -202,18 +202,25 @@ def parse_new_dkb_csv_to_dataframe(csv_file):
         "Buchungsdatum": "date_issue",
         "Wertstellung": "date_booking",
         "Umsatztyp": "event",
-        "Betrag": "amount",
         "Verwendungszweck": "subject",
     }
     content = csv_file.read().decode(encoding="utf-8")
-    header_line = content.find('"Buchungsdatum')
+    header_line = content.find("Buchungsdatum")
     content = content[header_line:]
     df = pd.read_csv(
         io.StringIO(content), sep=";", encoding="latin-1", header=0, dtype=str, parse_dates=[0, 1], date_format="%d.%m.%y"
     )
+    has_euro_sign_in_values = "Betrag" in df.columns
+
+    if has_euro_sign_in_values:
+        columns.update({"Betrag": "amount"})
+    else:
+        columns.update({"Betrag (€)": "amount"})
+
     df.rename(columns=columns, inplace=True)
-    # remove the euro sign from the amount
-    df.amount = df.amount.str.split().str[0]
+    if has_euro_sign_in_values:
+        # remove the euro sign from the amount
+        df.amount = df.amount.str.split().str[0]
     df = reformat_german_float_to_python_float(df)
 
     # now based on the amount we have to select a different column as recipient
