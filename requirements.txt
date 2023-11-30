@@ -10,4 +10,4 @@ dash
 pillow
 whitenoise
 gunicorn
-pandas
+pandas>=2
