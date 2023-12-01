@@ -5,7 +5,7 @@
     <div class="ml-auto">
         <!-- update and delete -->
         <a href="{% url 'transaction-update' acc_pk=transaction.bank_account.id t_pk=transaction.id %}" class="btn text-dark"><i class="fas fa-edit"></i></a>
-        <a href="#" class="btn text-danger"><i class="fas fa-trash"></i></a>
+        <a href="{% url 'transaction-delete' acc_pk=transaction.bank_account.id t_pk=transaction.id %}" class="btn text-danger"><i class="fas fa-trash"></i></a>
     </div>
 </div>
 <hr>

@@ -25,7 +25,7 @@
             <td>
                 <a href="{% url 'transaction-detail' acc_pk=t.bank_account.pk t_pk=t.pk %}" class="btn text-dark"><i class="fas fa-info-circle fa-sm"></i></a>
                 <a href="{% url 'transaction-update' acc_pk=t.bank_account.pk t_pk=t.pk %}" class="btn text-dark"><i class="fas fa-edit fa-sm"></i></a>
-                <a href="#" class="btn text-danger"><i class="fas fa-trash fa-sm"></i></a>
+                <a href="{% url 'transaction-delete' acc_pk=t.bank_account.pk t_pk=t.pk %}" class="btn text-danger"><i class="fas fa-trash fa-sm"></i></a>
             </td>
         </tr>
         {% endfor %}

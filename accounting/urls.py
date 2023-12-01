@@ -6,6 +6,7 @@ from .views import (
     categories_view,
     create_category,
     update_category,
+    transaction_delete_view,
     transaction_detail_view,
     transaction_update_view,
     transaction_upload_csv_view,
@@ -16,7 +17,6 @@ from .views import (
 )
 
 from . import charts
-
 
 
 urlpatterns = [
@@ -47,6 +47,11 @@ urlpatterns = [
         "konto/<int:acc_pk>/transaction/<int:t_pk>/update",
         transaction_update_view,
         name="transaction-update",
+    ),
+    path(
+        "konto/<int:acc_pk>/transaction/<int:t_pk>/delete",
+        transaction_delete_view,
+        name="transaction-delete",
     ),
     path("konto/<int:pk>/charts", charts_view, name="account-charts"),
     # Category views

@@ -201,6 +201,19 @@ def transaction_update_view(request, acc_pk, t_pk):
 
 
 @login_required
+def transaction_delete_view(request, acc_pk, t_pk):
+    """
+    Delete a transaction object
+    """
+    account = get_object_or_404(BankAccount, pk=acc_pk)
+    check_user_permissions(request.user, account)
+
+    transaction = get_object_or_404(Transaction, pk=t_pk)
+    transaction.delete()
+    return redirect("transactions", pk=acc_pk)
+
+
+@login_required
 def reassign_categories(request, pk):
     account = get_object_or_404(BankAccount, pk=pk)
     check_user_permissions(request.user, account)
