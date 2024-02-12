@@ -1,12 +1,13 @@
 {% extends "accounting/base.html" %}
+{% load humanize %}
 {% block content %}
 <h1>Übersicht Konten</h1>
-<h5>Gesamtkontostand: <span class="{% if total_balance < 0 %} text-danger {% else %} text-success {% endif %}">{{ total_balance }}</span></h5>
+<h5>Gesamtkontostand: <span class="{% if total_balance < 0 %} text-danger {% else %} text-success {% endif %}">{{ total_balance|intcomma }}</span></h5>
 <br>
 {% for user, item in users_and_accounts.items %}
     <h3>Konten und Depots von: {{ user }}</h3>
     <p>Kontostand:
-        <span class="{% if item.2 < 0 %} text-danger {% else %} text-success {% endif %}">{{ item.2 }}</span>
+        <span class="{% if item.2 < 0 %} text-danger {% else %} text-success {% endif %}">{{ item.2|intcomma }}</span>
     </p>
     <br>
     <div class="table-responsive">
@@ -21,7 +22,7 @@
             <tr>
                 <td><a href="{% url 'transactions' acc.pk %}">{{ acc }}</a></td>
                 <td class="{% if acc.get_balance < 0.0 %} text-danger {% else %} text-success{% endif %}">
-                      {{ acc.get_balance }}€
+                      {{ acc.get_balance|intcomma }}€
                 </td>
                 <td>
                     <a href="{% url 'transactions' acc.pk %}" class="btn btn-light btn active" role="button"><i class="fas fa-search-dollar fa-lg"></i> Transaktionen</a>
@@ -44,7 +45,7 @@
             <tr>
                 <td><a href="{% url 'depot-detail' dep.pk %}">{{ dep }}</a></td>
                 <td class="{% if dep.current_balance < 0.0 %} text-danger {% else %} text-success{% endif %}">
-                      {{ dep.get_balance }}€
+                      {{ dep.get_balance|intcomma }}€
                 </td>
                 <td>
                     <a href="{% url 'depot-detail' dep.pk %}" class="btn btn-light btn active" role="button"><i class="fas fa-search-dollar fa-lg"></i> Details</a>
