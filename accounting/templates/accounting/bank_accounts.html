@@ -21,6 +21,27 @@
         </tr>
         {% endfor %}
     </table>
-
+</div>
+<br>
+<div class="table-responsive">
+    <table class="table">
+        <tr>
+            <th>Depot</th>
+            <th>Kontostand</th>
+            <th>Aktionen</th>
+        </tr>
+        {% for dep in depots %}
+        <tr>
+            <td><a href="{% url 'depot-detail' dep.pk %}">{{ dep }}</a></td>
+            <td class="{% if dep.current_balance < 0.0 %} text-danger {% else %} text-success{% endif %}">
+                  {{ dep.get_balance }}€
+            </td>
+            <td>
+                <a href="{% url 'depot-detail' dep.pk %}" class="btn btn-light btn active" role="button"><i class="fas fa-search-dollar fa-lg"></i> Details</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
 
 {% endblock content %}

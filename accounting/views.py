@@ -8,14 +8,15 @@ from django.views.generic import CreateView
 
 from .models import (
     BankAccount,
-    Transaction,
+    BankDepot, DepotAsset, Transaction,
     Category,
     check_user_permissions,
     get_bank_accounts_for_user,
+    get_bank_depots_for_user,
     update_transaction_categories_for_account
 )
 from .forms import (
-    TransactionForm,
+    AssetForm, TransactionForm,
     CategoryForm,
     UploadFileForm,
     TransactionFormSet,
@@ -31,13 +32,15 @@ TRANSACTIONS_PAGE_LIMIT = 100
 # Overview of Bank Accounts
 #################################
 
+
 @login_required
 def accounts_view(request):
     """
     Display all bank accounts the user is allowed to view
     """
     accounts = get_bank_accounts_for_user(request.user)
-    context = {"accounts": accounts}
+    depots = get_bank_depots_for_user(request.user)
+    context = {"accounts": accounts, "depots": depots}
     return render(request, "accounting/bank_accounts.html", context)
 
 
@@ -224,6 +227,73 @@ def reassign_categories(request, pk):
 
     return redirect("transactions", pk=pk)
 
+
+#################################
+# Depot views
+#################################
+@login_required
+def depot_overview(request, pk):
+    """
+    Overview of all transactions for a bank account
+    """
+    depot = get_object_or_404(BankDepot, pk=pk)
+    check_user_permissions(request.user, depot)
+
+    assets = depot.get_assets()
+
+    transactions = {}
+    for asset in assets:
+        transactions[asset] = asset.get_transactions()
+
+    context = {"depot": depot,"transactions": transactions}
+    return render(request, "accounting/bank_depot_detail.html", context)
+
+
+@login_required
+def display_asset_form(request, asset=None):
+    asset_form = AssetForm(instance=asset)
+    return render(
+        request,
+        "accounting/asset_form.html",
+        {
+            "form": asset_form,
+        },
+    )
+
+
+@login_required
+def process_asset_form(request, asset=None):
+    asset_form = AssetForm(request.POST, instance=asset)
+    if not asset_form.is_valid():
+        return render(
+            request,
+            "accounting/asset_form.html",
+            {
+                "form": asset_form,
+            },
+        )
+
+    asset_obj = asset_form.save()
+
+    return redirect(
+        "depot-detail",
+        pk=asset_obj.bank_depot.pk,
+    )
+
+
+@login_required
+def depot_asset_update_view(request, dep_pk, as_pk):
+    """
+    Update a transaction object
+    """
+    depot = get_object_or_404(BankDepot, pk=dep_pk)
+    check_user_permissions(request.user, depot)
+    asset = get_object_or_404(DepotAsset, pk=as_pk)
+
+    if request.method == "GET":
+        return display_asset_form(request, asset)
+    else:
+        return process_asset_form(request, asset)
 #################################
 # Category views
 #################################

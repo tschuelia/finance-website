@@ -3,7 +3,7 @@ from django.urls import reverse_lazy
 from django_addanother.widgets import AddAnotherWidgetWrapper
 
 
-from .models import Transaction, Category
+from .models import DepotAsset, Transaction, Category
 
 
 class DateInput(forms.DateInput):
@@ -58,6 +58,15 @@ class TransactionFormTableRow(forms.ModelForm):
     class Meta:
         model = Transaction
         exclude = ["bank_account"]
+
+
+class AssetForm(forms.ModelForm):
+    class Meta:
+        model = DepotAsset
+        fields = ["current_balance", "last_update"]
+        widgets = {
+            "last_update": DateInput(),
+        }
 
 
 class CategoryForm(forms.ModelForm):

@@ -11,6 +11,8 @@ from .views import (
     transaction_update_view,
     transaction_upload_csv_view,
     transactions_add_multiple,
+    depot_overview,
+    depot_asset_update_view,
     CategoryCreateView,
     reassign_categories,
     charts_view,
@@ -54,6 +56,13 @@ urlpatterns = [
         name="transaction-delete",
     ),
     path("konto/<int:pk>/charts", charts_view, name="account-charts"),
+    # Depot views
+    path("depot/<int:pk>/", depot_overview, name="depot-detail"),
+    path(
+        "depot/<int:dep_pk>/asset/<int:as_pk>/update",
+        depot_asset_update_view,
+        name="depot-asset-update",
+    ),
     # Category views
     path("kategorien", categories_view, name="categories"),
     path("kategorien/new", create_category, name="create-category"),

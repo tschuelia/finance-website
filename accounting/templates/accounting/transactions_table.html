@@ -1,5 +1,6 @@
 <div class="table-responsive">
     <table class="table">
+        <thead>
         <tr>
             <th>Buchungsdatum</th>
             <th>Wertstellungsdatum</th>
@@ -9,6 +10,8 @@
             <th>Kategorien</th>
             <th>Aktionen</th>
         </tr>
+        </thead>
+        <tbody>
         {% for t in transactions %}
         <tr>
             <td>{{ t.date_issue|date:"d.m.Y"  }}</td>
@@ -29,5 +32,6 @@
             </td>
         </tr>
         {% endfor %}
+        </tbody>
     </table>
 </div>

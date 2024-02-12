@@ -32,8 +32,8 @@
             </p>
             <p>{{ transaction.recipient }}</p>
             <p>{{ transaction.subject }}</p>
-            <p>{{ transaction.date_issue }}</p>
-            <p> {{ transaction.date_booking }}</p>
+            <p>{{ transaction.date_issue|date:"d.m.Y" }}</p>
+            <p> {{ transaction.date_booking|date:"d.m.Y" }}</p>
             <p><a href="#" class="badge badge-light">{{ cat.name }}</a></p>
             <p>{{ transaction.full_subject_string }}</p>
         </div>

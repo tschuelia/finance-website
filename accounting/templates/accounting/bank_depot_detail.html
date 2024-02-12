@@ -1,0 +1,72 @@
+{% extends "accounting/base.html" %}
+{% block content %}
+<div class="row my-4 mx-2">
+    <h1 class="text-truncate d-inline">Depot: {{ depot }}</h1>
+    <div class="ml-auto">
+        <!-- upload transaction info for depot-->
+        <a aria-pressed="true" class="btn btn-light btn active" href="#" role="button"><i class="fas fa-plus"></i></a>
+    </div>
+</div>
+<p>Kontostand:
+    <span class="{% if depot.get_balance < 0 %} text-danger {% else %} text-success {% endif %}">{{ depot.get_balance }}</span>
+</p>
+
+<div class="table-responsive">
+    <table class="table">
+        <thead><tr>
+            <th>Anlage</th>
+            <th>Kontostand</th>
+            <th>letztes Update</th>
+            <th>Update</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for asset in transactions.keys %}
+            <tr>
+                <td>{{ asset }}</td>
+                <td class="{% if asset.get_balance < 0.0 %} text-danger {% else %} text-success{% endif %}">
+                    {{ asset.current_balance }}€
+                </td>
+                <td>
+                    {{ asset.last_update|date:"d.m.Y" }}
+                </td>
+                <td><a href="{% url 'depot-asset-update' dep_pk=asset.bank_depot.pk as_pk=asset.pk %}" class="btn text-dark"><i class="fas fa-edit fa-sm"></i></a></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+<hr>
+{% for asset, asset_transactions in transactions.items %}
+<p>
+    <a aria-controls="collapse{{ asset.identifier }}" aria-expanded="true" class="btn btn-outline-secondary" data-toggle="collapse"
+       href="#collapse{{ asset.identifier }}" role="button">
+        > {{ asset.name }}
+    </a>
+</p>
+<div class="collapse show" id="collapse{{ asset.identifier }}">
+    <div class="card card-body">
+        <div class="table-responsive">
+            <table class="table">
+                <tr>
+                    <th>Betrag</th>
+                    <th>Buchungstag</th>
+                </tr>
+                {% for t in asset_transactions %}
+                <tr>
+                    <td class="{% if t.amount < 0.0 %} text-danger {% else %} text-success{% endif %}">
+                        {{ t.amount }}€
+                    </td>
+                    <td>
+                        {{ t.date_issue|date:"d.m.Y" }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+    </div>
+</div>
+<br>
+{% endfor %}
+{% endblock content %}
+

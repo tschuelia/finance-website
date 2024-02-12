@@ -28,6 +28,68 @@ class Category(models.Model):
         return [p.strip() for p in self.patterns.split("\n")]
 
 
+class BankDepot(models.Model):
+    owner = models.ForeignKey(
+        User, on_delete=models.CASCADE, verbose_name="Depotbesitzer"
+    )
+    name = models.CharField(max_length=255, verbose_name="Name des Depots")
+
+    def __str__(self):
+        return self.name
+
+    def get_assets(
+        self
+    ):
+        return self.belongs_to.all()
+
+    def get_balance(self):
+        return sum([a.current_balance for a in self.belongs_to.all()])
+
+
+class DepotAsset(models.Model):
+    bank_depot = models.ForeignKey(
+        BankDepot,
+        on_delete=models.SET_NULL,
+        null=True,
+        verbose_name="Depot",
+        related_name="belongs_to",
+    )
+    name = models.CharField(max_length=255, verbose_name="Name der Anlage")
+    current_balance = models.DecimalField(decimal_places=2, max_digits=10, verbose_name="Aktueller Wert")
+    last_update = models.DateField(verbose_name="Letztes Update", default=datetime.date.today())
+
+    def __str__(self):
+        return f"{self.name} ({self.bank_depot.name})"
+
+    def identifier(self):
+        return self.name.replace(" ", "")
+
+    def get_transactions(
+        self
+    ):
+        return self.belongs_to.all()
+
+
+class DepotAssetTransaction(models.Model):
+    asset = models.ForeignKey(
+        DepotAsset,
+        on_delete=models.SET_NULL,
+        null=True,
+        verbose_name="Anlage",
+        related_name="belongs_to"
+    )
+    amount = models.DecimalField(decimal_places=2, max_digits=10, verbose_name="Betrag")
+    date_issue = models.DateField(verbose_name="Buchungstag")
+
+    def __str__(self):
+        if self.amount <= 0:
+            event = "Abbuchung"
+        else:
+            event = "Anlage"
+
+        return f"{event}: {self.amount} ({self.date_issue})"
+
+
 class BankAccount(models.Model):
     owner = models.ForeignKey(
         User, on_delete=models.CASCADE, verbose_name="Kontobesitzer"
@@ -158,12 +220,12 @@ class Transaction(models.Model):
         return f"{event}: {self.amount} ({self.recipient})"
 
 
-def check_user_permissions(user, bank_account):
+def check_user_permissions(user, account):
     # only superusers or the owner of the bank_account are allowed to view and modified anything related
     # to the given bank account
     if user.is_superuser:
         return
-    if user == bank_account.owner:
+    if user == account.owner:
         return
     else:
         raise PermissionDenied()
@@ -174,6 +236,13 @@ def get_bank_accounts_for_user(user):
         return BankAccount.objects.all()
     else:
         return BankAccount.filter(owner=user)
+
+
+def get_bank_depots_for_user(user):
+    if user.is_superuser:
+        return BankDepot.objects.all()
+    else:
+        return BankDepot.filter(owner=user)
 
 
 def check_any_pattern_in_string(string, patterns):
