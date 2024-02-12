@@ -12,7 +12,7 @@ from .models import (
     BankDepot, DepotAsset, Transaction,
     Category,
     check_user_permissions,
-    get_balance_for_user, get_bank_accounts_for_user,
+    get_balance_for_user_owned_accounts, get_bank_accounts_for_user,
     get_bank_depots_for_user,
     update_transaction_categories_for_account
 )
@@ -44,16 +44,17 @@ def accounts_view(request):
     total_balance = 0
     if user.is_superuser:
         all_users = User.objects.all()
+        accounts = get_bank_accounts_for_user(user)
+        depots = get_bank_depots_for_user(user)
+
         for user in all_users:
-            accounts = get_bank_accounts_for_user(user)
-            depots = get_bank_depots_for_user(user)
-            balance = get_balance_for_user(user)
-            users_and_accounts[user] = (accounts, depots, balance)
+            balance = get_balance_for_user_owned_accounts(user)
+            users_and_accounts[user] = (accounts.filter(owner=user), depots.filter(owner=user), balance)
             total_balance += balance
     else:
         accounts = get_bank_accounts_for_user(request.user)
         depots = get_bank_depots_for_user(request.user)
-        balance = get_balance_for_user(request.user)
+        balance = get_balance_for_user_owned_accounts(request.user)
         total_balance = balance
         users_and_accounts[request.user] = (accounts, depots, balance)
 

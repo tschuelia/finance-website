@@ -40,9 +40,7 @@ dd.layout = html.Div(
             [
                 dbc.Row(
                     [
-                        dbc.Col(
-                            ["Datum"], className="col-2 col-sm-2 col-md-2 col-lg-1"
-                        ),
+                        dbc.Col(["Datum"], className="col-2 col-sm-2 col-md-2 col-lg-1"),
                         dbc.Col(
                             [dbc.Input(id="date-start", type="date")],
                             className="col-5 col-sm-5 col-md-4 col-lg-2",
@@ -57,23 +55,13 @@ dd.layout = html.Div(
                 html.Br(),
                 dbc.Row(
                     [
+                        dbc.Col(["Betrag"], className="col-2 col-sm-2 col-md-2 col-lg-1"),
                         dbc.Col(
-                            ["Betrag"], className="col-2 col-sm-2 col-md-2 col-lg-1"
-                        ),
-                        dbc.Col(
-                            [
-                                dbc.Input(
-                                    id="amount-min", type="number", min=0.0, step=0.01
-                                )
-                            ],
+                            [dbc.Input(id="amount-min", type="number", min=0.0, step=0.01)],
                             className="col-5 col-sm-5 col-md-4 col-lg-2",
                         ),
                         dbc.Col(
-                            [
-                                dbc.Input(
-                                    id="amount-max", type="number", min=0.0, step=0.01
-                                )
-                            ],
+                            [dbc.Input(id="amount-max", type="number", min=0.0, step=0.01)],
                             className="col-5 col-sm-5 col-md-4 col-lg-2",
                         ),
                         dbc.Col([], className="col-0 col-sm-0 col-md-2 col-lg-7"),
@@ -82,9 +70,7 @@ dd.layout = html.Div(
                 html.Br(),
                 dbc.Row(
                     [
-                        dbc.Col(
-                            ["Kategorien"], className="col-2 col-sm-2 col-md-2 col-lg-1"
-                        ),
+                        dbc.Col(["Kategorien"], className="col-2 col-sm-2 col-md-2 col-lg-1"),
                         dbc.Col(
                             dcc.Dropdown(
                                 id="categories",
@@ -101,9 +87,7 @@ dd.layout = html.Div(
                 html.Br(),
                 dbc.Row(
                     [
-                        dbc.Col(
-                            ["Typ"], className="col-2 col-sm-2 col-md-2 col-lg-1"
-                        ),
+                        dbc.Col(["Typ"], className="col-2 col-sm-2 col-md-2 col-lg-1"),
                         dbc.Col(
                             dcc.Dropdown(
                                 id="transaction-type",
@@ -141,7 +125,7 @@ dd.layout = html.Div(
                         ),
                         dbc.Col([], className="col-6 col-sm-4 col-md-4 col-lg-7"),
                     ]
-                )
+                ),
             ]
         ),
         html.Hr(style={"border": "1px solid gray"}),
@@ -168,8 +152,26 @@ dd.layout = html.Div(
                                     [
                                         dbc.Row(
                                             [
-                                                dbc.Col([dcc.Dropdown(id="monthly-month1", value=None, options=[], placeholder="Monat"),]),
-                                                dbc.Col([dcc.Dropdown(id="monthly-year1", value=None, options=[], placeholder="Jahr")]),
+                                                dbc.Col(
+                                                    [
+                                                        dcc.Dropdown(
+                                                            id="monthly-month1",
+                                                            value=None,
+                                                            options=[],
+                                                            placeholder="Monat",
+                                                        ),
+                                                    ]
+                                                ),
+                                                dbc.Col(
+                                                    [
+                                                        dcc.Dropdown(
+                                                            id="monthly-year1",
+                                                            value=None,
+                                                            options=[],
+                                                            placeholder="Jahr",
+                                                        )
+                                                    ]
+                                                ),
                                             ]
                                         ),
                                         dcc.Graph(id="category-chart-monthly-month1"),
@@ -179,8 +181,26 @@ dd.layout = html.Div(
                                     [
                                         dbc.Row(
                                             [
-                                                dbc.Col([dcc.Dropdown(id="monthly-month2", value=None, options=[], placeholder="Monat"),]),
-                                                dbc.Col([dcc.Dropdown(id="monthly-year2", value=None, options=[], placeholder="Jahr")]),
+                                                dbc.Col(
+                                                    [
+                                                        dcc.Dropdown(
+                                                            id="monthly-month2",
+                                                            value=None,
+                                                            options=[],
+                                                            placeholder="Monat",
+                                                        ),
+                                                    ]
+                                                ),
+                                                dbc.Col(
+                                                    [
+                                                        dcc.Dropdown(
+                                                            id="monthly-year2",
+                                                            value=None,
+                                                            options=[],
+                                                            placeholder="Jahr",
+                                                        )
+                                                    ]
+                                                ),
                                             ]
                                         ),
                                         dcc.Graph(id="category-chart-monthly-month2"),
@@ -190,8 +210,26 @@ dd.layout = html.Div(
                                     [
                                         dbc.Row(
                                             [
-                                                dbc.Col([dcc.Dropdown(id="monthly-month3", value=None, options=[], placeholder="Monat"),]),
-                                                dbc.Col([dcc.Dropdown(id="monthly-year3", value=None, options=[], placeholder="Jahr")]),
+                                                dbc.Col(
+                                                    [
+                                                        dcc.Dropdown(
+                                                            id="monthly-month3",
+                                                            value=None,
+                                                            options=[],
+                                                            placeholder="Monat",
+                                                        ),
+                                                    ]
+                                                ),
+                                                dbc.Col(
+                                                    [
+                                                        dcc.Dropdown(
+                                                            id="monthly-year3",
+                                                            value=None,
+                                                            options=[],
+                                                            placeholder="Jahr",
+                                                        )
+                                                    ]
+                                                ),
                                             ]
                                         ),
                                         dcc.Graph(id="category-chart-monthly-month3"),
@@ -238,7 +276,6 @@ def _django_transactions_to_pandas_dataframe(transactions):
     df["year_issue"] = pd.DatetimeIndex(df.date_issue).year
     df["month_issue"] = pd.DatetimeIndex(df.date_issue).month
     return df
-
 
 
 @dd.callback(
@@ -297,7 +334,7 @@ def populate_monthly_spendings_month_dropdown(account, _):
     year_values = [{"label": str(y), "value": y} for y in range(min_year, max_year + 1)]
 
     two_months_back = max_date + relativedelta(months=-2)
-    preset_month1= two_months_back.month
+    preset_month1 = two_months_back.month
     preset_year1 = two_months_back.year
 
     settings1 = (month_values, preset_month1, year_values, preset_year1)
@@ -356,9 +393,7 @@ def _accumulate_by_categories(transactions):
 
         category_transactions[category] = (_spending, _income)
 
-    category_transactions = dict(
-        sorted(category_transactions.items(), key=lambda item: item[1][0], reverse=True)
-    )
+    category_transactions = dict(sorted(category_transactions.items(), key=lambda item: item[1][0], reverse=True))
 
     return category_transactions
 
@@ -376,24 +411,10 @@ def _plot_category_bar(transaction_type, category_transactions):
     fig = go.Figure()
 
     if plot_spending:
-        fig.add_trace(
-            go.Bar(
-                x=categories,
-                y=spendings,
-                marker_color=COLOR_EXPENSE,
-                name="Ausgaben"
-            )
-        )
+        fig.add_trace(go.Bar(x=categories, y=spendings, marker_color=COLOR_EXPENSE, name="Ausgaben"))
 
     if plot_income:
-        fig.add_trace(
-            go.Bar(
-                x=categories,
-                y=incomes,
-                marker_color=COLOR_INCOME,
-                name="Einnahmen"
-            )
-        )
+        fig.add_trace(go.Bar(x=categories, y=incomes, marker_color=COLOR_INCOME, name="Einnahmen"))
 
     fig.update_xaxes(title="Kategorie")
     fig.update_yaxes(title="Betrag", ticksuffix="€")
@@ -413,9 +434,7 @@ def _plot_category_bar(transaction_type, category_transactions):
     State("categories", "value"),
     State("transaction-type", "value"),
 )
-def spendings_category_chart(
-    account, _, date_start, date_end, amount_min, amount_max, categories, transaction_type
-):
+def spendings_category_chart(account, _, date_start, date_end, amount_min, amount_max, categories, transaction_type):
     account = get_object_or_404(BankAccount, pk=account)
 
     transactions = account.get_transactions(
@@ -425,7 +444,7 @@ def spendings_category_chart(
         amount_min=amount_min,
         amount_max=amount_max,
         categories=categories,
-        transaction_type=TransactionType(transaction_type)
+        transaction_type=TransactionType(transaction_type),
     )
 
     category_transactions = _accumulate_by_categories(transactions)
@@ -433,9 +452,7 @@ def spendings_category_chart(
     return _plot_category_bar(transaction_type, category_transactions)
 
 
-def _get_categorized_transactions_for_month(
-    account, month, year, amount_min, amount_max, categories, transaction_type
-):
+def _get_categorized_transactions_for_month(account, month, year, amount_min, amount_max, categories, transaction_type):
     if month == 0:
         # show the entire year
         date_start = datetime.date(day=1, month=1, year=year)
@@ -451,7 +468,7 @@ def _get_categorized_transactions_for_month(
         amount_min=amount_min,
         amount_max=amount_max,
         categories=categories,
-        transaction_type=TransactionType(transaction_type)
+        transaction_type=TransactionType(transaction_type),
     )
 
     return _accumulate_by_categories(transactions)
@@ -463,7 +480,6 @@ def _plot_categories_for_month(account, month1, year1, amount_min, amount_max, c
     )
 
     return _plot_category_bar(transaction_type, category_transactions)
-
 
 
 @dd.callback(
@@ -484,10 +500,11 @@ def _plot_categories_for_month(account, month1, year1, amount_min, amount_max, c
     State("amount-min", "value"),
     State("amount-max", "value"),
     State("categories", "value"),
-    State("transaction-type", "value")
+    State("transaction-type", "value"),
 )
-def spendings_category_chart_monthly(account, _, month1, year1, month2, year2, month3, year3,
-                                     amount_min, amount_max, categories, transaction_type):
+def spendings_category_chart_monthly(
+    account, _, month1, year1, month2, year2, month3, year3, amount_min, amount_max, categories, transaction_type
+):
     account = get_object_or_404(BankAccount, pk=account)
 
     fig1 = _plot_categories_for_month(account, month1, year1, amount_min, amount_max, categories, transaction_type)
@@ -529,7 +546,7 @@ def spendings_time_series_bar_chart(
         amount_min=amount_min,
         amount_max=amount_max,
         categories=categories,
-        transaction_type=TransactionType.ALL
+        transaction_type=TransactionType.ALL,
     )
 
     if len(transactions) == 0:
