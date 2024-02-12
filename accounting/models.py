@@ -45,6 +45,13 @@ class BankDepot(models.Model):
     def get_balance(self):
         return sum([a.current_balance for a in self.belongs_to.all()])
 
+    def get_last_update(self):
+        assets = self.get_assets().order_by("-last_update")
+        if len(assets) > 0:
+            return assets[0].last_update
+
+        return datetime.date.today()
+
 
 class DepotAsset(models.Model):
     bank_depot = models.ForeignKey(
