@@ -1,3 +1,4 @@
+from django.contrib.auth.models import User
 from django_addanother.views import CreatePopupMixin
 from django.core.paginator import Paginator
 from django.contrib.auth.decorators import login_required
@@ -11,7 +12,7 @@ from .models import (
     BankDepot, DepotAsset, Transaction,
     Category,
     check_user_permissions,
-    get_bank_accounts_for_user,
+    get_balance_for_user, get_bank_accounts_for_user,
     get_bank_depots_for_user,
     update_transaction_categories_for_account
 )
@@ -38,9 +39,25 @@ def accounts_view(request):
     """
     Display all bank accounts the user is allowed to view
     """
-    accounts = get_bank_accounts_for_user(request.user)
-    depots = get_bank_depots_for_user(request.user)
-    context = {"accounts": accounts, "depots": depots}
+    user = request.user
+    users_and_accounts = {}
+    total_balance = 0
+    if user.is_superuser:
+        all_users = User.objects.all()
+        for user in all_users:
+            accounts = get_bank_accounts_for_user(user)
+            depots = get_bank_depots_for_user(user)
+            balance = get_balance_for_user(user)
+            users_and_accounts[user] = (accounts, depots, balance)
+            total_balance += balance
+    else:
+        accounts = get_bank_accounts_for_user(request.user)
+        depots = get_bank_depots_for_user(request.user)
+        balance = get_balance_for_user(request.user)
+        total_balance = balance
+        users_and_accounts[request.user] = (accounts, depots, balance)
+
+    context = {"users_and_accounts": users_and_accounts, "total_balance": total_balance}
     return render(request, "accounting/bank_accounts.html", context)
 
 

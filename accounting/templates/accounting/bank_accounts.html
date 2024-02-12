@@ -1,47 +1,59 @@
 {% extends "accounting/base.html" %}
 {% block content %}
 <h1>Übersicht Konten</h1>
+<h5>Gesamtkontostand: <span class="{% if total_balance < 0 %} text-danger {% else %} text-success {% endif %}">{{ total_balance }}</span></h5>
 <br>
-<div class="table-responsive">
-    <table class="table">
-        <tr>
-            <th>Bankkonto</th>
-            <th>Kontostand</th>
-            <th>Aktionen</th>
-        </tr>
-        {% for acc in accounts %}
-        <tr>
-            <td><a href="{% url 'transactions' acc.pk %}">{{ acc }}</a></td>
-            <td class="{% if acc.get_balance < 0.0 %} text-danger {% else %} text-success{% endif %}">
-                  {{ acc.get_balance }}€
-            </td>
-            <td>
-                <a href="{% url 'transactions' acc.pk %}" class="btn btn-light btn active" role="button"><i class="fas fa-search-dollar fa-lg"></i> Transaktionen</a>
-            </td>
-        </tr>
-        {% endfor %}
-    </table>
-</div>
-<br>
-<div class="table-responsive">
-    <table class="table">
-        <tr>
-            <th>Depot</th>
-            <th>Kontostand</th>
-            <th>Aktionen</th>
-        </tr>
-        {% for dep in depots %}
-        <tr>
-            <td><a href="{% url 'depot-detail' dep.pk %}">{{ dep }}</a></td>
-            <td class="{% if dep.current_balance < 0.0 %} text-danger {% else %} text-success{% endif %}">
-                  {{ dep.get_balance }}€
-            </td>
-            <td>
-                <a href="{% url 'depot-detail' dep.pk %}" class="btn btn-light btn active" role="button"><i class="fas fa-search-dollar fa-lg"></i> Details</a>
-            </td>
-        </tr>
-        {% endfor %}
-    </table>
-</div>
-
+{% for user, item in users_and_accounts.items %}
+    <h3>Konten und Depots von: {{ user }}</h3>
+    <p>Kontostand:
+        <span class="{% if item.2 < 0 %} text-danger {% else %} text-success {% endif %}">{{ item.2 }}</span>
+    </p>
+    <br>
+    <div class="table-responsive">
+        <table class="table">
+            <thead><tr>
+                <th>Bankkonto</th>
+                <th>Kontostand</th>
+                <th>Aktionen</th>
+            </tr></thead>
+            <tbody>
+            {% for acc in item.0 %}
+            <tr>
+                <td><a href="{% url 'transactions' acc.pk %}">{{ acc }}</a></td>
+                <td class="{% if acc.get_balance < 0.0 %} text-danger {% else %} text-success{% endif %}">
+                      {{ acc.get_balance }}€
+                </td>
+                <td>
+                    <a href="{% url 'transactions' acc.pk %}" class="btn btn-light btn active" role="button"><i class="fas fa-search-dollar fa-lg"></i> Transaktionen</a>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <br>
+    <div class="table-responsive">
+        <table class="table">
+            <thead><tr>
+                <th>Depot</th>
+                <th>Kontostand</th>
+                <th>Aktionen</th>
+            </tr></thead>
+            <tbody>
+            {% for dep in item.1 %}
+            <tr>
+                <td><a href="{% url 'depot-detail' dep.pk %}">{{ dep }}</a></td>
+                <td class="{% if dep.current_balance < 0.0 %} text-danger {% else %} text-success{% endif %}">
+                      {{ dep.get_balance }}€
+                </td>
+                <td>
+                    <a href="{% url 'depot-detail' dep.pk %}" class="btn btn-light btn active" role="button"><i class="fas fa-search-dollar fa-lg"></i> Details</a>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <br>
+{% endfor %}
 {% endblock content %}

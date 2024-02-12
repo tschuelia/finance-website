@@ -11,6 +11,7 @@
     </div>
 </div>
 <h5>Konto: {{ account }}</h5>
+<p>Besitzer: {{ account.owner }}</p>
 <p>Kontostand:
     <span class="{% if account.get_balance < 0 %} text-danger {% else %} text-success {% endif %}">{{ account.get_balance }}</span>
 </p>

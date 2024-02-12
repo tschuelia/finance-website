@@ -232,17 +232,20 @@ def check_user_permissions(user, account):
 
 
 def get_bank_accounts_for_user(user):
-    if user.is_superuser:
-        return BankAccount.objects.all()
-    else:
-        return BankAccount.filter(owner=user)
+    return BankAccount.objects.filter(owner=user)
 
 
 def get_bank_depots_for_user(user):
-    if user.is_superuser:
-        return BankDepot.objects.all()
-    else:
-        return BankDepot.filter(owner=user)
+    return BankDepot.objects.filter(owner=user)
+
+
+def get_balance_for_user(user):
+    bank_accounts = get_bank_accounts_for_user(user)
+    total_accounts = sum([b.get_balance() for b in bank_accounts])
+    depots = get_bank_depots_for_user(user)
+    total_depots = sum([d.get_balance() for d in depots])
+
+    return total_accounts + total_depots
 
 
 def check_any_pattern_in_string(string, patterns):

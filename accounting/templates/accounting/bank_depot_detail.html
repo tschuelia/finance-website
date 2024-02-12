@@ -7,13 +7,15 @@
         <a aria-pressed="true" class="btn btn-light btn active" href="#" role="button"><i class="fas fa-plus"></i></a>
     </div>
 </div>
+<p>Besitzer: {{ depot.owner }}</p>
 <p>Kontostand:
     <span class="{% if depot.get_balance < 0 %} text-danger {% else %} text-success {% endif %}">{{ depot.get_balance }}</span>
 </p>
 
 <div class="table-responsive">
     <table class="table">
-        <thead><tr>
+        <thead>
+        <tr>
             <th>Anlage</th>
             <th>Kontostand</th>
             <th>letztes Update</th>
@@ -22,16 +24,17 @@
         </thead>
         <tbody>
         {% for asset in transactions.keys %}
-            <tr>
-                <td>{{ asset }}</td>
-                <td class="{% if asset.get_balance < 0.0 %} text-danger {% else %} text-success{% endif %}">
-                    {{ asset.current_balance }}€
-                </td>
-                <td>
-                    {{ asset.last_update|date:"d.m.Y" }}
-                </td>
-                <td><a href="{% url 'depot-asset-update' dep_pk=asset.bank_depot.pk as_pk=asset.pk %}" class="btn text-dark"><i class="fas fa-edit fa-sm"></i></a></td>
-            </tr>
+        <tr>
+            <td>{{ asset }}</td>
+            <td class="{% if asset.get_balance < 0.0 %} text-danger {% else %} text-success{% endif %}">
+                {{ asset.current_balance }}€
+            </td>
+            <td>
+                {{ asset.last_update|date:"d.m.Y" }}
+            </td>
+            <td><a class="btn text-dark"
+                   href="{% url 'depot-asset-update' dep_pk=asset.bank_depot.pk as_pk=asset.pk %}"><i class="fas fa-edit fa-sm"></i></a></td>
+        </tr>
         {% endfor %}
         </tbody>
     </table>
@@ -39,7 +42,8 @@
 <hr>
 {% for asset, asset_transactions in transactions.items %}
 <p>
-    <a aria-controls="collapse{{ asset.identifier }}" aria-expanded="true" class="btn btn-outline-secondary" data-toggle="collapse"
+    <a aria-controls="collapse{{ asset.identifier }}" aria-expanded="true" class="btn btn-outline-secondary"
+       data-toggle="collapse"
        href="#collapse{{ asset.identifier }}" role="button">
         > {{ asset.name }}
     </a>
