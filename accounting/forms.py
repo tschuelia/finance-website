@@ -1,9 +1,11 @@
 from django import forms
+from django.contrib.auth.models import User
+from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
 from django_addanother.widgets import AddAnotherWidgetWrapper
 
 
-from .models import DepotAsset, Transaction, Category
+from .models import Contract, DepotAsset, Transaction, Category
 
 
 class DateInput(forms.DateInput):
@@ -11,6 +13,14 @@ class DateInput(forms.DateInput):
 
 
 class TransactionForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop("user")
+        super(TransactionForm, self).__init__(*args, **kwargs)
+
+        if user.is_superuser:
+            self.fields["contract"] = forms.ModelChoiceField(queryset=Contract.objects.all())
+        else:
+            self.fields["contract"] = forms.ModelChoiceField(queryset=Contract.objects.filter(pk=user.pk))
 
     class Meta:
         model = Transaction
@@ -54,6 +64,29 @@ class TransactionFormTableRow(forms.ModelForm):
         required=False,
         queryset=Category.objects.all()
     )
+    contract = forms.ModelChoiceField(
+            label="",
+            widget=forms.Select(
+                attrs={
+                    "class": "selectpicker",
+                    "data-live-search": "true",
+                    "data-size": "5",
+                    "title": "",
+                    "data-actions-box": "true",
+                }
+            ),
+            required=False,
+            queryset=Contract.objects.all()
+        )
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop("user")
+        super(TransactionFormTableRow, self).__init__(*args, **kwargs)
+
+        if not user.is_superuser:
+            self.fields["contract"]["queryset"] = Contract.objects.filter(pk=user.pk)
+
+
 
     class Meta:
         model = Transaction
@@ -72,6 +105,21 @@ class AssetForm(forms.ModelForm):
 class CategoryForm(forms.ModelForm):
     class Meta:
         model = Category
+        fields = "__all__"
+
+
+class ContractForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop("user")
+        super(ContractForm, self).__init__(*args, **kwargs)
+
+        if user.is_superuser:
+            self.fields["owner"] = forms.ModelChoiceField(queryset=User.objects.all())
+        else:
+            self.fields["owner"] = forms.ModelChoiceField(queryset=User.objects.filter(pk=user.pk))
+
+    class Meta:
+        model = Contract
         fields = "__all__"
 
 

@@ -6,6 +6,10 @@ from .views import (
     categories_view,
     create_category,
     update_category,
+    contracts_view,
+    contract_detail_view,
+    create_contract,
+    update_contract,
     transaction_delete_view,
     transaction_detail_view,
     transaction_update_view,
@@ -72,6 +76,11 @@ urlpatterns = [
         CategoryCreateView.as_view(),
         name="create-category-popup",
     ),
+    # Contract views
+    path("vertrag", contracts_view, name="contracts"),
+    path("vertrag/<int:pk>", contract_detail_view, name="contract-detail"),
+    path("vertrag/new", create_contract, name="create-contract"),
+    path("vertrag/<int:pk>/update", update_contract, name="update-contract"),
     # Charts
     path("dash-charts/", include("django_plotly_dash.urls")),
     path("charts/", charts_view, name="charts")

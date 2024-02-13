@@ -1,0 +1,37 @@
+{% extends "accounting/base.html" %}
+{% block content %}
+<div class="row my-4 mx-2">
+    <h1 class="text-truncate d-inline">Alle Verträge</h1>
+    <div class="ml-auto">
+        <a aria-pressed="true" class="btn btn-light btn active" href="{% url 'create-contract' %}" role="button"><i
+                class="fas fa-plus"></i></a>
+    </div>
+</div>
+<div>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+            <tr>
+                <th>Name</th>
+                <th>Beschreibung</th>
+                <th>Inhaber</th>
+                <th>Aktionen</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for con in contracts %}
+            <tr>
+                <td style="width: 25%"><a href="{% url 'contract-detail' con.pk %}">{{ con.name }}</a></td>
+                <td style="width: 25%">{{ con.description|truncatechars:50 }}</td>
+                <td style="width: 25%">{{ con.owner }}</td>
+                <td style="width: 25%">
+                    <a href="{% url 'contract-detail' con.pk %}" class="btn btn-light btn active" role="button"><i class="fas fa-search-dollar fa-lg"></i> Details</a>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock content %}

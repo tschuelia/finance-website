@@ -9,15 +9,16 @@ from django.views.generic import CreateView
 
 from .models import (
     BankAccount,
-    BankDepot, DepotAsset, Transaction,
+    BankDepot, Contract, DepotAsset, Transaction,
     Category,
     check_user_permissions,
     get_balance_for_user_owned_accounts, get_bank_accounts_for_user,
+    get_contracts_for_user,
     get_bank_depots_for_user,
     update_transaction_categories_for_account
 )
 from .forms import (
-    AssetForm, TransactionForm,
+    AssetForm, ContractForm, TransactionForm,
     CategoryForm,
     UploadFileForm,
     TransactionFormSet,
@@ -104,7 +105,7 @@ def transactions_add_multiple(request, pk):
     check_user_permissions(request.user, account)
 
     if request.method == "POST":
-        transactions_formset = TransactionFormSet(request.POST, request.FILES)
+        transactions_formset = TransactionFormSet(request.POST, request.FILES, form_kwargs={"user": request.user})
         if not transactions_formset.is_valid():
             return render(
                 request,
@@ -123,7 +124,7 @@ def transactions_add_multiple(request, pk):
         return redirect("transactions", pk=pk)
 
     else:
-        transactions_formset = TransactionFormSet()
+        transactions_formset = TransactionFormSet(form_kwargs={"user": request.user})
         return render(
             request,
             "accounting/transaction_formset.html",
@@ -145,7 +146,7 @@ def transaction_upload_csv_view(request, pk):
             # # parse the csv file into a list of dictionaries containing all transactions
             transactions = csv_to_transactions(request.FILES["file"], account)
             # # display the transactions and allow modifications before saving them to the database
-            transactions_formset = TransactionFormSet(initial=transactions)
+            transactions_formset = TransactionFormSet(initial=transactions, form_kwargs={"user": request.user})
             return render(
                 request,
                 "accounting/transaction_formset.html",
@@ -175,7 +176,7 @@ def transaction_detail_view(request, acc_pk, t_pk):
 
 @login_required
 def display_transaction_form(request, transaction=None):
-    transaction_form = TransactionForm(instance=transaction)
+    transaction_form = TransactionForm(instance=transaction, user=request.user)
     return render(
         request,
         "accounting/transaction_form.html",
@@ -187,7 +188,7 @@ def display_transaction_form(request, transaction=None):
 
 @login_required
 def process_transaction_form(request, transaction=None):
-    transaction_form = TransactionForm(request.POST, instance=transaction)
+    transaction_form = TransactionForm(request.POST, instance=transaction, user=request.user)
     if not transaction_form.is_valid():
         return render(
             request,
@@ -373,3 +374,52 @@ def create_category(request):
 @login_required
 def charts_view(request):
     return render(request, "accounting/plots.html", context={})
+
+
+##########################
+# Contract views
+##########################
+def contracts_view(request):
+    contracts = get_contracts_for_user(request.user)
+    return render(request, "accounting/contracts.html", context={"contracts": contracts})
+
+
+@login_required
+def display_contract_form(request, contract=None):
+    form = ContractForm(instance=contract, user=request.user, initial={"owner": request.user.pk})
+    return render(request, "accounting/contract_form.html", {"form": form})
+
+
+@login_required
+def process_contract_form(request, contract=None):
+    form = ContractForm(request.POST, instance=contract, user=request.user, initial={"owner": request.user.pk})
+    if not form.is_valid():
+        return render(request, "accounting/contract_form.html", {"form": form})
+    contract_obj = form.save()
+    return redirect("contract-detail", pk=contract_obj.pk)
+
+
+@login_required
+def update_contract(request, pk):
+    contract = get_object_or_404(Contract, pk=pk)
+
+    if request.method == "GET":
+        return display_contract_form(request, contract=contract)
+    else:
+        return process_contract_form(request, contract=contract)
+
+
+@login_required
+def create_contract(request):
+    if request.method == "GET":
+        return display_contract_form(request)
+    else:
+        return process_contract_form(request)
+
+
+@login_required
+def contract_detail_view(request, pk):
+    contract = get_object_or_404(Contract, pk=pk)
+    check_user_permissions(request.user, contract)
+
+    return render(request, "accounting/contract_detail.html", {"contract": contract})

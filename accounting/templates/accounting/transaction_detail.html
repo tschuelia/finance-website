@@ -19,7 +19,8 @@
             <p><i class="fas fa-file-alt"></i> Betreff</p>
             <p><i class="fas fa-calendar-day"></i> Buchungstag</p>
             <p><i class="fas fa-calendar-day"></i> Wertstellungstag</p>
-            <p><i class="fas fa-icons"></i> Kategorien</p>
+            <p><i class="fas fa-icons"></i> Kategorie</p>
+            <p><i class="fas fa-file-contract"></i> Vertrag</p>
             <p><i class="fas fa-icons"></i> Gesamte Buchungsreferenz</p>
         </div>
         <div class="col-md-9">
@@ -35,7 +36,12 @@
             <p>{{ transaction.subject }}</p>
             <p>{{ transaction.date_issue|date:"d.m.Y" }}</p>
             <p> {{ transaction.date_booking|date:"d.m.Y" }}</p>
-            <p><a href="#" class="badge badge-light">{{ cat.name }}</a></p>
+            <p><a class="badge badge-light">{{ cat.name }}</a></p>
+            {% if transaction.contract %}
+                <p><a href="{% url 'contract-detail' pk=transaction.contract.pk %}">{{ transaction.contract.name }}</a></p>
+            {% else %}
+                <p>Keinem Vertrag zugeordnet</p>
+            {% endif %}
             <p>{{ transaction.full_subject_string }}</p>
         </div>
     </div>

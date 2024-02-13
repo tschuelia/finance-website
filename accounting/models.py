@@ -200,6 +200,22 @@ class BankAccount(models.Model):
         return self.current_amount + sum(all_transactions)
 
 
+class Contract(models.Model):
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Vertragsinhaber")
+    name = models.CharField(max_length=255, verbose_name="Name des Vertrags")
+    description = models.TextField(verbose_name="Beschreibung", null=True, blank=True)
+
+    def __str__(self):
+        return self.name
+
+    def get_transactions(self):
+        return self.contract.all().order_by("-date_issue")
+
+    def get_balance(self):
+        transactions = self.get_transactions()
+        return sum([t.amount for t in transactions])
+
+
 class Transaction(models.Model):
     bank_account = models.ForeignKey(
         BankAccount,
@@ -211,6 +227,7 @@ class Transaction(models.Model):
     recipient = models.CharField(max_length=255, verbose_name="Empfänger/Versender")
     amount = models.DecimalField(decimal_places=2, max_digits=10, verbose_name="Betrag")
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, blank=True, null=True, verbose_name="Kategorie")
+    contract = models.ForeignKey(Contract, on_delete=models.SET_NULL, blank=True, null=True, verbose_name="Vertrag", related_name="contract")
     subject = models.CharField(max_length=1024, verbose_name="Buchungsinformation")
     date_issue = models.DateField(verbose_name="Buchungstag")
     date_booking = models.DateField(
@@ -225,6 +242,7 @@ class Transaction(models.Model):
             event = "Einnahme"
 
         return f"{event}: {self.amount} ({self.recipient})"
+
 
 
 def check_user_permissions(user, account):
@@ -259,6 +277,13 @@ def get_balance_for_user_owned_accounts(user):
     total_depots = sum([d.get_balance() for d in depots])
 
     return total_accounts + total_depots
+
+
+def get_contracts_for_user(user):
+    if user.is_superuser:
+        return Contract.objects.all().order_by("owner", "name")
+    else:
+        return Contract.objects.filter(owner=user).order_by("name")
 
 
 def check_any_pattern_in_string(string, patterns):

@@ -16,7 +16,7 @@
 <script src="{% static 'admin/js/vendor/jquery/jquery.js' %}"></script>
 
 <nav class="navbar navbar-expand-lg navbar-light bg-light">
-    <a class="navbar-brand" href="#">Buchhaltung</a>
+    <a class="navbar-brand" href="{% url 'accounts' %}">Buchhaltung</a>
     <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNavAltMarkup"
             aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
@@ -33,6 +33,9 @@
             </li>
             <li class="nav-item">
                  <a class="nav-item nav-link" href="{% url 'categories' %}">Kategorien</a>
+            </li>
+            <li class="nav-item">
+                 <a class="nav-item nav-link" href="{% url 'contracts' %}">Verträge</a>
             </li>
             {% if user.is_authenticated %}
             <li class="nav-item dropdown">

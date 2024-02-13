@@ -8,7 +8,8 @@
             <th>Zahlung an/von</th>
             <th>Betrag</th>
             <th>Betreff</th>
-            <th>Kategorien</th>
+            <th>Kategorie</th>
+            <th>Vertrag</th>
             <th>Aktionen</th>
         </tr>
         </thead>
@@ -24,8 +25,14 @@
             <td>{{ t.subject }}</td>
             <td>
                 {% if t.category %}
-                    <a href="#" class="badge badge-light">{{ t.category }}</a>
+                    <a class="badge badge-light">{{ t.category }}</a>
                 {% endif %}
+            </td>
+            <td>
+                {% if t.contract %}
+                    <a href="{% url 'contract-detail' pk=t.contract.pk %}">{{ t.contract.name }}</a>
+                {% endif %}
+            </td>
             <td>
                 <a href="{% url 'transaction-detail' acc_pk=t.bank_account.pk t_pk=t.pk %}" class="btn text-dark"><i class="fas fa-info-circle fa-sm"></i></a>
                 <a href="{% url 'transaction-update' acc_pk=t.bank_account.pk t_pk=t.pk %}" class="btn text-dark"><i class="fas fa-edit fa-sm"></i></a>
