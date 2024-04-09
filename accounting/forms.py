@@ -9,7 +9,7 @@ from .models import Contract, DepotAsset, Transaction, Category
 
 
 class DateInput(forms.DateInput):
-    input_type = 'date'
+    input_type = "date"
 
 
 class TransactionForm(forms.ModelForm):
@@ -18,9 +18,11 @@ class TransactionForm(forms.ModelForm):
         super(TransactionForm, self).__init__(*args, **kwargs)
 
         if user.is_superuser:
-            self.fields["contract"] = forms.ModelChoiceField(queryset=Contract.objects.all())
+            self.fields["contract"] = forms.ModelChoiceField(queryset=Contract.objects.all(), required=False)
         else:
-            self.fields["contract"] = forms.ModelChoiceField(queryset=Contract.objects.filter(pk=user.pk))
+            self.fields["contract"] = forms.ModelChoiceField(
+                queryset=Contract.objects.filter(pk=user.pk), required=False
+            )
 
     class Meta:
         model = Transaction
@@ -39,12 +41,15 @@ class TransactionForm(forms.ModelForm):
                 reverse_lazy("create-category-popup"),
             ),
             "date_issue": DateInput(),
-            "date_booking": DateInput()
+            "date_booking": DateInput(),
         }
 
 
 class TransactionFormTableRow(forms.ModelForm):
-    recipient = forms.CharField(label="", required=False,)
+    recipient = forms.CharField(
+        label="",
+        required=False,
+    )
     amount = forms.DecimalField(decimal_places=2, label="")
     subject = forms.CharField(label="", required=False)
     date_issue = forms.DateField(label="")
@@ -53,31 +58,31 @@ class TransactionFormTableRow(forms.ModelForm):
     category = forms.ModelChoiceField(
         label="",
         widget=forms.Select(
-                attrs={
-                    "class": "selectpicker",
-                    "data-live-search": "true",
-                    "data-size": "5",
-                    "title": "",
-                    "data-actions-box": "true",
-                }
-            ),
+            attrs={
+                "class": "selectpicker",
+                "data-live-search": "true",
+                "data-size": "5",
+                "title": "",
+                "data-actions-box": "true",
+            }
+        ),
         required=False,
-        queryset=Category.objects.all()
+        queryset=Category.objects.all(),
     )
     contract = forms.ModelChoiceField(
-            label="",
-            widget=forms.Select(
-                attrs={
-                    "class": "selectpicker",
-                    "data-live-search": "true",
-                    "data-size": "5",
-                    "title": "",
-                    "data-actions-box": "true",
-                }
-            ),
-            required=False,
-            queryset=Contract.objects.all()
-        )
+        label="",
+        widget=forms.Select(
+            attrs={
+                "class": "selectpicker",
+                "data-live-search": "true",
+                "data-size": "5",
+                "title": "",
+                "data-actions-box": "true",
+            }
+        ),
+        required=False,
+        queryset=Contract.objects.all(),
+    )
 
     def __init__(self, *args, **kwargs):
         user = kwargs.pop("user")
@@ -85,8 +90,6 @@ class TransactionFormTableRow(forms.ModelForm):
 
         if not user.is_superuser:
             self.fields["contract"]["queryset"] = Contract.objects.filter(pk=user.pk)
-
-
 
     class Meta:
         model = Transaction
@@ -142,16 +145,16 @@ class FilterTransactionsForm(forms.Form):
     categories = forms.ModelMultipleChoiceField(
         label="",
         widget=forms.SelectMultiple(
-                attrs={
-                    "class": "selectpicker",
-                    "data-live-search": "true",
-                    "data-size": "5",
-                    "title": "",
-                    "data-actions-box": "true",
-                }
-            ),
+            attrs={
+                "class": "selectpicker",
+                "data-live-search": "true",
+                "data-size": "5",
+                "title": "",
+                "data-actions-box": "true",
+            }
+        ),
         required=False,
-        queryset=Category.objects.all()
+        queryset=Category.objects.all(),
     )
 
 
@@ -183,5 +186,3 @@ def process_transactions_formset(transactions_formset, bank_account):
         n_added_transactions += 1
 
     return n_added_transactions
-
-
