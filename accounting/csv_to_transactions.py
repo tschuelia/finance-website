@@ -2,7 +2,6 @@ import datetime
 import io
 
 import pandas as pd
-from typing import Dict
 
 from .models import get_category
 
@@ -245,12 +244,36 @@ def parse_new_dkb_csv_to_dataframe(csv_file):
     return df
 
 
+def parse_holvi_csv_to_dataframe(csv_file):
+    columns = {
+        "Zahlungsdatum": "date_issue",
+        "Buchungsdatum": "date_booking",
+        "Gegenpartei": "recipient",
+        "Betrag": "amount",
+    }
+    content = csv_file.read().decode(encoding="utf-8")
+    header_line = content.find("Zahlungsdatum")
+    content = content[header_line:]
+    transaction_df = pd.read_csv(
+        io.StringIO(content), sep=";", encoding="latin-1", header=0, dtype=str, parse_dates=[0, 1],
+        date_format="%d.%m.%y"
+    )
+    transaction_df.rename(columns=columns, inplace=True)
+    transaction_df["subject"] = transaction_df.Nachricht.fillna(transaction_df.Referenz)
+    transaction_df["full_subject_string"] = transaction_df.subject + " " + transaction_df["Zahlungs-ID"]
+
+    transaction_df = correct_dataframe(transaction_df)
+    return transaction_df
+
+
 def csv_to_transactions(csv_file, account):
     if account.bank.lower() == "comdirect":
         transaction_df = parse_comdirect_csv_to_dataframe(csv_file)
     elif account.bank.lower() == "dkb":
         transaction_df = parse_dkb_csv_to_dataframe(csv_file)
+    elif account.bank.lower() == "holvi":
+        transaction_df = parse_holvi_csv_to_dataframe(csv_file)
     else:
-        raise ValueError("At the moment only CSV exports of Comdirect and DKB are supported.")
+        raise ValueError("At the moment only CSV exports of Comdirect, DKB or Holvi are supported.")
     transaction_df["bank_account"] = account
     return transaction_df.to_dict("records")
