@@ -37,9 +37,7 @@ class BankDepot(models.Model):
     def __str__(self):
         return self.name
 
-    def get_assets(
-        self
-    ):
+    def get_assets(self):
         return self.belongs_to.all()
 
     def get_balance(self):
@@ -62,8 +60,12 @@ class DepotAsset(models.Model):
         related_name="belongs_to",
     )
     name = models.CharField(max_length=255, verbose_name="Name der Anlage")
-    current_balance = models.DecimalField(decimal_places=2, max_digits=10, verbose_name="Aktueller Wert")
-    last_update = models.DateField(verbose_name="Letztes Update", default=datetime.date.today())
+    current_balance = models.DecimalField(
+        decimal_places=2, max_digits=10, verbose_name="Aktueller Wert"
+    )
+    last_update = models.DateField(
+        verbose_name="Letztes Update", default=datetime.date.today()
+    )
 
     def __str__(self):
         return f"{self.name} ({self.bank_depot.name})"
@@ -71,9 +73,7 @@ class DepotAsset(models.Model):
     def identifier(self):
         return self.name.replace(" ", "")
 
-    def get_transactions(
-        self
-    ):
+    def get_transactions(self):
         return self.belongs_to.all()
 
 
@@ -83,7 +83,7 @@ class DepotAssetTransaction(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         verbose_name="Anlage",
-        related_name="belongs_to"
+        related_name="belongs_to",
     )
     amount = models.DecimalField(decimal_places=2, max_digits=10, verbose_name="Betrag")
     date_issue = models.DateField(verbose_name="Buchungstag")
@@ -128,7 +128,9 @@ class BankAccount(models.Model):
 
     def get_max_transaction_amount(self):
         transactions = self.belongs_to.all()
-        transactions = transactions.annotate(absolute_amount=Func(F("amount"), function="ABS"))
+        transactions = transactions.annotate(
+            absolute_amount=Func(F("amount"), function="ABS")
+        )
         transactions = transactions.order_by("absolute_amount")
 
         if len(transactions) > 0:
@@ -144,7 +146,7 @@ class BankAccount(models.Model):
         amount_min=None,
         amount_max=None,
         categories=None,
-        transaction_type=TransactionType.ALL
+        transaction_type=TransactionType.ALL,
     ):
         transactions = self.belongs_to.all()
 
@@ -175,14 +177,20 @@ class BankAccount(models.Model):
         if not amount_max:
             amount_max = abs(self.get_max_transaction_amount())
 
-        transactions = transactions.annotate(absolute_amount=Func(F("amount"), function="ABS"))
-        transactions = transactions.filter(absolute_amount__range=(amount_min, amount_max))
+        transactions = transactions.annotate(
+            absolute_amount=Func(F("amount"), function="ABS")
+        )
+        transactions = transactions.filter(
+            absolute_amount__range=(amount_min, amount_max)
+        )
 
         # filter by categories if categories are set
         if categories:
             transactions = transactions.filter(category__in=categories)
 
-        transactions = transactions.order_by("date_issue", "date_booking", "recipient").reverse()
+        transactions = transactions.order_by(
+            "date_issue", "date_booking", "recipient"
+        ).reverse()
 
         # filter by transaction type
         if transaction_type == TransactionType.ALL:
@@ -201,7 +209,9 @@ class BankAccount(models.Model):
 
 
 class Contract(models.Model):
-    owner = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Vertragsinhaber")
+    owner = models.ForeignKey(
+        User, on_delete=models.CASCADE, verbose_name="Vertragsinhaber"
+    )
     name = models.CharField(max_length=255, verbose_name="Name des Vertrags")
     description = models.TextField(verbose_name="Beschreibung", null=True, blank=True)
 
@@ -226,8 +236,21 @@ class Transaction(models.Model):
     )
     recipient = models.CharField(max_length=255, verbose_name="Empfänger/Versender")
     amount = models.DecimalField(decimal_places=2, max_digits=10, verbose_name="Betrag")
-    category = models.ForeignKey(Category, on_delete=models.SET_NULL, blank=True, null=True, verbose_name="Kategorie")
-    contract = models.ForeignKey(Contract, on_delete=models.SET_NULL, blank=True, null=True, verbose_name="Vertrag", related_name="contract")
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        verbose_name="Kategorie",
+    )
+    contract = models.ForeignKey(
+        Contract,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        verbose_name="Vertrag",
+        related_name="contract",
+    )
     subject = models.CharField(max_length=1024, verbose_name="Buchungsinformation")
     date_issue = models.DateField(verbose_name="Buchungstag")
     date_booking = models.DateField(
@@ -242,7 +265,6 @@ class Transaction(models.Model):
             event = "Einnahme"
 
         return f"{event}: {self.amount} ({self.recipient})"
-
 
 
 def check_user_permissions(user, account):
@@ -340,4 +362,3 @@ def update_transaction_categories_for_account(account):
     for transaction in account.get_transactions():
         transaction.category = get_category(transaction.recipient, transaction.subject)
         transaction.save()
-

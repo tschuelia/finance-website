@@ -18,7 +18,9 @@ class TransactionForm(forms.ModelForm):
         super(TransactionForm, self).__init__(*args, **kwargs)
 
         if user.is_superuser:
-            self.fields["contract"] = forms.ModelChoiceField(queryset=Contract.objects.all(), required=False)
+            self.fields["contract"] = forms.ModelChoiceField(
+                queryset=Contract.objects.all(), required=False
+            )
         else:
             self.fields["contract"] = forms.ModelChoiceField(
                 queryset=Contract.objects.filter(pk=user.pk), required=False
@@ -119,7 +121,9 @@ class ContractForm(forms.ModelForm):
         if user.is_superuser:
             self.fields["owner"] = forms.ModelChoiceField(queryset=User.objects.all())
         else:
-            self.fields["owner"] = forms.ModelChoiceField(queryset=User.objects.filter(pk=user.pk))
+            self.fields["owner"] = forms.ModelChoiceField(
+                queryset=User.objects.filter(pk=user.pk)
+            )
 
     class Meta:
         model = Contract

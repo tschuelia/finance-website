@@ -40,7 +40,9 @@ dd.layout = html.Div(
             [
                 dbc.Row(
                     [
-                        dbc.Col(["Datum"], className="col-2 col-sm-2 col-md-2 col-lg-1"),
+                        dbc.Col(
+                            ["Datum"], className="col-2 col-sm-2 col-md-2 col-lg-1"
+                        ),
                         dbc.Col(
                             [dbc.Input(id="date-start", type="date")],
                             className="col-5 col-sm-5 col-md-4 col-lg-2",
@@ -55,13 +57,23 @@ dd.layout = html.Div(
                 html.Br(),
                 dbc.Row(
                     [
-                        dbc.Col(["Betrag"], className="col-2 col-sm-2 col-md-2 col-lg-1"),
                         dbc.Col(
-                            [dbc.Input(id="amount-min", type="number", min=0.0, step=0.01)],
+                            ["Betrag"], className="col-2 col-sm-2 col-md-2 col-lg-1"
+                        ),
+                        dbc.Col(
+                            [
+                                dbc.Input(
+                                    id="amount-min", type="number", min=0.0, step=0.01
+                                )
+                            ],
                             className="col-5 col-sm-5 col-md-4 col-lg-2",
                         ),
                         dbc.Col(
-                            [dbc.Input(id="amount-max", type="number", min=0.0, step=0.01)],
+                            [
+                                dbc.Input(
+                                    id="amount-max", type="number", min=0.0, step=0.01
+                                )
+                            ],
                             className="col-5 col-sm-5 col-md-4 col-lg-2",
                         ),
                         dbc.Col([], className="col-0 col-sm-0 col-md-2 col-lg-7"),
@@ -70,7 +82,9 @@ dd.layout = html.Div(
                 html.Br(),
                 dbc.Row(
                     [
-                        dbc.Col(["Kategorien"], className="col-2 col-sm-2 col-md-2 col-lg-1"),
+                        dbc.Col(
+                            ["Kategorien"], className="col-2 col-sm-2 col-md-2 col-lg-1"
+                        ),
                         dbc.Col(
                             dcc.Dropdown(
                                 id="categories",
@@ -144,7 +158,9 @@ dd.layout = html.Div(
                 html.Div(
                     [
                         html.H3("Nach Kategorien"),
-                        html.P("Wenn 'Jahr' im ersten Dropdown ausgewählt ist, wir das gesamte Jahr angezeigt."),
+                        html.P(
+                            "Wenn 'Jahr' im ersten Dropdown ausgewählt ist, wir das gesamte Jahr angezeigt."
+                        ),
                         html.Br(),
                         dbc.Row(
                             [
@@ -329,7 +345,21 @@ def populate_monthly_spendings_month_dropdown(account, _):
     min_year = min_date.year
     max_year = max_date.year
 
-    months = ["Jahr", "Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"]
+    months = [
+        "Jahr",
+        "Jan",
+        "Feb",
+        "Mär",
+        "Apr",
+        "Mai",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Okt",
+        "Nov",
+        "Dez",
+    ]
     month_values = [{"label": str(m), "value": i} for (i, m) in enumerate(months)]
     year_values = [{"label": str(y), "value": y} for y in range(min_year, max_year + 1)]
 
@@ -380,7 +410,9 @@ def populate_categories_dropdown(_):
 
 
 def _accumulate_by_categories(transactions):
-    category_transactions = defaultdict(lambda: (decimal.Decimal(), decimal.Decimal()))  # (spending, income)
+    category_transactions = defaultdict(
+        lambda: (decimal.Decimal(), decimal.Decimal())
+    )  # (spending, income)
 
     for t in transactions:
         category = t.category.name if t.category else "ohne Kategorie"
@@ -393,7 +425,9 @@ def _accumulate_by_categories(transactions):
 
         category_transactions[category] = (_spending, _income)
 
-    category_transactions = dict(sorted(category_transactions.items(), key=lambda item: item[1][0], reverse=True))
+    category_transactions = dict(
+        sorted(category_transactions.items(), key=lambda item: item[1][0], reverse=True)
+    )
 
     return category_transactions
 
@@ -411,10 +445,16 @@ def _plot_category_bar(transaction_type, category_transactions):
     fig = go.Figure()
 
     if plot_spending:
-        fig.add_trace(go.Bar(x=categories, y=spendings, marker_color=COLOR_EXPENSE, name="Ausgaben"))
+        fig.add_trace(
+            go.Bar(
+                x=categories, y=spendings, marker_color=COLOR_EXPENSE, name="Ausgaben"
+            )
+        )
 
     if plot_income:
-        fig.add_trace(go.Bar(x=categories, y=incomes, marker_color=COLOR_INCOME, name="Einnahmen"))
+        fig.add_trace(
+            go.Bar(x=categories, y=incomes, marker_color=COLOR_INCOME, name="Einnahmen")
+        )
 
     fig.update_xaxes(title="Kategorie")
     fig.update_yaxes(title="Betrag", ticksuffix="€")
@@ -434,7 +474,16 @@ def _plot_category_bar(transaction_type, category_transactions):
     State("categories", "value"),
     State("transaction-type", "value"),
 )
-def spendings_category_chart(account, _, date_start, date_end, amount_min, amount_max, categories, transaction_type):
+def spendings_category_chart(
+    account,
+    _,
+    date_start,
+    date_end,
+    amount_min,
+    amount_max,
+    categories,
+    transaction_type,
+):
     account = get_object_or_404(BankAccount, pk=account)
 
     transactions = account.get_transactions(
@@ -452,7 +501,9 @@ def spendings_category_chart(account, _, date_start, date_end, amount_min, amoun
     return _plot_category_bar(transaction_type, category_transactions)
 
 
-def _get_categorized_transactions_for_month(account, month, year, amount_min, amount_max, categories, transaction_type):
+def _get_categorized_transactions_for_month(
+    account, month, year, amount_min, amount_max, categories, transaction_type
+):
     if month == 0:
         # show the entire year
         date_start = datetime.date(day=1, month=1, year=year)
@@ -474,7 +525,9 @@ def _get_categorized_transactions_for_month(account, month, year, amount_min, am
     return _accumulate_by_categories(transactions)
 
 
-def _plot_categories_for_month(account, month1, year1, amount_min, amount_max, categories, transaction_type):
+def _plot_categories_for_month(
+    account, month1, year1, amount_min, amount_max, categories, transaction_type
+):
     category_transactions = _get_categorized_transactions_for_month(
         account, month1, year1, amount_min, amount_max, categories, transaction_type
     )
@@ -503,13 +556,30 @@ def _plot_categories_for_month(account, month1, year1, amount_min, amount_max, c
     State("transaction-type", "value"),
 )
 def spendings_category_chart_monthly(
-    account, _, month1, year1, month2, year2, month3, year3, amount_min, amount_max, categories, transaction_type
+    account,
+    _,
+    month1,
+    year1,
+    month2,
+    year2,
+    month3,
+    year3,
+    amount_min,
+    amount_max,
+    categories,
+    transaction_type,
 ):
     account = get_object_or_404(BankAccount, pk=account)
 
-    fig1 = _plot_categories_for_month(account, month1, year1, amount_min, amount_max, categories, transaction_type)
-    fig2 = _plot_categories_for_month(account, month2, year2, amount_min, amount_max, categories, transaction_type)
-    fig3 = _plot_categories_for_month(account, month3, year3, amount_min, amount_max, categories, transaction_type)
+    fig1 = _plot_categories_for_month(
+        account, month1, year1, amount_min, amount_max, categories, transaction_type
+    )
+    fig2 = _plot_categories_for_month(
+        account, month2, year2, amount_min, amount_max, categories, transaction_type
+    )
+    fig3 = _plot_categories_for_month(
+        account, month3, year3, amount_min, amount_max, categories, transaction_type
+    )
 
     return fig1, fig2, fig3
 

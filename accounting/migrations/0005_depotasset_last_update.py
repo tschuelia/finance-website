@@ -7,13 +7,15 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounting', '0004_bankdepot_depotasset_depotassettransaction'),
+        ("accounting", "0004_bankdepot_depotasset_depotassettransaction"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='depotasset',
-            name='last_update',
-            field=models.DateField(default=datetime.date(2024, 2, 12), verbose_name='Letztes Update'),
+            model_name="depotasset",
+            name="last_update",
+            field=models.DateField(
+                default=datetime.date(2024, 2, 12), verbose_name="Letztes Update"
+            ),
         ),
     ]

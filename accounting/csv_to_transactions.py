@@ -142,7 +142,9 @@ def parse_csv_to_dataframe(csv_file, columns):
 
 def correct_dataframe(transactions_df, fillna_recipient=""):
     transactions_df.dropna(
-        subset=["date_issue", "date_booking", "amount", "subject", "recipient"], how="all", inplace=True
+        subset=["date_issue", "date_booking", "amount", "subject", "recipient"],
+        how="all",
+        inplace=True,
     )
     transactions_df = german_date_to_python_date(transactions_df, "date_issue")
     transactions_df = german_date_to_python_date(transactions_df, "date_booking")
@@ -207,7 +209,13 @@ def parse_new_dkb_csv_to_dataframe(csv_file):
     header_line = content.find("Buchungsdatum")
     content = content[header_line:]
     df = pd.read_csv(
-        io.StringIO(content), sep=";", encoding="latin-1", header=0, dtype=str, parse_dates=[0, 1], date_format="%d.%m.%y"
+        io.StringIO(content),
+        sep=";",
+        encoding="latin-1",
+        header=0,
+        dtype=str,
+        parse_dates=[0, 1],
+        date_format="%d.%m.%y",
     )
     has_euro_sign_in_values = "Betrag" in df.columns
 
@@ -235,7 +243,11 @@ def parse_new_dkb_csv_to_dataframe(csv_file):
 
     df["full_subject_string"] = df["subject"]
     df = df[list(columns.values()) + ["recipient", "full_subject_string"]]
-    df.dropna(subset=["date_issue", "date_booking", "amount", "subject", "recipient"], how="all", inplace=True)
+    df.dropna(
+        subset=["date_issue", "date_booking", "amount", "subject", "recipient"],
+        how="all",
+        inplace=True,
+    )
 
     df.recipient.fillna("DKB AG", inplace=True)
     df.subject.fillna("", inplace=True)
@@ -255,12 +267,19 @@ def parse_holvi_csv_to_dataframe(csv_file):
     header_line = content.find("Zahlungsdatum")
     content = content[header_line:]
     transaction_df = pd.read_csv(
-        io.StringIO(content), sep=";", encoding="latin-1", header=0, dtype=str, parse_dates=[0, 1],
-        date_format="%d.%m.%y"
+        io.StringIO(content),
+        sep=";",
+        encoding="latin-1",
+        header=0,
+        dtype=str,
+        parse_dates=[0, 1],
+        date_format="%d.%m.%y",
     )
     transaction_df.rename(columns=columns, inplace=True)
     transaction_df["subject"] = transaction_df.Nachricht.fillna(transaction_df.Referenz)
-    transaction_df["full_subject_string"] = transaction_df.subject + " " + transaction_df["Zahlungs-ID"]
+    transaction_df["full_subject_string"] = (
+        transaction_df.subject + " " + transaction_df["Zahlungs-ID"]
+    )
 
     transaction_df = correct_dataframe(transaction_df)
     return transaction_df
@@ -274,6 +293,8 @@ def csv_to_transactions(csv_file, account):
     elif account.bank.lower() == "holvi":
         transaction_df = parse_holvi_csv_to_dataframe(csv_file)
     else:
-        raise ValueError("At the moment only CSV exports of Comdirect, DKB or Holvi are supported.")
+        raise ValueError(
+            "At the moment only CSV exports of Comdirect, DKB or Holvi are supported."
+        )
     transaction_df["bank_account"] = account
     return transaction_df.to_dict("records")

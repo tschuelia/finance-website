@@ -83,5 +83,5 @@ urlpatterns = [
     path("vertrag/<int:pk>/update", update_contract, name="update-contract"),
     # Charts
     path("dash-charts/", include("django_plotly_dash.urls")),
-    path("charts/", charts_view, name="charts")
+    path("charts/", charts_view, name="charts"),
 ]

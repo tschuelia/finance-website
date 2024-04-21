@@ -9,16 +9,22 @@ from django.views.generic import CreateView
 
 from .models import (
     BankAccount,
-    BankDepot, Contract, DepotAsset, Transaction,
+    BankDepot,
+    Contract,
+    DepotAsset,
+    Transaction,
     Category,
     check_user_permissions,
-    get_balance_for_user_owned_accounts, get_bank_accounts_for_user,
+    get_balance_for_user_owned_accounts,
+    get_bank_accounts_for_user,
     get_contracts_for_user,
     get_bank_depots_for_user,
-    update_transaction_categories_for_account
+    update_transaction_categories_for_account,
 )
 from .forms import (
-    AssetForm, ContractForm, TransactionForm,
+    AssetForm,
+    ContractForm,
+    TransactionForm,
     CategoryForm,
     UploadFileForm,
     TransactionFormSet,
@@ -50,7 +56,11 @@ def accounts_view(request):
 
         for user in all_users:
             balance = get_balance_for_user_owned_accounts(user)
-            users_and_accounts[user] = (accounts.filter(owner=user), depots.filter(owner=user), balance)
+            users_and_accounts[user] = (
+                accounts.filter(owner=user),
+                depots.filter(owner=user),
+                balance,
+            )
             total_balance += balance
     else:
         accounts = get_bank_accounts_for_user(request.user)
@@ -89,7 +99,12 @@ def transactions_overview(request, pk):
     current_page = request.GET.get("page")
     page_obj = paginator.get_page(current_page)
 
-    context = {"account": account, "transactions": transactions, "page_obj": page_obj, "form": filter_form}
+    context = {
+        "account": account,
+        "transactions": transactions,
+        "page_obj": page_obj,
+        "form": filter_form,
+    }
 
     # Only add received/payed summary to the context if any filters were applied
     # Without filters, the total amount will differ from the account balance since the account was started with an
@@ -102,8 +117,15 @@ def transactions_overview(request, pk):
 
         dates = [t.date_issue for t in transactions]
 
-        context.update({"total_amount": total, "payed_amount": payed, "received_amount": received,
-                        "min_date": min(dates), "max_date": max(dates)})
+        context.update(
+            {
+                "total_amount": total,
+                "payed_amount": payed,
+                "received_amount": received,
+                "min_date": min(dates),
+                "max_date": max(dates),
+            }
+        )
 
     return render(request, "accounting/bank_account_detail.html", context)
 
@@ -120,7 +142,9 @@ def transactions_add_multiple(request, pk):
     check_user_permissions(request.user, account)
 
     if request.method == "POST":
-        transactions_formset = TransactionFormSet(request.POST, request.FILES, form_kwargs={"user": request.user})
+        transactions_formset = TransactionFormSet(
+            request.POST, request.FILES, form_kwargs={"user": request.user}
+        )
         if not transactions_formset.is_valid():
             return render(
                 request,
@@ -161,7 +185,9 @@ def transaction_upload_csv_view(request, pk):
             # # parse the csv file into a list of dictionaries containing all transactions
             transactions = csv_to_transactions(request.FILES["file"], account)
             # # display the transactions and allow modifications before saving them to the database
-            transactions_formset = TransactionFormSet(initial=transactions, form_kwargs={"user": request.user})
+            transactions_formset = TransactionFormSet(
+                initial=transactions, form_kwargs={"user": request.user}
+            )
             return render(
                 request,
                 "accounting/transaction_formset.html",
@@ -203,7 +229,9 @@ def display_transaction_form(request, transaction=None):
 
 @login_required
 def process_transaction_form(request, transaction=None):
-    transaction_form = TransactionForm(request.POST, instance=transaction, user=request.user)
+    transaction_form = TransactionForm(
+        request.POST, instance=transaction, user=request.user
+    )
     if not transaction_form.is_valid():
         return render(
             request,
@@ -257,7 +285,9 @@ def reassign_categories(request, pk):
 
     update_transaction_categories_for_account(account)
 
-    messages.add_message(request, level=messages.SUCCESS, message="Kategorien erfolgreich aktualisiert.")
+    messages.add_message(
+        request, level=messages.SUCCESS, message="Kategorien erfolgreich aktualisiert."
+    )
 
     return redirect("transactions", pk=pk)
 
@@ -279,7 +309,7 @@ def depot_overview(request, pk):
     for asset in assets:
         transactions[asset] = asset.get_transactions()
 
-    context = {"depot": depot,"transactions": transactions}
+    context = {"depot": depot, "transactions": transactions}
     return render(request, "accounting/bank_depot_detail.html", context)
 
 
@@ -328,6 +358,8 @@ def depot_asset_update_view(request, dep_pk, as_pk):
         return display_asset_form(request, asset)
     else:
         return process_asset_form(request, asset)
+
+
 #################################
 # Category views
 #################################
@@ -396,18 +428,27 @@ def charts_view(request):
 ##########################
 def contracts_view(request):
     contracts = get_contracts_for_user(request.user)
-    return render(request, "accounting/contracts.html", context={"contracts": contracts})
+    return render(
+        request, "accounting/contracts.html", context={"contracts": contracts}
+    )
 
 
 @login_required
 def display_contract_form(request, contract=None):
-    form = ContractForm(instance=contract, user=request.user, initial={"owner": request.user.pk})
+    form = ContractForm(
+        instance=contract, user=request.user, initial={"owner": request.user.pk}
+    )
     return render(request, "accounting/contract_form.html", {"form": form})
 
 
 @login_required
 def process_contract_form(request, contract=None):
-    form = ContractForm(request.POST, instance=contract, user=request.user, initial={"owner": request.user.pk})
+    form = ContractForm(
+        request.POST,
+        instance=contract,
+        user=request.user,
+        initial={"owner": request.user.pk},
+    )
     if not form.is_valid():
         return render(request, "accounting/contract_form.html", {"form": form})
     contract_obj = form.save()

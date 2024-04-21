@@ -10,27 +10,58 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('accounting', '0005_depotasset_last_update'),
+        ("accounting", "0005_depotasset_last_update"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='depotasset',
-            name='last_update',
-            field=models.DateField(default=datetime.date(2024, 2, 13), verbose_name='Letztes Update'),
+            model_name="depotasset",
+            name="last_update",
+            field=models.DateField(
+                default=datetime.date(2024, 2, 13), verbose_name="Letztes Update"
+            ),
         ),
         migrations.CreateModel(
-            name='Contract',
+            name="Contract",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=255, verbose_name='Name des Vertrags')),
-                ('description', models.TextField(blank=True, null=True, verbose_name='Beschreibung')),
-                ('owner', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL, verbose_name='Vertragsinhaber')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "name",
+                    models.CharField(max_length=255, verbose_name="Name des Vertrags"),
+                ),
+                (
+                    "description",
+                    models.TextField(
+                        blank=True, null=True, verbose_name="Beschreibung"
+                    ),
+                ),
+                (
+                    "owner",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="Vertragsinhaber",
+                    ),
+                ),
             ],
         ),
         migrations.AddField(
-            model_name='transaction',
-            name='contract',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='accounting.contract', verbose_name='Vertrag'),
+            model_name="transaction",
+            name="contract",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                to="accounting.contract",
+                verbose_name="Vertrag",
+            ),
         ),
     ]

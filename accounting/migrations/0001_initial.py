@@ -15,35 +15,123 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='BankAccount',
+            name="BankAccount",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=255, verbose_name='Name des Accounts')),
-                ('bank', models.CharField(max_length=255, verbose_name='Name der Bank')),
-                ('current_amount', models.DecimalField(decimal_places=2, default=0.0, max_digits=10, verbose_name='Startkontostand')),
-                ('owner', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL, verbose_name='Kontobesitzer')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "name",
+                    models.CharField(max_length=255, verbose_name="Name des Accounts"),
+                ),
+                (
+                    "bank",
+                    models.CharField(max_length=255, verbose_name="Name der Bank"),
+                ),
+                (
+                    "current_amount",
+                    models.DecimalField(
+                        decimal_places=2,
+                        default=0.0,
+                        max_digits=10,
+                        verbose_name="Startkontostand",
+                    ),
+                ),
+                (
+                    "owner",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="Kontobesitzer",
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='Category',
+            name="Category",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=255, unique=True, verbose_name='Titel')),
-                ('patterns', models.TextField(verbose_name='Patterns (new line separated)')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "name",
+                    models.CharField(max_length=255, unique=True, verbose_name="Titel"),
+                ),
+                (
+                    "patterns",
+                    models.TextField(verbose_name="Patterns (new line separated)"),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='Transaction',
+            name="Transaction",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('recipient', models.CharField(max_length=255, verbose_name='Empfänger/Versender')),
-                ('amount', models.DecimalField(decimal_places=2, max_digits=10, verbose_name='Betrag')),
-                ('subject', models.CharField(max_length=255, verbose_name='Buchungsinformation')),
-                ('date_issue', models.DateField(verbose_name='Buchungstag')),
-                ('date_booking', models.DateField(blank=True, null=True, verbose_name='Wertstellungstag')),
-                ('full_subject_string', models.TextField(verbose_name='gesamte Buchungsreferenz')),
-                ('bank_account', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='belongs_to', to='accounting.bankaccount', verbose_name='Bank')),
-                ('categories', models.ManyToManyField(blank=True, to='accounting.category', verbose_name='Kategorien')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "recipient",
+                    models.CharField(
+                        max_length=255, verbose_name="Empfänger/Versender"
+                    ),
+                ),
+                (
+                    "amount",
+                    models.DecimalField(
+                        decimal_places=2, max_digits=10, verbose_name="Betrag"
+                    ),
+                ),
+                (
+                    "subject",
+                    models.CharField(
+                        max_length=255, verbose_name="Buchungsinformation"
+                    ),
+                ),
+                ("date_issue", models.DateField(verbose_name="Buchungstag")),
+                (
+                    "date_booking",
+                    models.DateField(
+                        blank=True, null=True, verbose_name="Wertstellungstag"
+                    ),
+                ),
+                (
+                    "full_subject_string",
+                    models.TextField(verbose_name="gesamte Buchungsreferenz"),
+                ),
+                (
+                    "bank_account",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="belongs_to",
+                        to="accounting.bankaccount",
+                        verbose_name="Bank",
+                    ),
+                ),
+                (
+                    "categories",
+                    models.ManyToManyField(
+                        blank=True, to="accounting.category", verbose_name="Kategorien"
+                    ),
+                ),
             ],
         ),
     ]

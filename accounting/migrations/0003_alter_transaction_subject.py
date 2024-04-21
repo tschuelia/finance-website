@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounting', '0002_remove_transaction_categories_transaction_category'),
+        ("accounting", "0002_remove_transaction_categories_transaction_category"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='transaction',
-            name='subject',
-            field=models.CharField(max_length=1024, verbose_name='Buchungsinformation'),
+            model_name="transaction",
+            name="subject",
+            field=models.CharField(max_length=1024, verbose_name="Buchungsinformation"),
         ),
     ]

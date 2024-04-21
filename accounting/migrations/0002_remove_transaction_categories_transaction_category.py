@@ -7,17 +7,23 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounting', '0001_initial'),
+        ("accounting", "0001_initial"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='transaction',
-            name='categories',
+            model_name="transaction",
+            name="categories",
         ),
         migrations.AddField(
-            model_name='transaction',
-            name='category',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='accounting.category', verbose_name='Kategorie'),
+            model_name="transaction",
+            name="category",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                to="accounting.category",
+                verbose_name="Kategorie",
+            ),
         ),
     ]

@@ -9,34 +9,99 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('accounting', '0003_alter_transaction_subject'),
+        ("accounting", "0003_alter_transaction_subject"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='BankDepot',
+            name="BankDepot",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=255, verbose_name='Name des Depots')),
-                ('owner', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL, verbose_name='Depotbesitzer')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "name",
+                    models.CharField(max_length=255, verbose_name="Name des Depots"),
+                ),
+                (
+                    "owner",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="Depotbesitzer",
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='DepotAsset',
+            name="DepotAsset",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=255, verbose_name='Name der Anlage')),
-                ('current_balance', models.DecimalField(decimal_places=2, max_digits=10, verbose_name='Aktueller Wert')),
-                ('bank_depot', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='belongs_to', to='accounting.bankdepot', verbose_name='Depot')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "name",
+                    models.CharField(max_length=255, verbose_name="Name der Anlage"),
+                ),
+                (
+                    "current_balance",
+                    models.DecimalField(
+                        decimal_places=2, max_digits=10, verbose_name="Aktueller Wert"
+                    ),
+                ),
+                (
+                    "bank_depot",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="belongs_to",
+                        to="accounting.bankdepot",
+                        verbose_name="Depot",
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='DepotAssetTransaction',
+            name="DepotAssetTransaction",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('amount', models.DecimalField(decimal_places=2, max_digits=10, verbose_name='Betrag')),
-                ('date_issue', models.DateField(verbose_name='Buchungstag')),
-                ('asset', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='belongs_to', to='accounting.depotasset', verbose_name='Anlage')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "amount",
+                    models.DecimalField(
+                        decimal_places=2, max_digits=10, verbose_name="Betrag"
+                    ),
+                ),
+                ("date_issue", models.DateField(verbose_name="Buchungstag")),
+                (
+                    "asset",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="belongs_to",
+                        to="accounting.depotasset",
+                        verbose_name="Anlage",
+                    ),
+                ),
             ],
         ),
     ]
