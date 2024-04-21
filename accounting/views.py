@@ -85,11 +85,6 @@ def transactions_overview(request, pk):
         categories=request.GET.getlist("categories"),
     )
 
-    transaction_amounts = [t.amount for t in transactions]
-    total = sum(transaction_amounts)
-    payed = sum([t for t in transaction_amounts if t < 0])
-    received = sum([t for t in transaction_amounts if t > 0])
-
     paginator = Paginator(transactions, TRANSACTIONS_PAGE_LIMIT)
     current_page = request.GET.get("page")
     page_obj = paginator.get_page(current_page)
@@ -100,7 +95,15 @@ def transactions_overview(request, pk):
     # Without filters, the total amount will differ from the account balance since the account was started with an
     # initial amount set. This might confuse the user.
     if any(v for v in request.GET.values()):
-        context.update({"total_amount": total, "payed_amount": payed, "received_amount": received})
+        transaction_amounts = [t.amount for t in transactions]
+        total = sum(transaction_amounts)
+        payed = sum([t for t in transaction_amounts if t < 0])
+        received = sum([t for t in transaction_amounts if t > 0])
+
+        dates = [t.date_issue for t in transactions]
+
+        context.update({"total_amount": total, "payed_amount": payed, "received_amount": received,
+                        "min_date": min(dates), "max_date": max(dates)})
 
     return render(request, "accounting/bank_account_detail.html", context)
 

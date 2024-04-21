@@ -32,6 +32,8 @@
         <b>Bezahlt: </b><span class="{% if payed_amount < 0 %} text-danger {% else %} text-success {% endif %}">{{ payed_amount|intcomma }}€</span>
         <br>
         <b>Erhalten: </b><span class="{% if received_amount < 0 %} text-danger {% else %} text-success {% endif %}">{{ received_amount|intcomma }}€</span>
+        <br>
+        <b>Zeitraum: </b><span>{{ min_date|date:"d.m.Y" }} – {{ max_date|date:"d.m.Y" }}</span>
     </div>
     <br>
 {% endif %}

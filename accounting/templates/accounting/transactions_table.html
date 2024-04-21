@@ -16,7 +16,7 @@
         <tbody>
         {% for t in transactions %}
         <tr>
-            <td>{{ t.date_issue|date:"d.m.Y"  }}</td>
+            <td>{{ t.date_issue|date:"d.m.Y" }}</td>
             <td>{{ t.date_booking|date:"d.m.Y" }}</td>
             <td>{{ t.recipient }}</td>
             <td class="{% if t.amount <= 0.0 %} text-danger {% else %} text-success{% endif %}">
