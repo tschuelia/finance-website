@@ -85,11 +85,23 @@ def transactions_overview(request, pk):
         categories=request.GET.getlist("categories"),
     )
 
+    transaction_amounts = [t.amount for t in transactions]
+    total = sum(transaction_amounts)
+    payed = sum([t for t in transaction_amounts if t < 0])
+    received = sum([t for t in transaction_amounts if t > 0])
+
     paginator = Paginator(transactions, TRANSACTIONS_PAGE_LIMIT)
     current_page = request.GET.get("page")
     page_obj = paginator.get_page(current_page)
 
     context = {"account": account, "transactions": transactions, "page_obj": page_obj, "form": filter_form}
+
+    # Only add received/payed summary to the context if any filters were applied
+    # Without filters, the total amount will differ from the account balance since the account was started with an
+    # initial amount set. This might confuse the user.
+    if any(v for v in request.GET.values()):
+        context.update({"total_amount": total, "payed_amount": payed, "received_amount": received})
+
     return render(request, "accounting/bank_account_detail.html", context)
 
 

@@ -1,14 +1,18 @@
 {% extends "accounting/base.html" %}
 {% load humanize %}
+{% load crispy_forms_tags %}
 {% block content %}
 <div class="row my-4 mx-2">
     <h1 class="text-truncate d-inline">Alle Transaktionen</h1>
     <div class="ml-auto">
         <!--  Update categories for all transactions -->
-        <a href="{% url 'reassign-categories' account.pk %}" class="btn btn-light btn active" role="button" aria-pressed="true"><i class="fas fa-redo"></i> Kategorien</a>
+        <a aria-pressed="true" class="btn btn-light btn active" href="{% url 'reassign-categories' account.pk %}"
+           role="button"><i class="fas fa-redo"></i> Kategorien</a>
         <!-- upload data for bank account-->
-        <a href="{% url 'transaction-multi-add' account.pk %}" class="btn btn-light btn active" role="button" aria-pressed="true"><i class="fas fa-plus"></i></a>
-        <a href="{% url 'upload-transactions-csv' account.pk %}" class="btn btn-light btn active" role="button" aria-pressed="true"><i class="fas fa-file-upload"></i> CSV</a>
+        <a aria-pressed="true" class="btn btn-light btn active" href="{% url 'transaction-multi-add' account.pk %}"
+           role="button"><i class="fas fa-plus"></i></a>
+        <a aria-pressed="true" class="btn btn-light btn active" href="{% url 'upload-transactions-csv' account.pk %}"
+           role="button"><i class="fas fa-file-upload"></i> CSV</a>
     </div>
 </div>
 <h5>Konto: {{ account }}</h5>
@@ -20,35 +24,46 @@
 <hr>
 {% include 'accounting/filter_transactions.html' with account=account form=form %}
 <hr>
-<br>
-<br>
+
+{% if total_amount %}
+    <div>
+        <b>Gesamt: </b><span class="{% if total_amount < 0 %} text-danger {% else %} text-success {% endif %}">{{ total_amount|intcomma }}€</span>
+        <br>
+        <b>Bezahlt: </b><span class="{% if payed_amount < 0 %} text-danger {% else %} text-success {% endif %}">{{ payed_amount|intcomma }}€</span>
+        <br>
+        <b>Erhalten: </b><span class="{% if received_amount < 0 %} text-danger {% else %} text-success {% endif %}">{{ received_amount|intcomma }}€</span>
+    </div>
+    <br>
+{% endif %}
+
 
 {% include "accounting/transactions_table.html" with transactions=page_obj %}
-        <!--  Transactions Table Pagination   -->
-        <nav aria-label="Page navigation example">
-          <ul class="pagination">
-           {% if page_obj.has_previous %}
-            <li class="page-item"><a class="page-link" href="?page=1"><i class="fas fa-step-backward"></i></a></li>
-            <li class="page-item">
-              <a class="page-link" href="?page={{ page_obj.previous_page_number }}" aria-label="Previous">
+<!--  Transactions Table Pagination   -->
+<nav aria-label="Page navigation example">
+    <ul class="pagination">
+        {% if page_obj.has_previous %}
+        <li class="page-item"><a class="page-link" href="?page=1"><i class="fas fa-step-backward"></i></a></li>
+        <li class="page-item">
+            <a aria-label="Previous" class="page-link" href="?page={{ page_obj.previous_page_number }}">
                 <span aria-hidden="true"><i class="fas fa-chevron-left"></i></span>
                 <span class="sr-only">Previous</span>
-              </a>
-            </li>
-          {% endif %}
-          <li class="page-item"><a class="page-link" href="?page={{ page_obj.number }}">{{ page_obj.number }}</a></li>
+            </a>
+        </li>
+        {% endif %}
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.number }}">{{ page_obj.number }}</a></li>
 
-          {% if page_obj.has_next %}
-            <li class="page-item">
-              <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="Next">
+        {% if page_obj.has_next %}
+        <li class="page-item">
+            <a aria-label="Next" class="page-link" href="?page={{ page_obj.next_page_number }}">
                 <span aria-hidden="true"><i class="fas fa-chevron-right"></i></span>
                 <span class="sr-only">Next</span>
-              </a>
-            </li>
-            <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}"><i class="fas fa-step-forward"></i></a></li>
-          {% endif %}
-          </ul>
-        </nav>
+            </a>
+        </li>
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}"><i
+                class="fas fa-step-forward"></i></a></li>
+        {% endif %}
+    </ul>
+</nav>
 
 {% endblock content %}
 
