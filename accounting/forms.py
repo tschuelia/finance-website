@@ -1,4 +1,3 @@
-from bootstrap_datepicker_plus.widgets import DatePickerInput
 from django import forms
 from django.contrib.auth.models import User
 from django.forms import inlineformset_factory
@@ -144,8 +143,8 @@ class ContractForm(forms.ModelForm):
         model = Contract
         fields = "__all__"
         widgets = {
-            "start_date": DatePickerInput(format="%Y-%m-%d"),
-            "end_date": DatePickerInput(format="%Y-%m-%d"),
+            "start_date": DateInput(),
+            "end_date": DateInput(),
         }
 
 
