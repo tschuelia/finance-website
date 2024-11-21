@@ -1,11 +1,11 @@
 from django import forms
 from django.contrib.auth.models import User
-from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
 from django_addanother.widgets import AddAnotherWidgetWrapper
 
+from bootstrap_datepicker_plus.widgets import DatePickerInput
 
-from .models import Contract, DepotAsset, Transaction, Category
+from .models import Contract, DepotAsset, Transaction, Category, get_contracts
 
 
 class DateInput(forms.DateInput):
@@ -17,20 +17,27 @@ class TransactionForm(forms.ModelForm):
         user = kwargs.pop("user")
         super(TransactionForm, self).__init__(*args, **kwargs)
 
-        if user.is_superuser:
-            self.fields["contract"] = forms.ModelChoiceField(
-                queryset=Contract.objects.all(), required=False
-            )
-        else:
-            self.fields["contract"] = forms.ModelChoiceField(
-                queryset=Contract.objects.filter(pk=user.pk), required=False
-            )
+        self.fields["contract"] = forms.ModelChoiceField(
+            queryset=get_contracts(user), required=False,
+        )
 
     class Meta:
         model = Transaction
         fields = "__all__"
         widgets = {
             "category": AddAnotherWidgetWrapper(
+                forms.Select(
+                    attrs={
+                        "class": "selectpicker",
+                        "data-live-search": "true",
+                        "data-size": "5",
+                        "title": "Wähle Kategorien",
+                        "data-actions-box": "true",
+                    }
+                ),
+                reverse_lazy("create-category-popup"),
+            ),
+            "contract": AddAnotherWidgetWrapper(
                 forms.Select(
                     attrs={
                         "class": "selectpicker",
@@ -128,6 +135,10 @@ class ContractForm(forms.ModelForm):
     class Meta:
         model = Contract
         fields = "__all__"
+        widgets = {
+            "start_date": DatePickerInput(format="%Y-%m-%d"),
+            "end_date": DatePickerInput(format="%Y-%m-%d"),
+        }
 
 
 class UploadFileForm(forms.Form):

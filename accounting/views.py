@@ -33,8 +33,8 @@ from .forms import (
 )
 from .csv_to_transactions import csv_to_transactions
 
-
 TRANSACTIONS_PAGE_LIMIT = 100
+
 
 #################################
 # Overview of Bank Accounts
@@ -116,14 +116,16 @@ def transactions_overview(request, pk):
         received = sum([t for t in transaction_amounts if t > 0])
 
         dates = [t.date_issue for t in transactions]
+        min_date = min(dates) if dates else None
+        max_date = max(dates) if dates else None
 
         context.update(
             {
                 "total_amount": total,
                 "payed_amount": payed,
                 "received_amount": received,
-                "min_date": min(dates),
-                "max_date": max(dates),
+                "min_date": min_date,
+                "max_date": max_date,
             }
         )
 
@@ -321,6 +323,7 @@ def display_asset_form(request, asset=None):
         "accounting/asset_form.html",
         {
             "form": asset_form,
+            "asset": asset,
         },
     )
 
@@ -426,10 +429,15 @@ def charts_view(request):
 ##########################
 # Contract views
 ##########################
+@login_required
 def contracts_view(request):
     contracts = get_contracts_for_user(request.user)
+    active_contracts = contracts.filter(is_active=True)
+    inactive_contracts = contracts.filter(is_active=False)
     return render(
-        request, "accounting/contracts.html", context={"contracts": contracts}
+        request, "accounting/contracts.html", context={
+            "active_contracts": active_contracts, "inactive_contracts": inactive_contracts
+        }
     )
 
 
@@ -478,4 +486,15 @@ def contract_detail_view(request, pk):
     contract = get_object_or_404(Contract, pk=pk)
     check_user_permissions(request.user, contract)
 
-    return render(request, "accounting/contract_detail.html", {"contract": contract})
+    transactions = contract.get_transactions()
+
+    if transactions:
+        first_transaction = transactions[len(transactions) - 1]
+        last_transaction = transactions[0]
+    else:
+        first_transaction = None
+        last_transaction = None
+
+    return render(request, "accounting/contract_detail.html",
+                  {"contract": contract, "transactions": transactions, "first_transaction": first_transaction,
+                   "last_transaction": last_transaction})

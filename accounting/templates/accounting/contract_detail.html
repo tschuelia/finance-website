@@ -2,16 +2,30 @@
 {% load humanize %}
 {% block content %}
 <div class="row my-4 mx-2">
-    <h1 class="text-truncate d-inline">Vertrag: {{ contract.name }}</h1>
+    {% if contract.is_active %}
+        <h1 class="text-truncate d-inline">Vertrag: {{ contract.name }}</h1>
+    {% else %}
+        <h1 class="text-truncate d-inline text-secondary">Vertrag: {{ contract.name }} (inaktiv)</h1>
+    {% endif %}
     <div class="ml-auto">
         <a aria-pressed="true" class="btn btn-light btn active" href="{% url 'update-contract' pk=contract.pk %}" role="button"><i class="fas fa-edit"></i></a>
     </div>
 </div>
 <h5>Inhaber:</h5><p>{{ contract.owner }}</p>
+<h5>Vertragslaufzeit:</h5>
+<p>{{ contract.start_date|date:"d.m.Y" }} – {% if contract.end_date %}{{ contract.end_date|date:"d.m.Y" }}{% else %}(Vertrag aktiv){% endif %}</p>
+
 <h5>Beschreibung:</h5><p>{{ contract.description }}</p>
+<hr>
 <p>Summe Einnahmen/Ausgaben:
     <span class="{% if contract.get_balance < 0 %} text-danger {% else %} text-success {% endif %}">{{ contract.get_balance|intcomma }}€</span>
 </p>
+{% if first_transaction and last_transaction %}
+    <p>Erste Transaktion: {{ first_transaction.date_booking|date:"d.m.Y" }}</p>
+    <p>Letzte Transaktion: {{ last_transaction.date_booking|date:"d.m.Y" }}</p>
+{% else %}
+    <p>Dieser Vertrag hat noch keine Transaktionen.</p>
+{% endif %}
 <br>
 <div class="table-responsive">
     <table class="table">
@@ -25,7 +39,7 @@
         </tr>
         </thead>
         <tbody>
-        {% for t in contract.get_transactions %}
+        {% for t in transactions %}
         <tr>
             <td>{{ t.date_booking|date:"d.m.Y" }}</td>
             <td class="{% if t.amount < 0.0 %} text-danger {% else %} text-success{% endif %}">

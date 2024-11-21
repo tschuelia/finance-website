@@ -8,6 +8,8 @@
     {% csrf_token %}
     <fieldset class="form-group">
     <legend class="border-bottom mb-4">Depot aktualisieren</legend>
+      <h5>{{ asset.name }} ({{ asset.bank_depot.name }})</h5>
+      <br>
       <div class="row">
         <div class="col md-4">
           <div class="form-group mb-0">

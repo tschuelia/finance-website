@@ -139,14 +139,14 @@ class BankAccount(models.Model):
         return 0.0
 
     def get_transactions(
-        self,
-        search_term=None,
-        date_start=None,
-        date_end=None,
-        amount_min=None,
-        amount_max=None,
-        categories=None,
-        transaction_type=TransactionType.ALL,
+            self,
+            search_term=None,
+            date_start=None,
+            date_end=None,
+            amount_min=None,
+            amount_max=None,
+            categories=None,
+            transaction_type=TransactionType.ALL,
     ):
         transactions = self.belongs_to.all()
 
@@ -214,6 +214,9 @@ class Contract(models.Model):
     )
     name = models.CharField(max_length=255, verbose_name="Name des Vertrags")
     description = models.TextField(verbose_name="Beschreibung", null=True, blank=True)
+    is_active = models.BooleanField(verbose_name="aktiv", default=True)
+    start_date = models.DateField(verbose_name="Startdatum", blank=True, null=True)
+    end_date = models.DateField(verbose_name="Enddatum", blank=True, null=True)
 
     def __str__(self):
         return self.name
@@ -362,3 +365,12 @@ def update_transaction_categories_for_account(account):
     for transaction in account.get_transactions():
         transaction.category = get_category(transaction.recipient, transaction.subject)
         transaction.save()
+
+
+def get_contracts(user):
+    if user.is_superuser:
+        contracts = Contract.objects.all()
+    else:
+        contracts = Contract.objects.filter(pk=user.pk)
+
+    return contracts.order_by("-is_active", "name")

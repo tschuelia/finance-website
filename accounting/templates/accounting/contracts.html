@@ -15,18 +15,38 @@
                 <th>Name</th>
                 <th>Beschreibung</th>
                 <th>Inhaber</th>
-                <th>Aktionen</th>
             </tr>
             </thead>
             <tbody>
-            {% for con in contracts %}
             <tr>
-                <td style="width: 25%"><a href="{% url 'contract-detail' con.pk %}">{{ con.name }}</a></td>
+                <td colspan="3">
+                    <h3>Aktive Verträge</h3>
+                </td>
+            </tr>
+            {% for con in active_contracts %}
+            <tr>
+                <td style="width: 25%">
+                    <a href="{% url 'contract-detail' con.pk %}">{{ con.name }}</a>
+                </td>
                 <td style="width: 25%">{{ con.description|truncatechars:50 }}</td>
                 <td style="width: 25%">{{ con.owner }}</td>
-                <td style="width: 25%">
-                    <a href="{% url 'contract-detail' con.pk %}" class="btn btn-light btn active" role="button"><i class="fas fa-search-dollar fa-lg"></i> Details</a>
+            </tr>
+            {% endfor %}
+            <tr>
+                <td colspan="3"></td>
+            </tr>
+            <tr>
+                <td colspan="3">
+                    <h3>Beendete Verträge</h3>
                 </td>
+            </tr>
+            {% for con in inactive_contracts %}
+            <tr style="color: gray">
+                <td style="width: 25%">
+                    <a href="{% url 'contract-detail' con.pk %}" style="color: gray">{{ con.name }}</a>
+                </td>
+                <td style="width: 25%">{{ con.description|truncatechars:50 }}</td>
+                <td style="width: 25%">{{ con.owner }}</td>
             </tr>
             {% endfor %}
             </tbody>
