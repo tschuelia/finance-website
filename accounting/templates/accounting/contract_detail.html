@@ -67,10 +67,14 @@
     </div>
 </div>
 {% if contract.get_files %}
+<div class="row">
     {% for file in contract.get_files %}
+    <div class="col-md">
         <h5>{{ file.filename }}</h5>
-        <embed src="{{file.get_url}}" width="50%" height="600px">
+        <embed src="{{file.get_url}}" width="100%" height="600px">
+    </div>
     {% endfor %}
+</div>
 {% else %}
     <p>Keine Dateien für diesen Vertrag hinterlegt.</p>
 {% endif %}
