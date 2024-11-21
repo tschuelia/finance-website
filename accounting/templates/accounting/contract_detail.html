@@ -13,7 +13,7 @@
 </div>
 
 <p><i class="fas fa-user"></i> {{contract.owner}}</p>
-<p><i class="fas fa-calendar"></i> {{ contract.start_date|date:"d.m.Y" }} – {% if contract.end_date %}{{ contract.end_date|date:"d.m.Y" }}{% else %}(Vertrag aktiv){% endif %}</p>
+<p><i class="fas fa-calendar"></i> {{ contract.start_date|date:"d.m.Y" }} – {{ contract.end_date|date:"d.m.Y" }}</p>
 {% if contract.description %}
     <p><i class="fas fa-info-circle"></i> {{ contract.description }}</p>
 {% endif %}
