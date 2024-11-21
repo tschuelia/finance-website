@@ -5,7 +5,6 @@ import pandas as pd
 
 from .models import get_category
 
-
 # TODO: hack for now, replace with proper model and allow setting on website
 subject_mappings = {
     "fuellhorn": "Füllhorn",

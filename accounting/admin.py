@@ -1,13 +1,13 @@
 from django.contrib import admin
 
 from .models import (
-    Category,
     BankAccount,
-    Transaction,
     BankDepot,
+    Category,
+    Contract,
     DepotAsset,
     DepotAssetTransaction,
-    Contract,
+    Transaction,
 )
 
 # Register your models here.

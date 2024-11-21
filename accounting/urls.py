@@ -1,30 +1,27 @@
-from django.urls import path, include
+from django.urls import include, path
 
 from .views import (
-    transactions_overview,
+    CategoryCreateView,
     accounts_view,
+    add_files_to_contract,
     categories_view,
-    create_category,
-    update_category,
-    contracts_view,
+    charts_view,
     contract_detail_view,
+    contracts_view,
+    create_category,
     create_contract,
-    update_contract,
+    depot_asset_update_view,
+    depot_overview,
+    reassign_categories,
     transaction_delete_view,
     transaction_detail_view,
     transaction_update_view,
     transaction_upload_csv_view,
     transactions_add_multiple,
-    depot_overview,
-    depot_asset_update_view,
-    CategoryCreateView,
-    reassign_categories,
-    charts_view,
-    add_files_to_contract
+    transactions_overview,
+    update_category,
+    update_contract,
 )
-
-from . import charts
-
 
 urlpatterns = [
     # Account views
@@ -82,7 +79,9 @@ urlpatterns = [
     path("vertrag/<int:pk>", contract_detail_view, name="contract-detail"),
     path("vertrag/new", create_contract, name="create-contract"),
     path("vertrag/<int:pk>/update", update_contract, name="update-contract"),
-    path("vertrag/<int:pk>/addfiles", add_files_to_contract, name="add-files-to-contract"),
+    path(
+        "vertrag/<int:pk>/addfiles", add_files_to_contract, name="add-files-to-contract"
+    ),
     # Charts
     path("dash-charts/", include("django_plotly_dash.urls")),
     path("charts/", charts_view, name="charts"),

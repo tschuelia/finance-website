@@ -1,38 +1,38 @@
-from django.contrib.auth.models import User
-from django_addanother.views import CreatePopupMixin
-from django.core.paginator import Paginator
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.contrib import messages
-from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.models import User
+from django.core.paginator import Paginator
+from django.shortcuts import get_object_or_404, redirect, render
 from django.views.generic import CreateView
+from django_addanother.views import CreatePopupMixin
 
+from .csv_to_transactions import csv_to_transactions
+from .forms import (
+    AssetForm,
+    CategoryForm,
+    ContractFileFormSet,
+    ContractForm,
+    FilterTransactionsForm,
+    TransactionForm,
+    TransactionFormSet,
+    UploadFileForm,
+    process_transactions_formset,
+)
 from .models import (
     BankAccount,
     BankDepot,
+    Category,
     Contract,
     DepotAsset,
     Transaction,
-    Category,
     check_user_permissions,
     get_balance_for_user_owned_accounts,
     get_bank_accounts_for_user,
-    get_contracts_for_user,
     get_bank_depots_for_user,
+    get_contracts_for_user,
     update_transaction_categories_for_account,
 )
-from .forms import (
-    AssetForm,
-    ContractForm,
-ContractFileFormSet,
-    TransactionForm,
-    CategoryForm,
-    UploadFileForm,
-    TransactionFormSet,
-    FilterTransactionsForm,
-    process_transactions_formset,
-)
-from .csv_to_transactions import csv_to_transactions
 
 TRANSACTIONS_PAGE_LIMIT = 100
 
@@ -436,9 +436,12 @@ def contracts_view(request):
     active_contracts = contracts.filter(is_active=True)
     inactive_contracts = contracts.filter(is_active=False)
     return render(
-        request, "accounting/contracts.html", context={
-            "active_contracts": active_contracts, "inactive_contracts": inactive_contracts
-        }
+        request,
+        "accounting/contracts.html",
+        context={
+            "active_contracts": active_contracts,
+            "inactive_contracts": inactive_contracts,
+        },
     )
 
 
@@ -496,9 +499,16 @@ def contract_detail_view(request, pk):
         first_transaction = None
         last_transaction = None
 
-    return render(request, "accounting/contract_detail.html",
-                  {"contract": contract, "transactions": transactions, "first_transaction": first_transaction,
-                   "last_transaction": last_transaction})
+    return render(
+        request,
+        "accounting/contract_detail.html",
+        {
+            "contract": contract,
+            "transactions": transactions,
+            "first_transaction": first_transaction,
+            "last_transaction": last_transaction,
+        },
+    )
 
 
 @login_required
@@ -508,10 +518,18 @@ def add_files_to_contract(request, pk):
 
     if request.method == "GET":
         formset = ContractFileFormSet(instance=contract)
-        return render(request, "accounting/contract_files_form.html", {"formset": formset, "contract": contract})
+        return render(
+            request,
+            "accounting/contract_files_form.html",
+            {"formset": formset, "contract": contract},
+        )
     else:
         formset = ContractFileFormSet(request.POST, request.FILES, instance=contract)
         if not formset.is_valid():
-            return render(request, "accounting/contract_files_form.html", {"formset": formset, "contract": contract})
+            return render(
+                request,
+                "accounting/contract_files_form.html",
+                {"formset": formset, "contract": contract},
+            )
         formset.save()
         return redirect("contract-detail", pk=pk)

@@ -1,0 +1,12 @@
+[tool.ruff.lint]
+select = [
+  "F",    # flake8
+  "I",    # isort
+#  "UP",   # pyupgrade
+]
+
+[tool.ruff.lint.isort]
+known-first-party = [
+    "accounting",
+    "finances",
+]

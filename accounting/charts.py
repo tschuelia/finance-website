@@ -1,11 +1,11 @@
 import calendar
 import datetime
-import dash_bootstrap_components as dbc
 import decimal
-import pandas as pd
-
 from collections import defaultdict
-from dash import html, dcc
+
+import dash_bootstrap_components as dbc
+import pandas as pd
+from dash import dcc, html
 from dash.dependencies import Input, Output, State
 from dateutil.relativedelta import relativedelta
 from django.shortcuts import get_object_or_404

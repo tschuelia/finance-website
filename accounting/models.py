@@ -1,11 +1,10 @@
 import datetime
+from enum import Enum
 
-from django.db import models
-from django.db.models import Q, F, Func
 from django.contrib.auth.models import User
 from django.core.exceptions import PermissionDenied
-
-from enum import Enum
+from django.db import models
+from django.db.models import F, Func, Q
 
 
 class TransactionType(Enum):
@@ -139,14 +138,14 @@ class BankAccount(models.Model):
         return 0.0
 
     def get_transactions(
-            self,
-            search_term=None,
-            date_start=None,
-            date_end=None,
-            amount_min=None,
-            amount_max=None,
-            categories=None,
-            transaction_type=TransactionType.ALL,
+        self,
+        search_term=None,
+        date_start=None,
+        date_end=None,
+        amount_min=None,
+        amount_max=None,
+        categories=None,
+        transaction_type=TransactionType.ALL,
     ):
         transactions = self.belongs_to.all()
 
@@ -236,7 +235,10 @@ class ContractFile(models.Model):
     file = models.FileField(upload_to="contract_files", verbose_name="Datei")
     filename = models.CharField(max_length=255, verbose_name="Dateiname")
     contract = models.ForeignKey(
-        Contract, on_delete=models.CASCADE, verbose_name="Vertrag", related_name="file_of"
+        Contract,
+        on_delete=models.CASCADE,
+        verbose_name="Vertrag",
+        related_name="file_of",
     )
 
     def __str__(self):
