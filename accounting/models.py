@@ -228,6 +228,23 @@ class Contract(models.Model):
         transactions = self.get_transactions()
         return sum([t.amount for t in transactions])
 
+    def get_files(self):
+        return self.file_of.all().order_by("filename")
+
+
+class ContractFile(models.Model):
+    file = models.FileField(upload_to="contract_files", verbose_name="Datei")
+    filename = models.CharField(max_length=255, verbose_name="Dateiname")
+    contract = models.ForeignKey(
+        Contract, on_delete=models.CASCADE, verbose_name="Vertrag", related_name="file_of"
+    )
+
+    def __str__(self):
+        return self.filename
+
+    def get_url(self):
+        return self.file.url
+
 
 class Transaction(models.Model):
     bank_account = models.ForeignKey(

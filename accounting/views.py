@@ -24,6 +24,7 @@ from .models import (
 from .forms import (
     AssetForm,
     ContractForm,
+ContractFileFormSet,
     TransactionForm,
     CategoryForm,
     UploadFileForm,
@@ -498,3 +499,19 @@ def contract_detail_view(request, pk):
     return render(request, "accounting/contract_detail.html",
                   {"contract": contract, "transactions": transactions, "first_transaction": first_transaction,
                    "last_transaction": last_transaction})
+
+
+@login_required
+def add_files_to_contract(request, pk):
+    contract = get_object_or_404(Contract, pk=pk)
+    check_user_permissions(request.user, contract)
+
+    if request.method == "GET":
+        formset = ContractFileFormSet(instance=contract)
+        return render(request, "accounting/contract_files_form.html", {"formset": formset, "contract": contract})
+    else:
+        formset = ContractFileFormSet(request.POST, request.FILES, instance=contract)
+        if not formset.is_valid():
+            return render(request, "accounting/contract_files_form.html", {"formset": formset, "contract": contract})
+        formset.save()
+        return redirect("contract-detail", pk=pk)

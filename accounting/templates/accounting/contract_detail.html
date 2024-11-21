@@ -8,7 +8,7 @@
         <h1 class="text-truncate d-inline text-secondary">Vertrag: {{ contract.name }} (inaktiv)</h1>
     {% endif %}
     <div class="ml-auto">
-        <a aria-pressed="true" class="btn btn-light btn active" href="{% url 'update-contract' pk=contract.pk %}" role="button"><i class="fas fa-edit"></i></a>
+        <a class="btn btn-light btn" href="{% url 'update-contract' pk=contract.pk %}" role="button"><i class="fas fa-edit"></i></a>
     </div>
 </div>
 
@@ -58,5 +58,22 @@
         </tbody>
     </table>
 </div>
+<br>
+<hr>
+<div class="row my-4">
+    <h3>Vertragsunterlagen ({{ contract.get_files|length }})</h3>
+    <div class="ml-auto">
+        <a href="{% url 'add-files-to-contract' pk=contract.pk %}" class="btn btn-light btn"><i class="fas fa-plus"></i></a>
+    </div>
+</div>
+{% if contract.get_files %}
+    {% for file in contract.get_files %}
+        <h5>{{ file.filename }}</h5>
+        <embed src="{{file.get_url}}" width="50%" height="600px">
+    {% endfor %}
+{% else %}
+    <p>Keine Dateien für diesen Vertrag hinterlegt.</p>
+{% endif %}
+
 {% endblock content %}
 

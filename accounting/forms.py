@@ -1,11 +1,12 @@
 from django import forms
 from django.contrib.auth.models import User
+from django.forms import inlineformset_factory
 from django.urls import reverse_lazy
 from django_addanother.widgets import AddAnotherWidgetWrapper
 
 from bootstrap_datepicker_plus.widgets import DatePickerInput
 
-from .models import Contract, DepotAsset, Transaction, Category, get_contracts
+from .models import Contract, ContractFile, DepotAsset, Transaction, Category, get_contracts
 
 
 class DateInput(forms.DateInput):
@@ -141,6 +142,12 @@ class ContractForm(forms.ModelForm):
         }
 
 
+class ContractFileForm(forms.ModelForm):
+    class Meta:
+        model = ContractFile
+        fields = ["file", "filename"]
+
+
 class UploadFileForm(forms.Form):
     file = forms.FileField()
 
@@ -149,6 +156,15 @@ TransactionFormSet = forms.formset_factory(
     form=TransactionFormTableRow,
     can_delete=True,
     extra=1,
+)
+
+ContractFileFormSet = inlineformset_factory(
+    parent_model=Contract,
+    model=ContractFile,
+    fields=("file", "filename"),
+    form=ContractFileForm,
+    extra=1,
+    can_delete=True
 )
 
 

@@ -20,6 +20,7 @@ from .views import (
     CategoryCreateView,
     reassign_categories,
     charts_view,
+    add_files_to_contract
 )
 
 from . import charts
@@ -81,6 +82,7 @@ urlpatterns = [
     path("vertrag/<int:pk>", contract_detail_view, name="contract-detail"),
     path("vertrag/new", create_contract, name="create-contract"),
     path("vertrag/<int:pk>/update", update_contract, name="update-contract"),
+    path("vertrag/<int:pk>/addfiles", add_files_to_contract, name="add-files-to-contract"),
     # Charts
     path("dash-charts/", include("django_plotly_dash.urls")),
     path("charts/", charts_view, name="charts"),
