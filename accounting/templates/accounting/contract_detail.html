@@ -1,7 +1,7 @@
 {% extends "accounting/base.html" %}
 {% load humanize %}
 {% block content %}
-<div class="row my-4 mx-2">
+<div class="row my-4">
     {% if contract.is_active %}
         <h1 class="text-truncate d-inline">Vertrag: {{ contract.name }}</h1>
     {% else %}
@@ -11,11 +11,13 @@
         <a aria-pressed="true" class="btn btn-light btn active" href="{% url 'update-contract' pk=contract.pk %}" role="button"><i class="fas fa-edit"></i></a>
     </div>
 </div>
-<h5>Inhaber:</h5><p>{{ contract.owner }}</p>
-<h5>Vertragslaufzeit:</h5>
-<p>{{ contract.start_date|date:"d.m.Y" }} – {% if contract.end_date %}{{ contract.end_date|date:"d.m.Y" }}{% else %}(Vertrag aktiv){% endif %}</p>
 
-<h5>Beschreibung:</h5><p>{{ contract.description }}</p>
+<p><i class="fas fa-user"></i> {{contract.owner}}</p>
+<p><i class="fas fa-calendar"></i> {{ contract.start_date|date:"d.m.Y" }} – {% if contract.end_date %}{{ contract.end_date|date:"d.m.Y" }}{% else %}(Vertrag aktiv){% endif %}</p>
+{% if contract.description %}
+    <p><i class="fas fa-info-circle"></i> {{ contract.description }}</p>
+{% endif %}
+
 <hr>
 <p>Summe Einnahmen/Ausgaben:
     <span class="{% if contract.get_balance < 0 %} text-danger {% else %} text-success {% endif %}">{{ contract.get_balance|intcomma }}€</span>
@@ -48,7 +50,7 @@
             <td>{{ t.subject }}</td>
             <td><a href="{% url 'transactions' pk=t.bank_account.pk %}">{{ t.bank_account.name }}</a></td>
             <td>
-                <a href="{% url 'transaction-detail' acc_pk=t.bank_account.pk t_pk=t.pk %}" class="btn text-dark"><i class="fas fa-info-circle fa-sm"></i></a>
+                <a href="{% url 'transaction-detail' acc_pk=t.bank_account.pk t_pk=t.pk %}"><i class="fas fa-info-circle fa-sm"></i> Details</a>
             </td>
 
         </tr>
