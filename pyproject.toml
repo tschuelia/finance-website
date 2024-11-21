@@ -1,8 +1,11 @@
+[project]
+requires-python = ">=3.8"
+
 [tool.ruff.lint]
 select = [
   "F",    # flake8
   "I",    # isort
-#  "UP",   # pyupgrade
+  "UP",   # pyupgrade
 ]
 
 [tool.ruff.lint.isort]

@@ -22,7 +22,7 @@ class DateInput(forms.DateInput):
 class TransactionForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         user = kwargs.pop("user")
-        super(TransactionForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.fields["contract"] = forms.ModelChoiceField(
             queryset=get_contracts(user),
@@ -103,7 +103,7 @@ class TransactionFormTableRow(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         user = kwargs.pop("user")
-        super(TransactionFormTableRow, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         if not user.is_superuser:
             self.fields["contract"]["queryset"] = Contract.objects.filter(pk=user.pk)
@@ -131,7 +131,7 @@ class CategoryForm(forms.ModelForm):
 class ContractForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         user = kwargs.pop("user")
-        super(ContractForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         if user.is_superuser:
             self.fields["owner"] = forms.ModelChoiceField(queryset=User.objects.all())
