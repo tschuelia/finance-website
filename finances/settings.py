@@ -13,7 +13,30 @@ https://docs.djangoproject.com/en/4.0/ref/settings/
 import os
 from pathlib import Path
 
+from django.conf import settings
 from django.contrib import messages
+from django.shortcuts import redirect
+from django.urls import reverse
+
+
+class LoginRequiredMiddleware:
+    """
+    Middleware that requires a user to be authenticated to access any page.
+    Exemptions can be added for specific paths.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+        self.exempt_urls = [reverse("login")]  # Add paths that don't require login
+
+    def __call__(self, request):
+        if not request.user.is_authenticated:
+            if not any(request.path.startswith(url) for url in self.exempt_urls):
+                return redirect(settings.LOGIN_URL)
+
+        response = self.get_response(request)
+        return response
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -60,6 +83,7 @@ MIDDLEWARE = [
     "django_plotly_dash.middleware.BaseMiddleware",
     "django_plotly_dash.middleware.ExternalRedirectionMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "finances.settings.LoginRequiredMiddleware",
 ]
 
 ROOT_URLCONF = "finances.urls"

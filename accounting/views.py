@@ -1,5 +1,4 @@
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.models import User
 from django.core.paginator import Paginator
@@ -42,7 +41,6 @@ TRANSACTIONS_PAGE_LIMIT = 100
 #################################
 
 
-@login_required
 def accounts_view(request):
     """
     Display all bank accounts the user is allowed to view
@@ -77,7 +75,6 @@ def accounts_view(request):
 #################################
 # Bank Account specific views
 #################################
-@login_required
 def transactions_overview(request, pk):
     """
     Overview of all transactions for a bank account
@@ -136,7 +133,6 @@ def transactions_overview(request, pk):
 #################################
 # Transaction specific views
 #################################
-@login_required
 def transactions_add_multiple(request, pk):
     """
     View that allows table based adding of multiple transactions to the bank account
@@ -174,7 +170,6 @@ def transactions_add_multiple(request, pk):
         )
 
 
-@login_required
 def transaction_upload_csv_view(request, pk):
     """
     View that allows uploading a csv export containing transaction information
@@ -201,7 +196,6 @@ def transaction_upload_csv_view(request, pk):
     return render(request, "accounting/transaction_upload_form.html", {"form": form})
 
 
-@login_required
 def transaction_detail_view(request, acc_pk, t_pk):
     """
     Show details of the selected transaction
@@ -218,7 +212,6 @@ def transaction_detail_view(request, acc_pk, t_pk):
     return render(request, "accounting/transaction_detail.html", context)
 
 
-@login_required
 def display_transaction_form(request, transaction=None):
     transaction_form = TransactionForm(instance=transaction, user=request.user)
     return render(
@@ -230,7 +223,6 @@ def display_transaction_form(request, transaction=None):
     )
 
 
-@login_required
 def process_transaction_form(request, transaction=None):
     transaction_form = TransactionForm(
         request.POST, instance=transaction, user=request.user
@@ -253,7 +245,6 @@ def process_transaction_form(request, transaction=None):
     )
 
 
-@login_required
 def transaction_update_view(request, acc_pk, t_pk):
     """
     Update a transaction object
@@ -268,7 +259,6 @@ def transaction_update_view(request, acc_pk, t_pk):
         return process_transaction_form(request, transaction)
 
 
-@login_required
 def transaction_delete_view(request, acc_pk, t_pk):
     """
     Delete a transaction object
@@ -281,7 +271,6 @@ def transaction_delete_view(request, acc_pk, t_pk):
     return redirect("transactions", pk=acc_pk)
 
 
-@login_required
 def reassign_categories(request, pk):
     account = get_object_or_404(BankAccount, pk=pk)
     check_user_permissions(request.user, account)
@@ -298,7 +287,6 @@ def reassign_categories(request, pk):
 #################################
 # Depot views
 #################################
-@login_required
 def depot_overview(request, pk):
     """
     Overview of all transactions for a bank account
@@ -316,7 +304,6 @@ def depot_overview(request, pk):
     return render(request, "accounting/bank_depot_detail.html", context)
 
 
-@login_required
 def display_asset_form(request, asset=None):
     asset_form = AssetForm(instance=asset)
     return render(
@@ -329,7 +316,6 @@ def display_asset_form(request, asset=None):
     )
 
 
-@login_required
 def process_asset_form(request, asset=None):
     asset_form = AssetForm(request.POST, instance=asset)
     if not asset_form.is_valid():
@@ -349,7 +335,6 @@ def process_asset_form(request, asset=None):
     )
 
 
-@login_required
 def depot_asset_update_view(request, dep_pk, as_pk):
     """
     Update a transaction object
@@ -369,7 +354,6 @@ def depot_asset_update_view(request, dep_pk, as_pk):
 #################################
 
 
-@login_required
 def categories_view(request):
     """
     Overview of all categories
@@ -388,13 +372,11 @@ class CategoryCreateView(CreatePopupMixin, LoginRequiredMixin, CreateView):
     fields = ["name"]
 
 
-@login_required
 def display_category_form(request, category=None):
     form = CategoryForm(instance=category)
     return render(request, "accounting/category_form.html", {"form": form})
 
 
-@login_required
 def process_category_form(request, category=None):
     form = CategoryForm(request.POST, instance=category)
     if not form.is_valid():
@@ -403,7 +385,6 @@ def process_category_form(request, category=None):
     return redirect("categories")
 
 
-@login_required
 def update_category(request, pk):
     category = get_object_or_404(Category, pk=pk)
 
@@ -413,7 +394,6 @@ def update_category(request, pk):
         return process_category_form(request, category=category)
 
 
-@login_required
 def create_category(request):
     if request.method == "GET":
         return display_category_form(request)
@@ -422,7 +402,6 @@ def create_category(request):
 
 
 # Plot views
-@login_required
 def charts_view(request):
     return render(request, "accounting/plots.html", context={})
 
@@ -430,7 +409,6 @@ def charts_view(request):
 ##########################
 # Contract views
 ##########################
-@login_required
 def contracts_view(request):
     contracts = get_contracts_for_user(request.user)
     active_contracts = contracts.filter(is_active=True)
@@ -445,7 +423,6 @@ def contracts_view(request):
     )
 
 
-@login_required
 def display_contract_form(request, contract=None):
     form = ContractForm(
         instance=contract, user=request.user, initial={"owner": request.user.pk}
@@ -453,7 +430,6 @@ def display_contract_form(request, contract=None):
     return render(request, "accounting/contract_form.html", {"form": form})
 
 
-@login_required
 def process_contract_form(request, contract=None):
     form = ContractForm(
         request.POST,
@@ -467,7 +443,6 @@ def process_contract_form(request, contract=None):
     return redirect("contract-detail", pk=contract_obj.pk)
 
 
-@login_required
 def update_contract(request, pk):
     contract = get_object_or_404(Contract, pk=pk)
 
@@ -477,7 +452,6 @@ def update_contract(request, pk):
         return process_contract_form(request, contract=contract)
 
 
-@login_required
 def create_contract(request):
     if request.method == "GET":
         return display_contract_form(request)
@@ -485,7 +459,6 @@ def create_contract(request):
         return process_contract_form(request)
 
 
-@login_required
 def contract_detail_view(request, pk):
     contract = get_object_or_404(Contract, pk=pk)
     check_user_permissions(request.user, contract)
@@ -511,7 +484,6 @@ def contract_detail_view(request, pk):
     )
 
 
-@login_required
 def add_files_to_contract(request, pk):
     contract = get_object_or_404(Contract, pk=pk)
     check_user_permissions(request.user, contract)
