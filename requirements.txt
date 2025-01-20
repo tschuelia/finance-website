@@ -2,6 +2,7 @@ Django
 fontawesomefree
 django-plotly-dash
 django-crispy-forms
+crispy-bootstrap4
 django-addanother
 django-bootstrap4
 pandas>=2
