@@ -6,6 +6,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.generic import CreateView
 from django_addanother.views import CreatePopupMixin
 
+from . import charts  # noqa: F401
 from .csv_to_transactions import csv_to_transactions
 from .forms import (
     AssetForm,
