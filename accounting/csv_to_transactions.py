@@ -1,60 +1,25 @@
-import datetime
 import io
 
 import pandas as pd
 
 from .models import get_category
 
-# TODO: hack for now, replace with proper model and allow setting on website
-subject_mappings = {
-    "fuellhorn": "Füllhorn",
-    "alnatura": "Alnatura",
-    "rewe": "Rewe",
-    "edeka": "Edeka",
-    "dm ": "DM",
-    "miete juni": "Miete Jonas",
-    "bargeldauszahlung": "Bargeld",
-    "ettli kaffee": "Ettli Kaffee",
-    "yello strom": "Gas",
-    "julia schmidkto": "GEZ Rücklage",
-}
-
 
 def categorize(df):
     categories = []
     for idx, row in df.iterrows():
-        cat = get_category(row.recipient, row.subject)
+        try:
+            cat = get_category(row.recipient, row.subject)
+        except:
+            print("failed to categorize ", row.recipient, row.subject)
+            raise
         categories.append(cat)
 
     df["category"] = categories
     return df
 
 
-def reformat_german_float_to_python_float(df):
-    # first replace dots with empty strings:
-    # 1.234,56 -> 1234,56
-    amounts = [val.replace(".", "") for val in df.amount]
-
-    # next replace commas with dots:
-    # 1234,56 -> 1234.56
-    amounts = [val.replace(",", ".") for val in amounts]
-
-    # finally convert the strings to floats and return
-    df["amount"] = [float(val) for val in amounts]
-    return df
-
-
-def german_date_to_python_date(df, date_col):
-    def _fmt(args):
-        idx, row = args
-        day, month, year = row[date_col].split(".")
-        return datetime.date(day=int(day), month=int(month), year=int(year))
-
-    df[date_col] = list(map(_fmt, df.iterrows()))
-    return df
-
-
-def extract_subject_info_comdirect(df):
+def _extract_subject_info_comdirect(df):
     subjects = []
     recipients = []
 
@@ -62,14 +27,12 @@ def extract_subject_info_comdirect(df):
         try:
             subj = str(row.full_subject_string).lower()
         except:
-            print("failed to extract subject ", subj)
+            print("failed to extract subject ", row.full_subject_string)
             raise
 
-        if "ref." in subj:
-            subj, _ = subj.split("ref.")
-
-        if "kfn" in subj:
-            subj, _ = subj.split("kfn")
+        for s in ["ref.", "kfn", "karte"]:
+            if s in subj:
+                subj, _ = subj.split(s, maxsplit=1)
 
         if row.event == "Entgelte":
             subjects.append(subj)
@@ -101,11 +64,6 @@ def extract_subject_info_comdirect(df):
         else:
             rec = None
 
-        for k, v in subject_mappings.items():
-            if k in subj:
-                subj = v
-                break
-
         subjects.append(subj)
         recipients.append(rec)
 
@@ -115,119 +73,40 @@ def extract_subject_info_comdirect(df):
     return df
 
 
-def parse_csv_to_dataframe(csv_file, columns):
-    content = csv_file.read().decode(encoding="latin-1")
-    header_line = content.find('"Buchungstag')
-    footer_line = content.find("Umsätze Visa-Karte")
-    content = content[header_line:footer_line]
-
-    transactions_df = pd.read_csv(
-        io.StringIO(content),
-        sep=";",
-        encoding="latin-1",
-        header=0,
-        dtype=str,
-    )
-
-    transactions_df = transactions_df[columns.keys()]
-    transactions_df.rename(columns=columns, inplace=True)
-
-    # only add transactions that have an issue and a booking date
-    transactions_df = transactions_df[lambda x: x.date_booking != "offen"]
-    transactions_df = transactions_df[lambda x: x.date_issue != "offen"]
-
-    return transactions_df
-
-
-def correct_dataframe(transactions_df, fillna_recipient=""):
-    transactions_df.dropna(
-        subset=["date_issue", "date_booking", "amount", "subject", "recipient"],
-        how="all",
-        inplace=True,
-    )
-    transactions_df = german_date_to_python_date(transactions_df, "date_issue")
-    transactions_df = german_date_to_python_date(transactions_df, "date_booking")
-
-    transactions_df.recipient.fillna(fillna_recipient, inplace=True)
-    transactions_df.subject.fillna("", inplace=True)
-
-    transactions_df = reformat_german_float_to_python_float(transactions_df)
-    transactions_df = categorize(transactions_df)
-    return transactions_df
-
-
 def parse_comdirect_csv_to_dataframe(csv_file):
     columns = {
         "Buchungstag": "date_issue",
         "Wertstellung (Valuta)": "date_booking",
         "Vorgang": "event",
-        "Buchungstext": "full_subject_string",
+        "Buchungstext": "subject",
         "Umsatz in EUR": "amount",
     }
 
-    df = parse_csv_to_dataframe(csv_file, columns)
-    df = extract_subject_info_comdirect(df)
-    df = correct_dataframe(df)
+    content = csv_file.read().decode(encoding="latin-1")
+    header_line = content.find('"Buchungstag')
+    footer_line = content.find("Umsätze Visa-Karte")
+    content = content[header_line:footer_line]
+
+    df = parse_csv(content, columns)
+
+    df = df[lambda x: (x.date_booking != "offen") & (x.date_issue != "offen")]
+    df = _extract_subject_info_comdirect(df)
     return df
 
 
 def parse_dkb_csv_to_dataframe(csv_file):
-    # Since September 2023, the column names and some formats changed
-    # we can check which format it is based on whether the file contains Zahlungspflichtige*r
-    content = csv_file.read().decode(encoding="latin-1")
-    if "Zahlungspflichtige*r" in content:
-        # New CSV export -> use dedicated function
-        csv_file.seek(0)
-        return parse_new_dkb_csv_to_dataframe(csv_file)
-
-    csv_file.seek(0)
-    columns = {
-        "Buchungstag": "date_issue",
-        "Wertstellung": "date_booking",
-        "Buchungstext": "event",
-        "Betrag (EUR)": "amount",
-        "Auftraggeber / Begünstigter": "recipient",
-        "Verwendungszweck": "subject",
-    }
-
-    df = parse_csv_to_dataframe(csv_file, columns)
-    df["full_subject_string"] = df["subject"]
-    df = correct_dataframe(df, fillna_recipient="DKB AG")
-
-    return df
-
-
-def parse_new_dkb_csv_to_dataframe(csv_file):
     columns = {
         "Buchungsdatum": "date_issue",
         "Wertstellung": "date_booking",
         "Umsatztyp": "event",
         "Verwendungszweck": "subject",
+        "Betrag (€)": "amount",
     }
+
     content = csv_file.read().decode(encoding="utf-8")
     header_line = content.find("Buchungsdatum")
     content = content[header_line:]
-    df = pd.read_csv(
-        io.StringIO(content),
-        sep=";",
-        encoding="latin-1",
-        header=0,
-        dtype=str,
-        parse_dates=[0, 1],
-        date_format="%d.%m.%y",
-    )
-    has_euro_sign_in_values = "Betrag" in df.columns
-
-    if has_euro_sign_in_values:
-        columns.update({"Betrag": "amount"})
-    else:
-        columns.update({"Betrag (€)": "amount"})
-
-    df.rename(columns=columns, inplace=True)
-    if has_euro_sign_in_values:
-        # remove the euro sign from the amount
-        df.amount = df.amount.str.split().str[0]
-    df = reformat_german_float_to_python_float(df)
+    df = parse_csv(content, columns, fillna_recipient="DKB AG", dateformat="%d.%m.%y")
 
     # now based on the amount we have to select a different column as recipient
     # if the amount is >= 0 (= "Einnahme") use Zahlungspflichtige*r
@@ -239,19 +118,6 @@ def parse_new_dkb_csv_to_dataframe(csv_file):
         else:
             recipients.append(row["Zahlungsempfänger*in"])
     df["recipient"] = recipients
-
-    df["full_subject_string"] = df["subject"]
-    df = df[list(columns.values()) + ["recipient", "full_subject_string"]]
-    df.dropna(
-        subset=["date_issue", "date_booking", "amount", "subject", "recipient"],
-        how="all",
-        inplace=True,
-    )
-
-    df.recipient.fillna("DKB AG", inplace=True)
-    df.subject.fillna("", inplace=True)
-    df = categorize(df)
-
     return df
 
 
@@ -261,27 +127,75 @@ def parse_holvi_csv_to_dataframe(csv_file):
         "Buchungsdatum": "date_booking",
         "Gegenpartei": "recipient",
         "Betrag": "amount",
+        "Referenz": "subject",
     }
     content = csv_file.read().decode(encoding="utf-8")
     header_line = content.find("Zahlungsdatum")
     content = content[header_line:]
-    transaction_df = pd.read_csv(
-        io.StringIO(content),
-        sep=";",
-        encoding="latin-1",
-        header=0,
-        dtype=str,
-        parse_dates=[0, 1],
-        date_format="%d.%m.%y",
-    )
-    transaction_df.rename(columns=columns, inplace=True)
-    transaction_df["subject"] = transaction_df.Nachricht.fillna(transaction_df.Referenz)
-    transaction_df["full_subject_string"] = (
-        transaction_df.subject + " " + transaction_df["Zahlungs-ID"]
+    return parse_csv(content, columns, fillna_subject=lambda x: x.Nachricht)
+
+
+def parse_n26_csv_to_dataframe(csv_file):
+    columns = {
+        "Booking Date": "date_issue",
+        "Value Date": "date_booking",
+        "Partner Name": "recipient",
+        "Payment Reference": "subject",
+        "Amount (EUR)": "amount",
+    }
+
+    content = csv_file.read().decode(encoding="utf-8")
+    return parse_csv(
+        content,
+        columns,
+        fillna_subject=lambda x: x.recipient,
+        dateformat="%Y-%m-%d",
+        german_float=False,
     )
 
-    transaction_df = correct_dataframe(transaction_df)
-    return transaction_df
+
+def parse_csv(
+    content,
+    columns,
+    fillna_recipient="",
+    fillna_subject="",
+    dateformat="%d.%m.%Y",
+    german_float=True,
+):
+    dtypes = {orig: float if new == "amount" else str for orig, new in columns.items()}
+
+    df = pd.read_csv(
+        io.StringIO(content),
+        sep=";",
+        encoding="utf-8",
+        header=0,
+        dtype=dtypes,
+        **{"thousands": ".", "decimal": ","} if german_float else {},
+    )
+
+    df.rename(columns=columns, inplace=True)
+
+    df.date_booking = pd.to_datetime(df.date_booking, format=dateformat)
+    df.date_issue = pd.to_datetime(df.date_issue, format=dateformat)
+
+    df.fillna(
+        {
+            "recipient": fillna_recipient,
+            "subject": fillna_subject
+            if isinstance(fillna_subject, str)
+            else fillna_subject(df),
+        },
+        inplace=True,
+    )
+    df["full_subject_string"] = df.subject
+    # df = df[list(columns.values()) + ["full_subject_string"]]
+    df.dropna(
+        subset=["date_issue", "date_booking", "amount", "subject"],
+        how="all",
+        inplace=True,
+    )
+
+    return df
 
 
 def csv_to_transactions(csv_file, account):
@@ -291,9 +205,12 @@ def csv_to_transactions(csv_file, account):
         transaction_df = parse_dkb_csv_to_dataframe(csv_file)
     elif account.bank.lower() == "holvi":
         transaction_df = parse_holvi_csv_to_dataframe(csv_file)
+    elif account.bank.lower() == "n26":
+        transaction_df = parse_n26_csv_to_dataframe(csv_file)
     else:
         raise ValueError(
-            "At the moment only CSV exports of Comdirect, DKB or Holvi are supported."
+            "At the moment only CSV exports of Comdirect, DKB, N26, or Holvi are supported."
         )
+    transaction_df = categorize(transaction_df)
     transaction_df["bank_account"] = account
     return transaction_df.to_dict("records")

@@ -157,7 +157,9 @@ def transactions_add_multiple(request, pk):
         )
         if n_added_transactions > 0:
             messages.add_message(
-                request, messages.INFO, f"{n_added_transactions} transactions added."
+                request,
+                messages.INFO,
+                f"{n_added_transactions} Transaktionen hinzugefügt.",
             )
 
         return redirect("transactions", pk=pk)
