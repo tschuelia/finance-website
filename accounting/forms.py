@@ -56,8 +56,8 @@ class TransactionForm(forms.ModelForm):
                 ),
                 reverse_lazy("create-category-popup"),
             ),
-            "date_issue": DateInput(),
-            "date_booking": DateInput(),
+            "date_issue": DateInput(format=("%Y-%m-%d")),
+            "date_booking": DateInput(format=("%Y-%m-%d")),
         }
 
 
