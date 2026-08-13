@@ -1,12 +1,17 @@
 import sqlite3
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Never
 
 import typer
 from alembic.util import CommandError
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
 
+from app.cli import management
 from app.config import ConfigurationError, load_settings
+from app.db.engine import create_database_engine, create_session_factory, session_scope
 from app.db.migrations import (
     DatabaseMigrationError,
     bootstrap_existing_database,
@@ -17,7 +22,17 @@ from app.db.schema import DatabaseInspection, inspect_database
 
 app = typer.Typer(help="Finances management commands.", no_args_is_help=True)
 db_app = typer.Typer(help="Inspect and migrate the finances database.", no_args_is_help=True)
+users_app = typer.Typer(help="Manage application users.", no_args_is_help=True)
+accounts_app = typer.Typer(help="Manage bank accounts.", no_args_is_help=True)
+depots_app = typer.Typer(help="Manage bank depots.", no_args_is_help=True)
+assets_app = typer.Typer(help="Manage depot assets.", no_args_is_help=True)
+asset_transactions_app = typer.Typer(help="Manage depot asset transactions.", no_args_is_help=True)
 app.add_typer(db_app, name="db")
+app.add_typer(users_app, name="users")
+app.add_typer(accounts_app, name="accounts")
+app.add_typer(depots_app, name="depots")
+app.add_typer(assets_app, name="assets")
+app.add_typer(asset_transactions_app, name="asset-transactions")
 
 
 def _database_path() -> Path:
@@ -67,6 +82,45 @@ def inspect_command() -> None:
 def _migration_error(exc: Exception) -> Never:
     typer.echo(str(exc), err=True)
     raise typer.Exit(code=1) from None
+
+
+@contextmanager
+def _management_session() -> Iterator[Session]:
+    settings = load_settings()
+    engine = create_database_engine(settings)
+    try:
+        session_factory = create_session_factory(engine)
+        with session_scope(session_factory) as session:
+            yield session
+    finally:
+        engine.dispose()
+
+
+def _run_management_command[Result](operation: Callable[[Session], Result]) -> Result:
+    try:
+        with _management_session() as session:
+            return operation(session)
+    except (
+        ConfigurationError,
+        management.ManagementCommandError,
+        SQLAlchemyError,
+        sqlite3.Error,
+        OSError,
+    ) as exc:
+        _migration_error(exc)
+    raise AssertionError("management command error handler unexpectedly returned")
+
+
+def _confirm_destructive_action(message: str, *, yes: bool) -> None:
+    if yes:
+        return
+    if not typer.confirm(f"{message} Continue?"):
+        raise typer.Abort()
+
+
+def _print_summaries(summaries: tuple[object, ...]) -> None:
+    for line in management.lines_for_summaries(summaries):
+        typer.echo(line)
 
 
 @db_app.command("bootstrap-existing")
@@ -121,3 +175,358 @@ def upgrade_command(revision: str = typer.Argument(default="head")) -> None:
     ) as exc:
         _migration_error(exc)
     typer.echo(f"Database upgraded to {revision}.")
+
+
+def _password_option(password: str | None) -> str:
+    if password is None:
+        raise typer.BadParameter("A password is required")
+    return password
+
+
+@users_app.command("list")
+def list_users_command() -> None:
+    """List users without exposing password hashes or session data."""
+    _print_summaries(_run_management_command(management.list_users))
+
+
+@users_app.command("create")
+def create_user_command(
+    username: str = typer.Option(..., "--username", "-u", help="Unique username."),
+    password: str | None = typer.Option(
+        None,
+        "--password",
+        prompt=True,
+        hide_input=True,
+        confirmation_prompt=True,
+        help="Password to store using Django-compatible PBKDF2.",
+    ),
+    email: str = typer.Option("", "--email", help="Email address."),
+    first_name: str = typer.Option("", "--first-name", help="First name."),
+    last_name: str = typer.Option("", "--last-name", help="Last name."),
+    superuser: bool = typer.Option(False, "--superuser", help="Create a superuser."),
+) -> None:
+    """Create an active user with a Django-compatible password hash."""
+    summary = _run_management_command(
+        lambda session: management.create_user(
+            session,
+            username=username,
+            password=_password_option(password),
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
+            is_superuser=superuser,
+        )
+    )
+    typer.echo(f"Created user: {management.user_summary_line(summary)}")
+
+
+@users_app.command("reset-password")
+def reset_password_command(
+    user_id: int | None = typer.Option(None, "--user-id", help="User ID."),
+    username: str | None = typer.Option(None, "--username", help="Username."),
+    password: str | None = typer.Option(
+        None,
+        "--password",
+        prompt=True,
+        hide_input=True,
+        confirmation_prompt=True,
+        help="Replacement password.",
+    ),
+    yes: bool = typer.Option(False, "--yes", help="Skip destructive-action confirmation."),
+) -> None:
+    """Reset one user's password after confirmation."""
+    _confirm_destructive_action("Reset this user's password?", yes=yes)
+    summary = _run_management_command(
+        lambda session: management.reset_user_password(
+            session,
+            user=management.resolve_user(session, user_id=user_id, username=username),
+            password=_password_option(password),
+        )
+    )
+    typer.echo(f"Password reset: {management.user_summary_line(summary)}")
+
+
+@users_app.command("activate")
+def activate_user_command(
+    user_id: int | None = typer.Option(None, "--user-id", help="User ID."),
+    username: str | None = typer.Option(None, "--username", help="Username."),
+) -> None:
+    """Activate a user account."""
+    summary = _run_management_command(
+        lambda session: management.set_user_active(
+            session,
+            user=management.resolve_user(session, user_id=user_id, username=username),
+            is_active=True,
+        )
+    )
+    typer.echo(f"User activated: {management.user_summary_line(summary)}")
+
+
+@users_app.command("deactivate")
+def deactivate_user_command(
+    user_id: int | None = typer.Option(None, "--user-id", help="User ID."),
+    username: str | None = typer.Option(None, "--username", help="Username."),
+    yes: bool = typer.Option(False, "--yes", help="Skip destructive-action confirmation."),
+) -> None:
+    """Deactivate a user account after confirmation."""
+    _confirm_destructive_action("Deactivate this user?", yes=yes)
+    summary = _run_management_command(
+        lambda session: management.set_user_active(
+            session,
+            user=management.resolve_user(session, user_id=user_id, username=username),
+            is_active=False,
+        )
+    )
+    typer.echo(f"User deactivated: {management.user_summary_line(summary)}")
+
+
+@users_app.command("grant-superuser")
+def grant_superuser_command(
+    user_id: int | None = typer.Option(None, "--user-id", help="User ID."),
+    username: str | None = typer.Option(None, "--username", help="Username."),
+) -> None:
+    """Grant superuser status to one user."""
+    summary = _run_management_command(
+        lambda session: management.set_user_superuser(
+            session,
+            user=management.resolve_user(session, user_id=user_id, username=username),
+            is_superuser=True,
+        )
+    )
+    typer.echo(f"Superuser status granted: {management.user_summary_line(summary)}")
+
+
+@users_app.command("revoke-superuser")
+def revoke_superuser_command(
+    user_id: int | None = typer.Option(None, "--user-id", help="User ID."),
+    username: str | None = typer.Option(None, "--username", help="Username."),
+    yes: bool = typer.Option(False, "--yes", help="Skip destructive-action confirmation."),
+) -> None:
+    """Revoke superuser status from one user after confirmation."""
+    _confirm_destructive_action("Revoke superuser status from this user?", yes=yes)
+    summary = _run_management_command(
+        lambda session: management.set_user_superuser(
+            session,
+            user=management.resolve_user(session, user_id=user_id, username=username),
+            is_superuser=False,
+        )
+    )
+    typer.echo(f"Superuser status revoked: {management.user_summary_line(summary)}")
+
+
+@accounts_app.command("list")
+def list_accounts_command(
+    owner_id: int | None = typer.Option(None, "--owner-id", help="Filter by owner ID."),
+    owner_username: str | None = typer.Option(
+        None, "--owner-username", help="Filter by owner username."
+    ),
+) -> None:
+    """List bank accounts, optionally for one explicitly selected owner."""
+    summaries = _run_management_command(
+        lambda session: management.list_accounts(
+            session,
+            owner=management.resolve_optional_owner(
+                session,
+                owner_id=owner_id,
+                owner_username=owner_username,
+            ),
+        )
+    )
+    _print_summaries(summaries)
+
+
+@accounts_app.command("create")
+def create_account_command(
+    name: str = typer.Option(..., "--name", help="Account name."),
+    bank: str = typer.Option(..., "--bank", help="Bank name."),
+    current_amount: str = typer.Option(..., "--current-amount", help="Starting balance."),
+    owner_id: int | None = typer.Option(None, "--owner-id", help="Owner user ID."),
+    owner_username: str | None = typer.Option(None, "--owner-username", help="Owner username."),
+) -> None:
+    """Create a bank account for exactly one explicitly selected owner."""
+    summary = _run_management_command(
+        lambda session: management.create_account(
+            session,
+            name=name,
+            bank=bank,
+            current_amount=current_amount,
+            owner=management.resolve_owner(
+                session,
+                owner_id=owner_id,
+                owner_username=owner_username,
+            ),
+        )
+    )
+    typer.echo(f"Created account: {management.account_summary_line(summary)}")
+
+
+@accounts_app.command("update")
+def update_account_command(
+    account_id: int = typer.Option(..., "--account-id", help="Account ID."),
+    name: str | None = typer.Option(None, "--name", help="New account name."),
+    bank: str | None = typer.Option(None, "--bank", help="New bank name."),
+    current_amount: str | None = typer.Option(
+        None, "--current-amount", help="New starting balance."
+    ),
+    owner_id: int | None = typer.Option(None, "--owner-id", help="New owner user ID."),
+    owner_username: str | None = typer.Option(None, "--owner-username", help="New owner username."),
+) -> None:
+    """Update account fields and optionally move it to an explicit owner."""
+    summary = _run_management_command(
+        lambda session: management.update_account(
+            session,
+            account_id=account_id,
+            name=name,
+            bank=bank,
+            current_amount=current_amount,
+            owner=management.resolve_optional_owner(
+                session,
+                owner_id=owner_id,
+                owner_username=owner_username,
+            ),
+        )
+    )
+    typer.echo(f"Updated account: {management.account_summary_line(summary)}")
+
+
+@depots_app.command("list")
+def list_depots_command(
+    owner_id: int | None = typer.Option(None, "--owner-id", help="Filter by owner ID."),
+    owner_username: str | None = typer.Option(
+        None, "--owner-username", help="Filter by owner username."
+    ),
+) -> None:
+    """List bank depots, optionally for one explicitly selected owner."""
+    summaries = _run_management_command(
+        lambda session: management.list_depots(
+            session,
+            owner=management.resolve_optional_owner(
+                session,
+                owner_id=owner_id,
+                owner_username=owner_username,
+            ),
+        )
+    )
+    _print_summaries(summaries)
+
+
+@depots_app.command("create")
+def create_depot_command(
+    name: str = typer.Option(..., "--name", help="Depot name."),
+    owner_id: int | None = typer.Option(None, "--owner-id", help="Owner user ID."),
+    owner_username: str | None = typer.Option(None, "--owner-username", help="Owner username."),
+) -> None:
+    """Create a depot for exactly one explicitly selected owner."""
+    summary = _run_management_command(
+        lambda session: management.create_depot(
+            session,
+            name=name,
+            owner=management.resolve_owner(
+                session,
+                owner_id=owner_id,
+                owner_username=owner_username,
+            ),
+        )
+    )
+    typer.echo(f"Created depot: {management.depot_summary_line(summary)}")
+
+
+@depots_app.command("update")
+def update_depot_command(
+    depot_id: int = typer.Option(..., "--depot-id", help="Depot ID."),
+    name: str | None = typer.Option(None, "--name", help="New depot name."),
+    owner_id: int | None = typer.Option(None, "--owner-id", help="New owner user ID."),
+    owner_username: str | None = typer.Option(None, "--owner-username", help="New owner username."),
+) -> None:
+    """Update depot fields and optionally move it to an explicit owner."""
+    summary = _run_management_command(
+        lambda session: management.update_depot(
+            session,
+            depot_id=depot_id,
+            name=name,
+            owner=management.resolve_optional_owner(
+                session,
+                owner_id=owner_id,
+                owner_username=owner_username,
+            ),
+        )
+    )
+    typer.echo(f"Updated depot: {management.depot_summary_line(summary)}")
+
+
+@assets_app.command("create")
+def create_asset_command(
+    name: str = typer.Option(..., "--name", help="Asset name."),
+    current_balance: str = typer.Option(..., "--current-balance", help="Current value."),
+    last_update: str = typer.Option(..., "--last-update", help="ISO-8601 update date."),
+    depot_id: int = typer.Option(..., "--depot-id", help="Containing depot ID."),
+) -> None:
+    """Create an asset in one explicitly selected depot."""
+    summary = _run_management_command(
+        lambda session: management.create_asset(
+            session,
+            name=name,
+            current_balance=current_balance,
+            last_update=last_update,
+            depot_id=depot_id,
+        )
+    )
+    typer.echo(f"Created asset: {management.asset_summary_line(summary)}")
+
+
+@assets_app.command("update")
+def update_asset_command(
+    asset_id: int = typer.Option(..., "--asset-id", help="Asset ID."),
+    name: str | None = typer.Option(None, "--name", help="New asset name."),
+    current_balance: str | None = typer.Option(
+        None, "--current-balance", help="New current value."
+    ),
+    last_update: str | None = typer.Option(None, "--last-update", help="New ISO-8601 update date."),
+    depot_id: int | None = typer.Option(None, "--depot-id", help="New containing depot ID."),
+) -> None:
+    """Update an asset and optionally move it to another depot."""
+    summary = _run_management_command(
+        lambda session: management.update_asset(
+            session,
+            asset_id=asset_id,
+            name=name,
+            current_balance=current_balance,
+            last_update=last_update,
+            depot_id=depot_id,
+        )
+    )
+    typer.echo(f"Updated asset: {management.asset_summary_line(summary)}")
+
+
+@asset_transactions_app.command("create")
+def create_asset_transaction_command(
+    asset_id: int = typer.Option(..., "--asset-id", help="Asset ID."),
+    amount: str = typer.Option(..., "--amount", help="Transaction amount."),
+    date_issue: str = typer.Option(..., "--date-issue", help="ISO-8601 booking date."),
+) -> None:
+    """Create an asset transaction for one explicitly selected asset."""
+    summary = _run_management_command(
+        lambda session: management.create_asset_transaction(
+            session,
+            asset_id=asset_id,
+            amount=amount,
+            date_issue=date_issue,
+        )
+    )
+    typer.echo(f"Created asset transaction: {management.asset_transaction_summary_line(summary)}")
+
+
+@asset_transactions_app.command("delete")
+def delete_asset_transaction_command(
+    transaction_id: int = typer.Option(..., "--transaction-id", help="Asset transaction ID."),
+    yes: bool = typer.Option(False, "--yes", help="Skip destructive-action confirmation."),
+) -> None:
+    """Delete an asset transaction after confirmation."""
+    _confirm_destructive_action("Delete this asset transaction?", yes=yes)
+    summary = _run_management_command(
+        lambda session: management.delete_asset_transaction(
+            session,
+            transaction_id=transaction_id,
+        )
+    )
+    typer.echo(f"Deleted asset transaction: {management.asset_transaction_summary_line(summary)}")

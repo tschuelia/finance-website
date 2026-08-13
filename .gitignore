@@ -8,6 +8,10 @@ __pycache__
 *.db
 *.sqlite
 *.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite3-wal
+*.sqlite3-shm
 media/
 
 # Mac

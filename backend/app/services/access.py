@@ -23,6 +23,13 @@ def get_visible_user(session: Session, current_user: User, user_id: int) -> User
     return user
 
 
+def list_visible_users(session: Session, current_user: User) -> tuple[User, ...]:
+    statement = select(User)
+    if not current_user.is_superuser:
+        statement = statement.where(User.id == current_user.id)
+    return tuple(session.scalars(statement.order_by(User.username, User.id)))
+
+
 def list_visible_bank_accounts(session: Session, current_user: User) -> tuple[BankAccount, ...]:
     statement = select(BankAccount)
     if not current_user.is_superuser:

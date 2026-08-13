@@ -7,8 +7,13 @@ from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.elements import ColumnElement
 
-from app.db.models import Transaction, User
-from app.services.access import get_visible_bank_account
+from app.db.models import Category, Transaction, User
+from app.errors import ConflictError, ResourceNotFoundError
+from app.services.access import (
+    get_visible_account_transaction,
+    get_visible_bank_account,
+    get_visible_contract,
+)
 
 DEFAULT_TRANSACTION_PAGE_SIZE = 100
 ZERO = Decimal("0")
@@ -50,6 +55,18 @@ class TransactionPage:
     summary: TransactionSummary
 
 
+@dataclass(frozen=True, slots=True)
+class TransactionValues:
+    recipient: str
+    amount: Decimal
+    subject: str
+    date_issue: date
+    date_booking: date | None
+    full_subject_string: str
+    category_id: int | None = None
+    contract_id: int | None = None
+
+
 def _decimal(value: object | None) -> Decimal:
     if value is None:
         return ZERO
@@ -68,7 +85,7 @@ def _account_filter_bounds(session: Session, account_id: int, today: date) -> tu
     return oldest_date or today, _decimal(maximum_amount)
 
 
-def _where_clauses(
+def transaction_filter_clauses(
     session: Session,
     account_id: int,
     filters: TransactionFilters,
@@ -119,7 +136,7 @@ def get_transaction_page(
         raise ValueError("page_size must be at least 1")
 
     account = get_visible_bank_account(session, current_user, account_id)
-    clauses = _where_clauses(
+    clauses = transaction_filter_clauses(
         session,
         account.id,
         filters or TransactionFilters(),
@@ -166,3 +183,93 @@ def get_transaction_page(
             maximum_date=summary_values[4],
         ),
     )
+
+
+def _validate_relationships(
+    session: Session,
+    current_user: User,
+    values: TransactionValues,
+) -> None:
+    if values.category_id is not None and session.get(Category, values.category_id) is None:
+        raise ConflictError("Die ausgewählte Kategorie existiert nicht mehr.")
+    if values.contract_id is None:
+        return
+    try:
+        get_visible_contract(session, current_user, values.contract_id)
+    except ResourceNotFoundError:
+        raise ConflictError("Der ausgewählte Vertrag existiert nicht mehr.") from None
+
+
+def _apply_values(transaction: Transaction, values: TransactionValues) -> None:
+    transaction.recipient = values.recipient
+    transaction.amount = values.amount
+    transaction.subject = values.subject
+    transaction.date_issue = values.date_issue
+    transaction.date_booking = values.date_booking
+    transaction.full_subject_string = values.full_subject_string
+    transaction.category_id = values.category_id
+    transaction.contract_id = values.contract_id
+
+
+def create_transactions(
+    session: Session,
+    current_user: User,
+    account_id: int,
+    rows: tuple[TransactionValues, ...],
+) -> tuple[Transaction, ...]:
+    account = get_visible_bank_account(session, current_user, account_id)
+    for values in rows:
+        _validate_relationships(session, current_user, values)
+
+    transactions: list[Transaction] = []
+    for values in rows:
+        transaction = Transaction(
+            bank_account_id=account.id,
+            recipient=values.recipient,
+            amount=values.amount,
+            subject=values.subject,
+            date_issue=values.date_issue,
+            date_booking=values.date_booking,
+            full_subject_string=values.full_subject_string,
+            category_id=values.category_id,
+            contract_id=values.contract_id,
+        )
+        session.add(transaction)
+        transactions.append(transaction)
+    session.flush()
+    return tuple(transactions)
+
+
+def update_transaction(
+    session: Session,
+    current_user: User,
+    account_id: int,
+    transaction_id: int,
+    values: TransactionValues,
+) -> Transaction:
+    transaction = get_visible_account_transaction(
+        session,
+        current_user,
+        account_id,
+        transaction_id,
+    )
+    _validate_relationships(session, current_user, values)
+    _apply_values(transaction, values)
+    session.flush()
+    return transaction
+
+
+def delete_transaction(
+    session: Session,
+    current_user: User,
+    account_id: int,
+    transaction_id: int,
+) -> None:
+    transaction = get_visible_account_transaction(
+        session,
+        current_user,
+        account_id,
+        transaction_id,
+    )
+    session.delete(transaction)
+    session.flush()

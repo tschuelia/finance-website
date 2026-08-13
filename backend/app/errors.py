@@ -51,6 +51,13 @@ class ConflictError(ApplicationError):
     default_detail = "Die Anfrage steht im Konflikt mit dem aktuellen Zustand."
 
 
+class InvalidImportError(ApplicationError):
+    status_code = HTTPStatus.UNPROCESSABLE_ENTITY
+    title = "CSV-Import fehlgeschlagen"
+    problem_type = "urn:finances:error:csv-import"
+    default_detail = "Die CSV-Datei konnte nicht verarbeitet werden."
+
+
 def _request_id(request: Request) -> str:
     request_id = getattr(request.state, "request_id", None)
     if isinstance(request_id, str):
@@ -182,6 +189,7 @@ def register_exception_handlers(app: FastAPI) -> None:
         (ApplicationError, application_error_handler),
         (RequestValidationError, validation_error_handler),
         (HTTPException, http_error_handler),
+        (Exception, unexpected_error_handler),
     ]
     for exception_type, handler in handlers:
         app.add_exception_handler(exception_type, handler)

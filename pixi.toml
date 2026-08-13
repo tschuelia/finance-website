@@ -42,6 +42,8 @@ legacy = ["legacy"]
 
 [tasks]
 backend-dev = "uvicorn app.main:app --reload --app-dir backend"
+backend-serve = "uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port ${PORT:-8000} --workers 1"
+dev = { depends-on = ["backend-dev", "frontend-dev"] }
 backend-lint = "ruff check backend"
 backend-format-check = "ruff format --check backend"
 backend-typecheck = "mypy backend/app"

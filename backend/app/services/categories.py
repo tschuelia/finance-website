@@ -1,9 +1,11 @@
 from collections.abc import Iterable
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db.models import Category, Transaction, User
+from app.errors import ConflictError, ResourceNotFoundError
 from app.services.access import get_visible_bank_account
 
 
@@ -64,3 +66,36 @@ def reassign_account_categories(
             transaction.category_id = category_id
             changed += 1
     return changed
+
+
+def list_categories(session: Session) -> tuple[Category, ...]:
+    return tuple(session.scalars(select(Category).order_by(Category.name, Category.id)))
+
+
+def create_category(session: Session, *, name: str, patterns: str) -> Category:
+    category = Category(name=name, patterns=patterns)
+    session.add(category)
+    try:
+        session.flush()
+    except IntegrityError:
+        raise ConflictError("Eine Kategorie mit diesem Namen existiert bereits.") from None
+    return category
+
+
+def update_category(
+    session: Session,
+    category_id: int,
+    *,
+    name: str,
+    patterns: str,
+) -> Category:
+    category = session.get(Category, category_id)
+    if category is None:
+        raise ResourceNotFoundError()
+    category.name = name
+    category.patterns = patterns
+    try:
+        session.flush()
+    except IntegrityError:
+        raise ConflictError("Eine Kategorie mit diesem Namen existiert bereits.") from None
+    return category
