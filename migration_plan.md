@@ -39,6 +39,13 @@
     Mirror contracts consumed by the frontend manually as Zod schemas and update
     both sides in the same task.
   - Do not add OpenAPI-based frontend generation or Hey API during this migration.
+  - Use the latest stable, non-prerelease releases available when dependencies are
+    added to the new backend, frontend, or shared migration tooling. Commit updated
+    lockfiles with every dependency change.
+  - When latest releases conflict, use the newest mutually compatible versions and
+    record the constraint and reason beneath the active issue.
+  - Keep legacy-only Django dependencies frozen during the rollback window unless
+    a security issue or migration blocker requires a separately verified upgrade.
 
   ## Target structure
 
@@ -63,7 +70,7 @@
       routes/
     components.json
     package.json
-    package-lock.json
+    bun.lock
 
   accounting/       Legacy Django application until cleanup
   finances/         Legacy Django project until cleanup
@@ -109,8 +116,12 @@
     upload support, Typer, and password-hashing dependencies.
 
   - [ ] Retain Pixi as the repository-level Python environment manager.
+  - [ ] Select the current stable Python and Bun versions supported by the new
+    dependency sets.
   - [ ] Add frontend/ using Vite, React, and TypeScript.
-  - [ ] Use npm and commit package-lock.json.
+  - [ ] Use Bun through Pixi and commit bun.lock.
+  - [ ] Resolve FastAPI, frontend, and shared tools such as Ruff and Lefthook to
+    their latest stable mutually compatible releases; document any older pin.
   - [ ] Add repository commands for:
       - FastAPI development.
       - Frontend development.
@@ -484,6 +495,12 @@
   - [ ] Run schema migration only while the application is stopped.
   - [ ] Update the README with setup, CLI, migration, backup, restore, and
     deployment instructions.
+  - [ ] Before rehearsal, audit the new backend, frontend, runtimes, and shared
+    tooling for newer stable releases; update manifests and lockfiles together.
+  - [ ] Run outdated and vulnerability checks for both dependency ecosystems and
+    record every unresolved finding with its compatibility or deployment reason.
+  - [ ] Verify fresh locked installs, backend lint and type checks, frontend lint
+    and type checks, and the production build after the audit.
 
   Done when a release image can be built and started against a copied production
   database.

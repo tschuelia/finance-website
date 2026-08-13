@@ -4,6 +4,20 @@ Everything runs in a Pixi environment. Prefix all commands (like `pytest`) with 
 
 Code formatting must align with our standards. Run `pixi run lint` before `git commit`s to ensure this.
 
+## Dependency policy
+
+Modernize the new backend, frontend, and shared migration tooling as the migration proceeds. When adding or updating a
+dependency, use the latest stable, non-prerelease release available at that time and regenerate every affected lockfile
+in the same change. Use the current stable Python and Bun versions supported by the selected packages.
+
+If the latest releases are incompatible with one another or with the deployment environment, use the newest mutually
+compatible versions and record the constraint and reason in `migration_plan.md`. Do not retain an older version without
+an explicit compatibility reason.
+
+Keep packages used exclusively by the legacy Django application frozen during the rollback window. Upgrade one only
+when required to resolve a security issue or unblock the migration, and manually verify that production and rollback
+behavior remains compatible.
+
 ## Migration guidance
 
 Read this file together with `migration_plan.md` for migration work. The migration plan defines task scope and issue
@@ -20,7 +34,8 @@ guidance.
 
 ## Build and development commands
 
-The frontend uses Bun for package management, but project commands should be run through Pixi.
+The frontend uses Bun for package management and commits `bun.lock`. Run installation, dependency, and project commands
+through Pixi.
 
 
 ### Formatting Style
