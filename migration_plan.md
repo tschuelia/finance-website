@@ -80,7 +80,7 @@
 
   ## Issue 01 — Capture the legacy baseline
 
-  - [x] Tag the last known Django revision before migration work.
+- [x] Tag the last known Django revision before migration work.
   - [x] Document local and production startup, migration, backup, and deployment
     commands.
 
@@ -154,8 +154,8 @@
 
   ## Issue 03 — Add configuration and application skeleton
 
-  - [ ] Load configuration exclusively from environment variables.
-  - [ ] Define settings for:
+  - [x] Load configuration exclusively from environment variables.
+  - [x] Define settings for:
       - SQLite database path.
       - Media root.
       - Session secret.
@@ -164,18 +164,24 @@
       - Allowed hosts.
       - Development logging.
 
-  - [ ] Create the FastAPI application factory and /health endpoint.
-  - [ ] Mount routers below /api/v1.
-  - [ ] Add consistent handling for validation, authentication, authorization,
+  - [x] Create the FastAPI application factory and /health endpoint.
+  - [x] Mount routers below /api/v1.
+  - [x] Add consistent handling for validation, authentication, authorization,
     not-found, and conflict errors.
 
-  - [ ] Configure structured request logging without logging passwords, cookies,
+  - [x] Configure structured request logging without logging passwords, cookies,
     uploaded contents, or financial payloads.
 
-  - [ ] Add startup checks for required settings, database availability, and
+  - [x] Add startup checks for required settings, database availability, and
     media-directory accessibility.
 
   Done when FastAPI starts and /health responds without loading Django.
+
+  Completed with a required 32-character session secret and documented local
+  defaults for the remaining `FINANCES_*` environment variables. API failures
+  use an RFC 9457-style Problem Details response, and structured access logging
+  records only request metadata. SQLite connection configuration and session
+  behavior remain assigned to issues 04 and 07 respectively.
 
   ## Issue 04 — Map the existing SQLite schema
 

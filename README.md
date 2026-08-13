@@ -23,17 +23,33 @@ The default environment uses Python 3.14 for the FastAPI backend and Bun 1.3.11
 for the React frontend. Bun 1.3.11 is the newest release currently available for
 both repository platforms through conda-forge.
 
-The frontend can already be started:
+The frontend can be started with:
 
 ```sh
 pixi run frontend-dev
 ```
 
-The backend and Alembic command surfaces are reserved now and become runnable
-when issues 03 and 05 add their application and migration entrypoints:
+The FastAPI backend requires a session secret with at least 32 characters. It
+checks the database and media paths during startup and then exposes its health
+endpoint at `http://127.0.0.1:8000/health`:
 
 ```sh
+export FINANCES_SESSION_SECRET='replace-with-a-random-secret-of-32-or-more-characters'
 pixi run backend-dev
+```
+
+Configuration is read from process environment variables only. `.env.example`
+documents the complete contract but is not loaded automatically. Local
+development defaults to `db.sqlite3`, `media/`, insecure cookies, a 14-day
+session lifetime, localhost/test hosts, and development logging. Override the
+corresponding `FINANCES_*` values for production, especially
+`FINANCES_DATABASE_PATH`, `FINANCES_MEDIA_ROOT`, `FINANCES_COOKIE_SECURE`,
+`FINANCES_ALLOWED_HOSTS`, and `FINANCES_DEVELOPMENT_LOGGING`.
+
+The Alembic command surface becomes runnable when issue 05 adds its migration
+entrypoint:
+
+```sh
 pixi run alembic -- current
 ```
 
