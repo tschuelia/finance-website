@@ -1,5 +1,4 @@
 import os
-import sqlite3
 from pathlib import Path
 
 from app.config import Settings
@@ -18,15 +17,6 @@ def _check_database(database_path: Path) -> None:
         raise StartupCheckError(
             f"Database directory is not writable and searchable: {database_path.parent}"
         )
-
-    try:
-        connection = sqlite3.connect(f"{database_path.as_uri()}?mode=rw", uri=True, timeout=1)
-        try:
-            connection.execute("PRAGMA schema_version").fetchone()
-        finally:
-            connection.close()
-    except sqlite3.Error:
-        raise StartupCheckError(f"Database could not be opened: {database_path}") from None
 
 
 def _check_media_root(media_root: Path) -> None:

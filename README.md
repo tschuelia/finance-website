@@ -46,11 +46,52 @@ corresponding `FINANCES_*` values for production, especially
 `FINANCES_DATABASE_PATH`, `FINANCES_MEDIA_ROOT`, `FINANCES_COOKIE_SECURE`,
 `FINANCES_ALLOWED_HOSTS`, and `FINANCES_DEVELOPMENT_LOGGING`.
 
-The Alembic command surface becomes runnable when issue 05 adds its migration
-entrypoint:
+## Database inspection and migrations
+
+Database commands use `FINANCES_DATABASE_PATH` and require the same environment
+configuration as the backend. Inspecting is read-only: it validates the required
+legacy schema and reports table counts, foreign-key violations, journal mode, and
+financial aggregates without enabling WAL on the inspected file.
+
+```sh
+pixi run finances db inspect
+```
+
+To initialize a fresh database, point `FINANCES_DATABASE_PATH` at a new file in
+an existing writable directory and upgrade it directly:
+
+```sh
+export FINANCES_DATABASE_PATH=/absolute/path/to/new-db.sqlite3
+pixi run finances db upgrade
+pixi run finances db status
+```
+
+To adopt an existing Django database, stop every application process first and
+make a verified database backup as described in
+[`docs/legacy-baseline.md`](docs/legacy-baseline.md). Then inspect, stamp the
+verified legacy schema without recreating its tables, and apply forward
+migrations:
+
+```sh
+export FINANCES_DATABASE_PATH=/absolute/path/to/copied-db.sqlite3
+pixi run finances db inspect
+pixi run finances db bootstrap-existing
+pixi run finances db upgrade
+pixi run finances db status
+```
+
+`bootstrap-existing` refuses incompatible columns, constraints, indexes,
+foreign-key violations, and any existing Alembic version table. `db upgrade`
+also refuses to treat an uninitialized non-empty database as fresh. Both adoption
+and upgrades enable SQLite foreign keys, WAL mode, and a five-second busy timeout.
+All Django support and obsolete tables remain untouched for rollback.
+
+The lower-level Alembic interface remains available for diagnostics and revision
+authoring:
 
 ```sh
 pixi run alembic -- current
+pixi run alembic -- check
 ```
 
 Quality commands:

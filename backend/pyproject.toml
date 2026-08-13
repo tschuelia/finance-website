@@ -18,6 +18,9 @@ dependencies = [
   "uvicorn[standard]==0.52.2",
 ]
 
+[project.scripts]
+finances = "app.cli:app"
+
 [tool.setuptools.packages.find]
 include = ["app*"]
 

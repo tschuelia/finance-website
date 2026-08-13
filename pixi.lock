@@ -786,7 +786,7 @@ packages:
 - pypi: backend
   name: finances-backend
   version: 0.1.0
-  sha256: 2229e59812a671f18b7de1b879644ba3d8a59c294f1f5d3e43c5a1074ed3fa86
+  sha256: 69a62628308093356177ac35432590c6ebb56b5fc5bb602823c6336646bc2984
   requires_dist:
   - alembic==1.18.5
   - argon2-cffi==25.1.0

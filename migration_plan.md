@@ -185,12 +185,12 @@
 
   ## Issue 04 — Map the existing SQLite schema
 
-  - [ ] Add synchronous SQLAlchemy engine and session management.
-  - [ ] Enable PRAGMA foreign_keys=ON, WAL mode, and a bounded busy timeout for
+  - [x] Add synchronous SQLAlchemy engine and session management.
+  - [x] Enable PRAGMA foreign_keys=ON, WAL mode, and a bounded busy timeout for
     every SQLite connection.
 
-  - [ ] Use one database transaction per API request or CLI operation.
-  - [ ] Map these existing tables without renaming fields or IDs:
+  - [x] Use one database transaction per API request or CLI operation.
+  - [x] Map these existing tables without renaming fields or IDs:
       - auth_user
       - accounting_bankaccount
       - accounting_bankdepot
@@ -201,34 +201,46 @@
       - accounting_contractfile
       - accounting_transaction
 
-  - [ ] Preserve nullable relationships and existing delete behavior.
-  - [ ] Use Decimal for all monetary operations.
-  - [ ] Treat the remaining Django tables as unmanaged legacy data.
-  - [ ] Add a read-only finances db inspect command showing schema compatibility,
+  - [x] Preserve nullable relationships and existing delete behavior.
+  - [x] Use Decimal for all monetary operations.
+  - [x] Treat the remaining Django tables as unmanaged legacy data.
+  - [x] Add a read-only finances db inspect command showing schema compatibility,
     table counts, foreign-key violations, and aggregate balances.
 
   Done when the new backend can read the existing database and reproduce its basic
   counts and totals.
 
+  Completed with synchronous SQLAlchemy request/CLI transaction scopes and
+  Django-compatible ORM mappings. Writable connections enable foreign keys, WAL,
+  and a 5-second busy timeout. The read-only inspector enables only the
+  connection-local foreign-key and timeout pragmas and reports, but does not
+  change, journal mode so inspecting a preserved database remains non-mutating.
+
   ## Issue 05 — Adopt Alembic without recreating production tables
 
-  - [ ] Create an Alembic baseline that can construct a fresh database with the
+  - [x] Create an Alembic baseline that can construct a fresh database with the
     compatible domain and user schema.
 
-  - [ ] Add finances db bootstrap-existing:
+  - [x] Add finances db bootstrap-existing:
       - Refuse to run if required tables or columns differ.
       - Refuse to run if Alembic is already initialized unexpectedly.
       - Stamp the verified database at the baseline without running table
         creation.
 
-  - [ ] Add the first forward migration for server-side sessions.
-  - [ ] Add finances db status and finances db upgrade.
-  - [ ] Keep all legacy Django tables during the rollback window.
-  - [ ] Document fresh-database initialization separately from existing-database
+  - [x] Add the first forward migration for server-side sessions.
+  - [x] Add finances db status and finances db upgrade.
+  - [x] Keep all legacy Django tables during the rollback window.
+  - [x] Document fresh-database initialization separately from existing-database
     adoption.
 
   Done when a blank database can be created and a copy of the Django database can
   be safely stamped and upgraded.
+
+  Completed with a protected legacy baseline and an additive server-session
+  revision. Existing adoption validates exact required columns, compatible types,
+  constraints, indexes, and foreign-key integrity before stamping. Alembic
+  autogeneration is restricted to the nine mapped legacy tables and the new
+  session table, leaving every other Django table unmanaged and untouched.
 
   ## Issue 06 — Port domain services
 
