@@ -244,9 +244,9 @@
 
   ## Issue 06 — Port domain services
 
-  - [ ] Move balance calculations out of Django models.
-  - [ ] Port owner/superuser account and depot visibility.
-  - [ ] Port transaction filtering:
+  - [x] Move balance calculations out of Django models.
+  - [x] Port owner/superuser account and depot visibility.
+  - [x] Port transaction filtering:
       - Recipient or subject search.
       - Date range.
       - Absolute amount range.
@@ -254,15 +254,22 @@
       - Income, expense, or all.
       - Reverse chronological ordering.
 
-  - [ ] Port transaction summaries and pagination calculations.
-  - [ ] Port category-pattern matching and reassignment.
-  - [ ] Port contract balance and first/last transaction calculations.
-  - [ ] Port depot and asset balance calculations.
-  - [ ] Keep persistence details out of API route functions.
-  - [ ] Correct nested-resource authorization so a transaction must belong to the
+  - [x] Port transaction summaries and pagination calculations.
+  - [x] Port category-pattern matching and reassignment.
+  - [x] Port contract balance and first/last transaction calculations.
+  - [x] Port depot and asset balance calculations.
+  - [x] Keep persistence details out of API route functions.
+  - [x] Correct nested-resource authorization so a transaction must belong to the
     account in the route.
 
   Done when business behavior no longer requires importing Django.
+
+  Completed with SQLAlchemy-backed domain services for resource visibility,
+  portfolio and resource balances, transaction filtering and pagination,
+  category reassignment, and nested-resource authorization. The legacy database
+  left equal-key ordering unspecified; transaction and contract services now use
+  explicit ID tie-breakers, with contract boundaries matching the preserved
+  snapshot.
 
   ## Issue 07 — Implement authentication and sessions
 
