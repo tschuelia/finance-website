@@ -1,5 +1,40 @@
 [project]
-requires-python = ">=3.8"
+name = "finances"
+version = "0.1.0"
+requires-python = ">=3.11,<3.12"
+
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["osx-arm64", "linux-64"]
+
+[tool.pixi.pypi-dependencies]
+django = "*"
+fontawesomefree = "*"
+django-plotly-dash = "*"
+django-crispy-forms = "*"
+crispy-bootstrap4 = "*"
+django-addanother = "*"
+django-bootstrap4 = "*"
+pandas = ">=2"
+dash = "*"
+pillow = "*"
+dpd_static_support = "*"
+whitenoise = "*"
+django-tables2 = "*"
+gunicorn = "*"
+ruff = "==0.7.4"
+
+[tool.pixi.tasks]
+dev = "python manage.py runserver"
+check = "python manage.py check"
+test = "python manage.py test"
+lint = "ruff check ."
+format-check = "ruff format --check ."
+migrate = "python manage.py migrate"
+web = "gunicorn --bind 0.0.0.0:${PORT:-8000} --log-level info --log-file - finances.wsgi:application"
+
+[tool.pixi.dependencies]
+pre-commit = ">=4.6.2,<5"
 
 [tool.ruff.lint]
 select = [
