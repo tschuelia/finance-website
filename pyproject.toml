@@ -23,6 +23,8 @@ whitenoise = "*"
 django-tables2 = "*"
 gunicorn = "*"
 ruff = "==0.7.4"
+lefthook = "==2.1.10"
+pre-commit-hooks = "==6.0.0"
 
 [tool.pixi.tasks]
 dev = "python manage.py runserver"
@@ -30,11 +32,9 @@ check = "python manage.py check"
 test = "python manage.py test"
 lint = "ruff check ."
 format-check = "ruff format --check ."
+hooks-install = "lefthook install"
 migrate = "python manage.py migrate"
 web = "gunicorn --bind 0.0.0.0:${PORT:-8000} --log-level info --log-file - finances.wsgi:application"
-
-[tool.pixi.dependencies]
-pre-commit = ">=4.6.2,<5"
 
 [tool.ruff.lint]
 select = [

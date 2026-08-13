@@ -15,8 +15,12 @@ Pixi, then run the application directly; Pixi creates the locked environment on
 first use.
 
 ```sh
+pixi run hooks-install
 pixi run dev
 ```
+
+The hook installation is needed once after cloning. Lefthook then runs the
+repository-pinned checks against staged files before each commit.
 
 Useful commands:
 
@@ -26,23 +30,8 @@ pixi run check
 pixi run test
 pixi run lint
 pixi run format-check
+pixi run lefthook run pre-commit
 ```
 
 After changing dependencies, regenerate the committed lockfile with `pixi install`.
 Use `pixi install --locked` in automation to ensure it matches `pyproject.toml`.
-
-## Dokku deployment
-
-The root `Dockerfile` provides the Pixi runtime for Dokku. Configure the app to
-use it (the configured remote names the app `julia-finances`):
-
-```sh
-dokku builder-dockerfile:set julia-finances dockerfile-path Dockerfile
-```
-
-Production settings are intentionally not committed. The existing
-`settings_prod` module must remain available at `/hetzner` in both the release
-and web containers, for example through the existing Dokku storage mount. The
-`Procfile` preserves `PYTHONPATH=/hetzner` and
-`DJANGO_SETTINGS_MODULE=settings_prod` for this purpose. Verify that mount
-before deploying; the release process runs migrations through Pixi.

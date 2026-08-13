@@ -1,0 +1,32 @@
+lefthook: pixi run lefthook
+glob_matcher: doublestar
+
+pre-commit:
+  fail_on_changes: always
+  commands:
+    check-yaml:
+      priority: 1
+      glob:
+        - "**/*.yaml"
+        - "**/*.yml"
+      run: check-yaml {staged_files}
+    end-of-file-fixer:
+      priority: 2
+      file_types: text
+      run: end-of-file-fixer {staged_files}
+    trailing-whitespace:
+      priority: 3
+      file_types: text
+      run: trailing-whitespace-fixer {staged_files}
+    detect-private-key:
+      priority: 4
+      file_types: text
+      run: detect-private-key {staged_files}
+    ruff:
+      priority: 5
+      glob: "**/*.py"
+      run: ruff check --fix -- {staged_files}
+    ruff-format:
+      priority: 6
+      glob: "**/*.py"
+      run: ruff format -- {staged_files}
