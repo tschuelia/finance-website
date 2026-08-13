@@ -36,3 +36,6 @@ pixi run lefthook run pre-commit
 After changing dependencies in `pixi.toml`, regenerate the committed lockfile with
 `pixi lock`. Use `pixi install --locked` in automation to ensure the lockfile
 matches `pixi.toml`.
+
+The pre-migration Django runtime, workflows, schema, aggregate data checks, and
+recovery procedure are recorded in [docs/legacy-baseline.md](docs/legacy-baseline.md).

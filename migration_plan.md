@@ -80,11 +80,11 @@
 
   ## Issue 01 — Capture the legacy baseline
 
-  - [ ] Tag the last known Django revision before migration work.
-  - [ ] Document local and production startup, migration, backup, and deployment
+  - [x] Tag the last known Django revision before migration work.
+  - [x] Document local and production startup, migration, backup, and deployment
     commands.
 
-  - [ ] Inventory the existing pages and workflows:
+  - [x] Inventory the existing pages and workflows:
       - Login/logout.
       - Account and depot overview.
       - Transaction filtering, pagination, detail, update, delete, and bulk entry.
@@ -95,19 +95,24 @@
       - Dash analytics.
       - Django admin operations that must move to the CLI.
 
-  - [ ] Record the expected production schema, including auth_user, accounting_*,
+  - [x] Record the expected production schema, including auth_user, accounting_*,
     Django support tables, and the obsolete accounting_contracttransaction table.
 
-  - [ ] Record baseline table counts, foreign-key status, financial totals, and
+  - [x] Record baseline table counts, foreign-key status, financial totals, and
     media references using read-only commands.
 
-  - [ ] Document current authorization behavior and the known nested-resource gaps
+  - [x] Document current authorization behavior and the known nested-resource gaps
     that must not be carried into FastAPI.
 
-  - [ ] Add backup and restore instructions for db.sqlite3 and media/.
+  - [x] Add backup and restore instructions for db.sqlite3 and media/.
 
   Done when the current state and recovery procedure are documented without
   changing production data.
+
+  Completed in `docs/legacy-baseline.md`. The annotated local tag
+  `django-baseline` resolves to `1299c3747c2e253d3ce60f3923859ac7c02b7fd0`.
+  Aggregate values were captured from the approved local read-only snapshot;
+  production was not accessed or changed.
 
   ## Issue 02 — Establish backend and frontend workspaces
 
