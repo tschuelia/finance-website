@@ -2,7 +2,7 @@ FROM ghcr.io/prefix-dev/pixi:0.45.0
 
 WORKDIR /app
 
-COPY pyproject.toml pixi.lock ./
+COPY pixi.toml pixi.lock ./
 RUN pixi install --locked
 
 COPY . .

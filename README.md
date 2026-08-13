@@ -33,5 +33,6 @@ pixi run format-check
 pixi run lefthook run pre-commit
 ```
 
-After changing dependencies, regenerate the committed lockfile with `pixi install`.
-Use `pixi install --locked` in automation to ensure it matches `pyproject.toml`.
+After changing dependencies in `pixi.toml`, regenerate the committed lockfile with
+`pixi lock`. Use `pixi install --locked` in automation to ensure the lockfile
+matches `pixi.toml`.
