@@ -9,24 +9,32 @@ pre-commit:
       glob:
         - "**/*.yaml"
         - "**/*.yml"
-      run: check-yaml {staged_files}
+      run: pixi run check-yaml {staged_files}
     end-of-file-fixer:
       priority: 2
       file_types: text
-      run: end-of-file-fixer {staged_files}
+      run: pixi run end-of-file-fixer {staged_files}
     trailing-whitespace:
       priority: 3
       file_types: text
-      run: trailing-whitespace-fixer {staged_files}
+      run: pixi run trailing-whitespace-fixer {staged_files}
     detect-private-key:
       priority: 4
       file_types: text
-      run: detect-private-key {staged_files}
+      run: pixi run detect-private-key {staged_files}
     ruff:
       priority: 5
       glob: "**/*.py"
-      run: ruff check --fix -- {staged_files}
+      run: pixi run ruff check --fix -- {staged_files}
     ruff-format:
       priority: 6
       glob: "**/*.py"
-      run: ruff format -- {staged_files}
+      run: pixi run ruff format -- {staged_files}
+    frontend-eslint:
+      priority: 7
+      glob: "frontend/**/*.{js,jsx,ts,tsx}"
+      run: pixi run frontend-lint
+    frontend-biome:
+      priority: 8
+      glob: "frontend/**/*.{css,html,js,json,jsx,ts,tsx}"
+      run: pixi run frontend-format-check

@@ -1,41 +1,71 @@
-# finance-website
+# Finances
 
-Small django project for my private finances. Nothing special, I just was not happy with the finance tools on the market and decided to build my own customized tool :-)
+Private finance application currently migrating from Django to FastAPI and React.
 
-The website provides functionality for managing multiple bank accounts, e.g. keeping track of transactions by uploading csv exports of the bank transfers and plotting spendings and incomes by categories.
+The application manages bank accounts, CSV transaction imports, categories,
+contracts, depots, and financial analytics.
 
-This project is not really intended for public use since it is custom made for my own needs (e.g. the csv to transactions parsing and the initialization of category keywords).
-
-Feel free to steal any code you like 👍
+The migration is intentionally incremental. The legacy Django application remains
+available in a frozen rollback environment while the new workspaces are built.
 
 ## Development
 
-This project uses [Pixi](https://pixi.sh) to manage its Python environment. Install
-Pixi, then run the application directly; Pixi creates the locked environment on
-first use.
+This repository uses [Pixi](https://pixi.sh) for Python, Bun, and shared tooling.
+Install the default locked environment and frontend dependencies after cloning:
 
 ```sh
+pixi install --locked
+pixi run frontend-install
 pixi run hooks-install
-pixi run dev
 ```
 
-The hook installation is needed once after cloning. Lefthook then runs the
-repository-pinned checks against staged files before each commit.
+The default environment uses Python 3.14 for the FastAPI backend and Bun 1.3.11
+for the React frontend. Bun 1.3.11 is the newest release currently available for
+both repository platforms through conda-forge.
 
-Useful commands:
+The frontend can already be started:
 
 ```sh
-pixi run migrate
-pixi run check
-pixi run test
+pixi run frontend-dev
+```
+
+The backend and Alembic command surfaces are reserved now and become runnable
+when issues 03 and 05 add their application and migration entrypoints:
+
+```sh
+pixi run backend-dev
+pixi run alembic -- current
+```
+
+Quality commands:
+
+```sh
 pixi run lint
 pixi run format-check
+pixi run backend-typecheck
+pixi run frontend-typecheck
+pixi run frontend-build
 pixi run lefthook run pre-commit
 ```
 
-After changing dependencies in `pixi.toml`, regenerate the committed lockfile with
-`pixi lock`. Use `pixi install --locked` in automation to ensure the lockfile
-matches `pixi.toml`.
+After changing `pixi.toml`, run `pixi lock`. After changing
+`frontend/package.json`, run `pixi run bun install` from `frontend/` and commit
+`frontend/bun.lock` with the package metadata.
+
+## Legacy rollback environment
+
+The `legacy` Pixi environment keeps Python 3.11 and the exact Django dependency
+versions captured before migration. Install and use it explicitly for rollback
+checks:
+
+```sh
+pixi install --locked -e legacy
+pixi run -e legacy legacy-check
+pixi run -e legacy legacy-test
+pixi run -e legacy legacy-migrate
+pixi run -e legacy legacy-dev
+pixi run -e legacy legacy-web
+```
 
 The pre-migration Django runtime, workflows, schema, aggregate data checks, and
 recovery procedure are recorded in [docs/legacy-baseline.md](docs/legacy-baseline.md).

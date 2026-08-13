@@ -116,18 +116,18 @@
 
   ## Issue 02 — Establish backend and frontend workspaces
 
-  - [ ] Create backend/ as an installable Python application.
-  - [ ] Add FastAPI, Uvicorn, SQLAlchemy, Alembic, Pydantic Settings, multipart
+  - [x] Create backend/ as an installable Python application.
+  - [x] Add FastAPI, Uvicorn, SQLAlchemy, Alembic, Pydantic Settings, multipart
     upload support, Typer, and password-hashing dependencies.
 
-  - [ ] Retain Pixi as the repository-level Python environment manager.
-  - [ ] Select the current stable Python and Bun versions supported by the new
+  - [x] Retain Pixi as the repository-level Python environment manager.
+  - [x] Select the current stable Python and Bun versions supported by the new
     dependency sets.
-  - [ ] Add frontend/ using Vite, React, and TypeScript.
-  - [ ] Use Bun through Pixi and commit bun.lock.
-  - [ ] Resolve FastAPI, frontend, and shared tools such as Ruff and Lefthook to
+  - [x] Add frontend/ using Vite, React, and TypeScript.
+  - [x] Use Bun through Pixi and commit bun.lock.
+  - [x] Resolve FastAPI, frontend, and shared tools such as Ruff and Lefthook to
     their latest stable mutually compatible releases; document any older pin.
-  - [ ] Add repository commands for:
+  - [x] Add repository commands for:
       - FastAPI development.
       - Frontend development.
       - Backend lint and type checking.
@@ -135,13 +135,22 @@
       - Frontend production build.
       - Alembic operations.
 
-  - [ ] Update .gitignore for generated frontend assets, caches, local databases,
+  - [x] Update .gitignore for generated frontend assets, caches, local databases,
     environment files, and backups.
 
-  - [ ] Do not require the legacy Django commands to remain functional during
+  - [x] Do not require the legacy Django commands to remain functional during
     every intermediate commit.
 
   Done when both workspaces exist and their dependency graphs can be installed.
+
+  Completed with Python 3.14 for the new default workspace and a separate frozen
+  Python 3.11 legacy environment for rollback checks. Bun is pinned to 1.3.11
+  because it is the newest release available for both target platforms through
+  conda-forge; upstream Bun 1.3.14 is not available there. TypeScript is pinned
+  to 6.0.3 because typescript-eslint 8.67.0 requires TypeScript >=4.8.4,<6.1.0
+  and is not yet compatible with the latest TypeScript 7 release. The FastAPI
+  development and Alembic commands are present but intentionally become runnable
+  when issues 03 and 05 add their respective entrypoints.
 
   ## Issue 03 — Add configuration and application skeleton
 

@@ -1,18 +1,23 @@
 todo.md
 
-# Django #
+# Application data #
 *.log
 *.pot
 *.pyc
 __pycache__
-db.sqlite3
-media
+*.db
+*.sqlite
+*.sqlite3
+media/
 
 # Mac
 .DS_Store
 
 # Backup files #
 *.bak
+*.backup
+*.backup.*
+backups/
 
 # If you are using PyCharm #
 # User-specific stuff
@@ -103,6 +108,8 @@ celerybeat-schedule.*
 
 # Environments
 .env
+.env.*
+!.env.example
 .venv
 .pixi/
 env/
@@ -116,6 +123,13 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+*.tsbuildinfo
+.eslintcache
 
 # Sublime Text #
 *.tmlanguage.cache
