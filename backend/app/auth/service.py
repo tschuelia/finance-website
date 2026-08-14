@@ -3,7 +3,7 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth.passwords import verify_django_password
+from app.auth.passwords import hash_password, password_needs_rehash, verify_password
 from app.db.models import User
 
 # A valid hash keeps an unknown-user login attempt close to the cost of a real one.
@@ -13,10 +13,12 @@ DUMMY_PASSWORD_HASH = (
 
 
 def authenticate_user(session: Session, username: str, password: str) -> User | None:
-    """Return an active user only when its preserved Django password verifies."""
+    """Authenticate a user and upgrade an imported password hash when needed."""
     user = session.scalar(select(User).where(User.username == username))
     encoded_password = user.password if user is not None else DUMMY_PASSWORD_HASH
-    password_is_valid = verify_django_password(encoded_password, password)
+    password_is_valid = verify_password(encoded_password, password)
     if user is None or not user.is_active or not password_is_valid:
         return None
+    if password_needs_rehash(encoded_password):
+        user.password = hash_password(password)
     return user

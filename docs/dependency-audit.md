@@ -1,13 +1,12 @@
 # Dependency audit
 
-Audit date: 2026-08-13.
+Audit date: 2026-08-13. Lock cleanup: 2026-08-14.
 
 ## Scope and policy
 
 The default Pixi environment, backend runtime, frontend runtime, and container
-base images are in scope. The Django-only `legacy` environment is deliberately
-frozen for the rollback window and is not updated unless a security fix is
-required and rollback compatibility is verified.
+base images are in scope. The former Django-only environment and its dependencies
+were removed when the rollback window closed.
 
 ## Current constraints
 
@@ -18,8 +17,7 @@ required and rollback compatibility is verified.
   locked repository platforms at the time the modern environment was selected.
   Updating it requires checking the shared frontend lock and both Pixi targets.
 - Backend PyPI requirements and the frontend manifest use exact pins where the
-  migration established them. Their audit results are recorded separately from
-  a version bump so that frozen rollback packages are not changed incidentally.
+  migration established them.
 - The runtime base uses the current stable Pixi `0.75.0` image. Its build stage
   installs exactly the checked-in `pixi.lock` default environment.
 
@@ -36,12 +34,13 @@ pixi run bun audit --cwd frontend
 pixi exec --spec pip-audit pip-audit --path .pixi/envs/default/lib/python3.14/site-packages
 ```
 
-`pixi update --dry-run --json --environment default` proposed only conda rebuild
-updates for `libbrotlicommon`, `libbrotlidec`, and `libbrotlienc` (version
-`1.2.0`, build revision `_1` to `_3`). They were not applied: after the
-deployment task added `backend-serve`, `pixi lock` reported that the lockfile was
-already up to date and `pixi.lock` has no content change. No legacy package was
-changed.
+`pixi update --dry-run --json --environment default` originally proposed conda
+rebuild updates for `libbrotlicommon`, `libbrotlidec`, and `libbrotlienc` version
+`1.2.0` from build revision `_1` to `_3`. Removing the legacy environment exposed
+that a normal `pixi lock` retained its stale environment section, so the lock was
+regenerated cleanly on 2026-08-14. The regenerated lock contains only `default`,
+applies the current conda build revisions, and contains no Django-only packages.
+No backend or frontend manifest pin changed as part of that cleanup.
 
 `pixi run bun outdated --cwd frontend` reports one available frontend update:
 

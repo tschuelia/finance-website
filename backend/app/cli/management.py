@@ -188,12 +188,9 @@ def _hash_password(password: str) -> str:
     if not password:
         raise ManagementCommandError("password must not be empty")
 
-    # Issue 07 owns the compatibility implementation. Import lazily so the
-    # database inspection and migration command group remains independent of
-    # password-management code during the ordered migration.
-    from app.auth.passwords import hash_django_password
+    from app.auth.passwords import hash_password
 
-    return hash_django_password(password)
+    return hash_password(password)
 
 
 def list_users(session: Session) -> tuple[UserSummary, ...]:

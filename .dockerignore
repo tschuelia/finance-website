@@ -18,7 +18,4 @@ backups/
 frontend/node_modules/
 frontend/dist/
 frontend/.vite/
-accounting/
-finances/
-manage.py
 docs/

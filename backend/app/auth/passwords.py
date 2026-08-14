@@ -1,17 +1,16 @@
-"""Django-compatible password hashing for the rollback window."""
+"""Password hashing with transparent support for migrated Django hashes."""
 
 from base64 import b64encode
 from hashlib import pbkdf2_hmac
 from hmac import compare_digest
-from math import ceil, log2
-from secrets import choice
-from string import ascii_letters, digits
+
+from argon2 import PasswordHasher
+from argon2.exceptions import InvalidHashError, VerificationError
+from argon2.profiles import RFC_9106_LOW_MEMORY
 
 DJANGO_PBKDF2_SHA256 = "pbkdf2_sha256"
-DJANGO_PBKDF2_ITERATIONS = 1_000_000
-DJANGO_SALT_ENTROPY_BITS = 128
-DJANGO_SALT_CHARS = ascii_letters + digits
-DJANGO_SALT_LENGTH = ceil(DJANGO_SALT_ENTROPY_BITS / log2(len(DJANGO_SALT_CHARS)))
+ARGON2_PREFIX = "$argon2"
+PASSWORD_HASHER = PasswordHasher.from_parameters(RFC_9106_LOW_MEMORY)
 
 
 def _encode_django_password(password: str, salt: str, iterations: int) -> str:
@@ -44,7 +43,26 @@ def verify_django_password(encoded_password: str, password: str) -> bool:
     return compare_digest(candidate, encoded_password)
 
 
-def hash_django_password(password: str) -> str:
-    """Create a new Django-compatible PBKDF2 hash for rollback-compatible CLI use."""
-    salt = "".join(choice(DJANGO_SALT_CHARS) for _ in range(DJANGO_SALT_LENGTH))
-    return _encode_django_password(password, salt, DJANGO_PBKDF2_ITERATIONS)
+def verify_password(encoded_password: str, password: str) -> bool:
+    """Verify an Argon2 hash or an imported Django PBKDF2 hash."""
+    if encoded_password.startswith(ARGON2_PREFIX):
+        try:
+            return PASSWORD_HASHER.verify(encoded_password, password)
+        except InvalidHashError, VerificationError:
+            return False
+    return verify_django_password(encoded_password, password)
+
+
+def password_needs_rehash(encoded_password: str) -> bool:
+    """Return whether a valid password should be stored with current Argon2 settings."""
+    if not encoded_password.startswith(ARGON2_PREFIX):
+        return True
+    try:
+        return PASSWORD_HASHER.check_needs_rehash(encoded_password)
+    except InvalidHashError:
+        return False
+
+
+def hash_password(password: str) -> str:
+    """Hash a new or replacement password with Argon2id."""
+    return PASSWORD_HASHER.hash(password)

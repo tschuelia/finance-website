@@ -14,10 +14,6 @@ If the latest releases are incompatible with one another or with the deployment 
 compatible versions and record the constraint and reason in `migration_plan.md`. Do not retain an older version without
 an explicit compatibility reason.
 
-Keep packages used exclusively by the legacy Django application frozen during the rollback window. Upgrade one only
-when required to resolve a security issue or unblock the migration, and manually verify that production and rollback
-behavior remains compatible.
-
 ## Migration guidance
 
 Read this file together with `migration_plan.md` for migration work. The migration plan defines task scope and issue
@@ -30,7 +26,7 @@ guidance.
 
 # React Frontend guidelines
 
-**Migration status:** These guidelines define the target conventions for the upcoming migration to shadcn. They intentionally do not describe the existing frontend code yet.
+**Migration status:** These guidelines define the current conventions for the migrated shadcn frontend.
 
 ## Build and development commands
 

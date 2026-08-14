@@ -26,7 +26,8 @@
   - Complete issues in the listed order.
   - Use one focused commit per issue where practical.
   - Intermediate revisions may be broken and must not be deployed.
-  - Keep the production Django installation untouched until the cutover issue.
+  - Keep production data untouched until the stopped-application adoption
+    procedure is explicitly performed.
   - Preserve the production SQLite database, IDs, users, passwords, and uploaded
     files.
 
@@ -44,8 +45,6 @@
     lockfiles with every dependency change.
   - When latest releases conflict, use the newest mutually compatible versions and
     record the constraint and reason beneath the active issue.
-  - Keep legacy-only Django dependencies frozen during the rollback window unless
-    a security issue or migration blocker requires a separately verified upgrade.
 
   ## Target structure
 
@@ -72,8 +71,6 @@
     package.json
     bun.lock
 
-  accounting/       Legacy Django application until cleanup
-  finances/         Legacy Django project until cleanup
   MIGRATION_PLAN.md
   Dockerfile
   README.md
@@ -109,10 +106,11 @@
   Done when the current state and recovery procedure are documented without
   changing production data.
 
-  Completed in `docs/legacy-baseline.md`. The annotated local tag
-  `django-baseline` resolves to `1299c3747c2e253d3ce60f3923859ac7c02b7fd0`.
-  Aggregate values were captured from the approved local read-only snapshot;
-  production was not accessed or changed.
+  The annotated local tag `django-baseline` resolves to
+  `1299c3747c2e253d3ce60f3923859ac7c02b7fd0`. Aggregate values were captured from
+  the approved local read-only snapshot; production was not accessed or changed.
+  The current schema, adoption, backup, and restore guidance is maintained in
+  `docs/production-data-migration.md`; historical runtime details remain in Git.
 
   ## Issue 02 — Establish backend and frontend workspaces
 
@@ -329,8 +327,8 @@
   Completed with grouped Typer commands for users, accounts, depots, assets, and
   depot asset transactions. Owner selection is explicit, destructive commands
   require confirmation (or an explicit `--yes`), and all password writes remain
-  compatible with the frozen Django rollback environment. The complete command
-  flow was exercised against a temporary Alembic-created database.
+  compatible with the then-frozen Django rollback environment. The complete
+  command flow was exercised against a temporary Alembic-created database.
 
   ## Issue 09 — Implement account and depot APIs
 
@@ -689,32 +687,42 @@
       - Analytics.
       - CLI access.
 
-  - [ ] Retain the tagged Django image and backups for rollback.
-  - [ ] Roll back by stopping FastAPI and restarting Django against the additive-
-    compatible database; restore the backup only if database migration failed.
+  - [ ] Retain the pre-adoption image and verified paired backups as recovery
+    evidence.
+  - [ ] Recover a failed adoption by keeping FastAPI stopped and restoring the
+    verified paired database/media backup; do not run downgrade migrations.
 
   Done when the new application is serving production successfully.
 
   ## Issue 25 — Remove Django after burn-in
 
-  - [ ] Wait through the agreed burn-in period.
-  - [ ] Remove accounting/, the Django finances/ package, manage.py, templates,
+  - [x] Close the Django rollback window by explicit maintainer decision.
+  - [x] Remove accounting/, the Django finances/ package, manage.py, templates,
     Django static assets, and Dash code.
 
-  - [ ] Remove Django, crispy forms, bootstrap helpers, Dash, Plotly-Dash,
+  - [x] Remove Django, crispy forms, bootstrap helpers, Dash, Plotly-Dash,
     WhiteNoise, and WSGI dependencies.
 
-  - [ ] Remove obsolete Django commands and deployment configuration.
-  - [ ] Keep historical Django migrations available through Git history.
-  - [ ] Do not immediately drop legacy database tables.
-  - [ ] Create a separately reviewed future migration if legacy tables are
+  - [x] Remove obsolete Django commands and deployment configuration.
+  - [x] Keep historical Django migrations available through Git history.
+  - [x] Do not immediately drop legacy database tables.
+  - [x] Require a separately reviewed future migration if legacy tables are
     eventually removed.
 
-  - [ ] Only after rollback is retired, allow successful logins and password-reset
+  - [x] After rollback is retired, allow successful logins and password-reset
     commands to migrate password hashes to Argon2.
 
   Done when the repository contains only the FastAPI backend, React frontend,
   migration tooling, and retained production data.
+
+  Completed by explicit maintainer direction before the operational rehearsal
+  and production-adoption checklists were executed. Those checklists remain
+  unchecked and this cleanup does not claim that either occurred. The runnable
+  Django application, environment, dependencies, and commands were removed;
+  production schema inspection, baseline adoption, Alembic upgrades, preserved
+  table mappings, media compatibility, and migration runbooks remain. Existing
+  Django PBKDF2 passwords are upgraded to Argon2id after a successful login, and
+  new/reset passwords use Argon2id immediately.
 
   ## Deferred work
 
@@ -723,7 +731,6 @@
   - Browser end-to-end tests.
   - PostgreSQL migration.
   - Category deletion.
-  - Password rehashing before the rollback window closes.
   - Dropping Django support tables.
   - Broader financial-schema redesign.
   - Independent frontend/backend deployments.

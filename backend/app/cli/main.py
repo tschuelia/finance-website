@@ -198,14 +198,14 @@ def create_user_command(
         prompt=True,
         hide_input=True,
         confirmation_prompt=True,
-        help="Password to store using Django-compatible PBKDF2.",
+        help="Password to store securely with Argon2id.",
     ),
     email: str = typer.Option("", "--email", help="Email address."),
     first_name: str = typer.Option("", "--first-name", help="First name."),
     last_name: str = typer.Option("", "--last-name", help="Last name."),
     superuser: bool = typer.Option(False, "--superuser", help="Create a superuser."),
 ) -> None:
-    """Create an active user with a Django-compatible password hash."""
+    """Create an active user with an Argon2id password hash."""
     summary = _run_management_command(
         lambda session: management.create_user(
             session,
@@ -230,7 +230,7 @@ def reset_password_command(
         prompt=True,
         hide_input=True,
         confirmation_prompt=True,
-        help="Replacement password.",
+        help="Replacement password to store securely with Argon2id.",
     ),
     yes: bool = typer.Option(False, "--yes", help="Skip destructive-action confirmation."),
 ) -> None:

@@ -1,139 +1,77 @@
 # Deployment
 
-This document deploys the FastAPI/React application. It does not replace the
-pre-migration baseline or recovery procedure in
-[legacy-baseline.md](legacy-baseline.md).
-
 ## Runtime contract
 
-The production image has three stages: Bun builds `frontend/dist`, Pixi installs
-the locked default backend environment, and a small Debian runtime serves both.
-It runs as uid/gid `10001`, starts exactly one Uvicorn worker, and exposes port
-`8000`. One worker is intentional: SQLite allows only one writer at a time.
+The production image builds `frontend/dist`, installs the locked backend Pixi
+environment, and serves both through one Uvicorn worker as uid/gid `10001` on
+port `8000`. One worker is intentional because SQLite has a single-writer model.
 
 Mount one durable host directory or named volume at `/data`:
 
 | Container path | Purpose |
 | --- | --- |
-| `/data/db.sqlite3` | SQLite database, including its WAL/SHM sidecars while running |
+| `/data/db.sqlite3` | SQLite database and its WAL/SHM sidecars while running |
 | `/data/media` | Uploaded and imported files |
 
-For a bind mount, prepare the directory before the first start. The application
-validates both the database parent and media directory at startup.
-
-```sh
-sudo install -d -o 10001 -g 10001 -m 0700 /srv/finances/data/media
-sudo install -d -o 10001 -g 10001 -m 0700 /srv/finances/backups
-```
-
-Do not mount a repository checkout, a transient container filesystem, or the
-legacy application’s live database directly. Copy and verify data during a
-maintenance window first.
-
-The container requires these runtime variables:
-
-| Variable | Production setting |
-| --- | --- |
-| `FINANCES_SESSION_SECRET` | A unique secret of at least 32 characters, stored in the deployment secret manager |
-| `FINANCES_ALLOWED_HOSTS` | JSON list of public host names, for example `["finances.example.com"]` |
-| `FINANCES_COOKIE_SECURE` | `true` (the image default) when HTTPS terminates at the reverse proxy |
-| `FINANCES_DEVELOPMENT_LOGGING` | `false` (the image default) |
-| `FINANCES_DATABASE_PATH` | `/data/db.sqlite3` (the image default) |
-| `FINANCES_MEDIA_ROOT` | `/data/media` (the image default) |
+For a bind mount, create the directories with ownership `10001:10001` before the
+first start. The required runtime values are `FINANCES_SESSION_SECRET` and
+`FINANCES_ALLOWED_HOSTS`; the image defaults the database and media to `/data`,
+secure cookies on, and development logging off.
 
 Keep TLS termination and the public hostname in a reverse proxy. Publish the
-container only to the proxy, not directly to the public internet.
+container only to that proxy.
 
-## Build and first start
+## Build and start
 
-The checked-in lock currently contains `linux-64`, not Linux ARM, resolution.
-Build an AMD64 image explicitly from an Apple Silicon host until Linux ARM is
-added and reviewed in Pixi’s platform matrix:
+The Pixi lock contains `linux-64`, so build an AMD64 image explicitly from Apple
+Silicon until Linux ARM is added to the platform matrix:
 
 ```sh
-docker buildx build --platform linux/amd64 --tag finances:2026-08-13 --load .
+finances_image=finances:2026-08-14
+docker buildx build --platform linux/amd64 --tag "$finances_image" --load .
 ```
 
-Create a new database only after its durable mount and secret are ready:
+For a new empty deployment, initialize the mounted database while stopped:
 
 ```sh
 docker run --rm \
-  -e FINANCES_SESSION_SECRET='replace-with-a-secret-from-your-secret-manager' \
+  -e FINANCES_SESSION_SECRET='replace-with-a-32-character-secret' \
   -e FINANCES_ALLOWED_HOSTS='["finances.example.com"]' \
   -v /srv/finances/data:/data \
-  finances:2026-08-13 finances db upgrade
-
-docker run --detach --name finances --restart unless-stopped \
-  --publish 127.0.0.1:8000:8000 \
-  -e FINANCES_SESSION_SECRET='replace-with-a-secret-from-your-secret-manager' \
-  -e FINANCES_ALLOWED_HOSTS='["finances.example.com"]' \
-  -v /srv/finances/data:/data \
-  finances:2026-08-13
+  "$finances_image" finances db upgrade
 ```
 
-The image health check calls `/health`. After the proxy is configured, verify
-`/health`, `/docs`, a protected `/api/v1/...` route, a direct hashed asset, and
-a client-side SPA route. `/api`, `/health`, `/docs`, `/redoc`, and
-`/openapi.json` are never routed to the SPA fallback.
+An existing pre-Alembic production database must instead follow
+[production-data-migration.md](production-data-migration.md).
 
-`Procfile` is retained for process-platform deployments and contains only the
-new web command. It intentionally has no release migration command: migrations
-must run while the application is stopped.
+Start the service only after migrations complete:
 
-## Stopped-app migration procedure
+```sh
+docker run --detach --name finances --restart unless-stopped \
+  --publish 127.0.0.1:8000:8000 \
+  -e FINANCES_SESSION_SECRET='replace-with-a-32-character-secret' \
+  -e FINANCES_ALLOWED_HOSTS='["finances.example.com"]' \
+  -v /srv/finances/data:/data \
+  "$finances_image"
+```
 
-Run every migration during a maintenance window. Do not use a release hook or
-run a migration against a live multi-process deployment.
+The image health check calls `/health`. Verify `/health`, `/docs`, a protected
+API route, a hashed asset, and a direct SPA route through the proxy.
 
-1. Announce maintenance, stop the running application, and confirm no old
-   process still has the database open.
-2. Create and verify a database-and-media backup. Follow the commands in
-   [legacy-baseline.md](legacy-baseline.md#backup-restore-and-recovery).
-3. Run read-only inspection with the candidate image and the durable mount.
+## Updates and recovery
 
-   ```sh
-   docker run --rm \
-     -e FINANCES_SESSION_SECRET='replace-with-the-deployment-secret' \
-     -v /srv/finances/data:/data \
-     finances:2026-08-13 finances db inspect
-   ```
+Every schema upgrade is a stopped-application maintenance operation:
 
-4. When moving a verified legacy Django database for the first time, run
-   `finances db bootstrap-existing` exactly once. It stamps the known baseline
-   only after schema validation. Do not run it on an Alembic-managed database.
-5. Run `finances db upgrade`, then `finances db status`; both must succeed and
-   status must report no pending upgrade.
-6. Start the new container, wait for healthy status, and perform the smoke
-   checks listed above before ending maintenance.
+1. Stop the running container.
+2. Create and verify a paired database/media backup using the production-data
+   runbook.
+3. Run the candidate image's `finances db status`, `upgrade`, and `status` against
+   the durable mount.
+4. Start the candidate and complete the critical smoke checks.
 
-If any step fails, keep the app stopped, retain the failed state for diagnosis,
-and restore the verified recovery point. Do not attempt downgrade migrations
-against production data.
+If an upgrade or smoke check fails, keep the service stopped and restore the
+paired recovery point. Do not run production downgrade migrations. Retain the
+previous image and recovery point until the release is validated.
 
-## Backup and restore
-
-Backups contain both `/data/db.sqlite3` and `/data/media`. They must be kept
-outside the repository with restrictive permissions. The baseline document
-provides commands that use SQLite’s backup API, checksums, database integrity
-checks, and media archive validation.
-
-For restore, stop the container first. Verify the selected backup, move the
-current database, `-wal`, `-shm`, and media directory to timestamped
-`pre-restore` names, restore the database and media together, verify them, then
-start the service and make a new confirmed backup. Retain the moved state until
-the restored service has been validated.
-
-## Rollback
-
-Keep the tagged legacy Django image, its locked `legacy` Pixi environment, and
-the verified pre-cutover backup through the rollback window. Application-code
-rollback is only safe while the database schema and data remain compatible with
-the legacy release. If a forward migration has made them incompatible, restore
-the paired database-and-media recovery point instead of starting Django against
-the migrated database.
-
-## Dependency-audit constraints
-
-Current dependency-audit results and unresolved platform/tooling constraints are
-recorded in [dependency-audit.md](dependency-audit.md). Legacy-only Django
-packages remain frozen during the rollback window.
+`Procfile` contains only the modern web process for process-platform deployments.
+It intentionally has no release migration command.

@@ -17,28 +17,8 @@ finances-backend = { path = "backend", editable = true }
 ruff = "==0.16.2"
 mypy = "==2.3.0"
 
-[feature.legacy.dependencies]
-python = ">=3.11,<3.12"
-
-[feature.legacy.pypi-dependencies]
-django = "==5.2.17"
-fontawesomefree = "==6.6.0"
-django-plotly-dash = "==2.5.1"
-django-crispy-forms = "==2.7"
-crispy-bootstrap4 = "==2026.2"
-django-addanother = "==2.2.2"
-django-bootstrap4 = "==26.1"
-pandas = "==3.0.5"
-dash = "==4.4.1"
-pillow = "==12.3.0"
-dpd-static-support = "==0.0.5"
-whitenoise = "==6.12.0"
-django-tables2 = "==3.0.0"
-gunicorn = "==26.0.0"
-
 [environments]
 default = ["modern"]
-legacy = ["legacy"]
 
 [tasks]
 backend-dev = "uvicorn app.main:app --reload --app-dir backend"
@@ -47,8 +27,6 @@ dev = { depends-on = ["backend-dev", "frontend-dev"] }
 backend-lint = "ruff check backend"
 backend-format-check = "ruff format --check backend"
 backend-typecheck = "mypy backend/app"
-legacy-lint = "ruff check accounting finances manage.py"
-legacy-format-check = "ruff format --check accounting finances manage.py"
 frontend-install = { cmd = "bun install --frozen-lockfile", cwd = "frontend" }
 frontend-dev = { cmd = "bun run dev", cwd = "frontend" }
 frontend-lint = { cmd = "bun run lint", cwd = "frontend" }
@@ -56,11 +34,6 @@ frontend-format-check = { cmd = "bun run format:check", cwd = "frontend" }
 frontend-typecheck = { cmd = "bun run typecheck", cwd = "frontend" }
 frontend-build = { cmd = "bun run build", cwd = "frontend" }
 alembic = "alembic -c backend/alembic.ini"
-lint = { depends-on = ["backend-lint", "legacy-lint", "frontend-lint"] }
-format-check = { depends-on = ["backend-format-check", "legacy-format-check", "frontend-format-check"] }
+lint = { depends-on = ["backend-lint", "frontend-lint"] }
+format-check = { depends-on = ["backend-format-check", "frontend-format-check"] }
 hooks-install = "lefthook install"
-legacy-dev = "python manage.py runserver"
-legacy-check = "python manage.py check"
-legacy-test = "python manage.py test"
-legacy-migrate = "python manage.py migrate"
-legacy-web = "gunicorn --bind 0.0.0.0:${PORT:-8000} --log-level info --log-file - finances.wsgi:application"

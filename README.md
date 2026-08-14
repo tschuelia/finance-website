@@ -1,17 +1,13 @@
 # Finances
 
-Private finance application currently migrating from Django to FastAPI and React.
-
-The application manages bank accounts, CSV transaction imports, categories,
-contracts, depots, and financial analytics.
-
-The migration is intentionally incremental. The legacy Django application remains
-available in a frozen rollback environment while the new workspaces are built.
+Private finance application built with FastAPI, React, SQLite, and Pixi. It
+manages bank accounts, CSV transaction imports, categories, contracts, depots,
+and financial analytics.
 
 ## Development
 
-This repository uses [Pixi](https://pixi.sh) for Python, Bun, and shared tooling.
-Install the default locked environment and frontend dependencies after cloning:
+Install the locked backend/tooling environment, frontend dependencies, and Git
+hooks after cloning:
 
 ```sh
 pixi install --locked
@@ -19,58 +15,42 @@ pixi run frontend-install
 pixi run hooks-install
 ```
 
-The default environment uses Python 3.14 for the FastAPI backend and Bun 1.3.11
-for the React frontend. Bun 1.3.11 is the newest release currently available for
-both repository platforms through conda-forge.
-
-The FastAPI backend requires a session secret with at least 32 characters. It
-checks the database and media paths during startup and exposes its health
-endpoint at `http://127.0.0.1:8000/health`. Start the backend and Vite frontend
-together with:
+The backend requires a session secret with at least 32 characters. Start the
+FastAPI and Vite development servers together with:
 
 ```sh
 export FINANCES_SESSION_SECRET='replace-with-a-random-secret-of-32-or-more-characters'
 pixi run dev
 ```
 
-The individual `pixi run backend-dev` and `pixi run frontend-dev` tasks remain
-available when separate terminals are more convenient.
+Use `pixi run backend-dev` and `pixi run frontend-dev` in separate terminals when
+preferred. Vite proxies `/api` to `http://127.0.0.1:8000` by default; set
+`VITE_API_PROXY_TARGET` only when the backend listens elsewhere.
 
-Vite proxies `/api` to `http://127.0.0.1:8000` by default. Set
-`VITE_API_PROXY_TARGET` only when the backend is listening elsewhere. To serve a
-production frontend build through FastAPI locally, build it and use the
-single-worker production command:
+Configuration comes exclusively from process environment variables.
+`.env.example` documents the complete contract and is not loaded automatically.
+Local defaults use `db.sqlite3`, `media/`, insecure cookies, a 14-day session
+lifetime, localhost/test hosts, and development logging.
+
+To serve a production frontend build locally:
 
 ```sh
 pixi run frontend-build
 pixi run backend-serve
 ```
 
-The backend still starts without `frontend/dist`; only SPA routes return `404`
-until a frontend build is present. API, health, and documentation routes remain
-available in that mode.
-
-Configuration is read from process environment variables only. `.env.example`
-documents the complete contract but is not loaded automatically. Local
-development defaults to `db.sqlite3`, `media/`, insecure cookies, a 14-day
-session lifetime, localhost/test hosts, and development logging. Override the
-corresponding `FINANCES_*` values for production, especially
-`FINANCES_DATABASE_PATH`, `FINANCES_MEDIA_ROOT`, `FINANCES_COOKIE_SECURE`,
-`FINANCES_ALLOWED_HOSTS`, and `FINANCES_DEVELOPMENT_LOGGING`.
-
 ## Database inspection and migrations
 
-Database commands use `FINANCES_DATABASE_PATH` and require the same environment
-configuration as the backend. Inspecting is read-only: it validates the required
-legacy schema and reports table counts, foreign-key violations, journal mode, and
-financial aggregates without enablingf WAL on the inspected file.
+Database commands use `FINANCES_DATABASE_PATH`. Inspection is read-only and
+reports schema compatibility, table counts, foreign-key violations, journal
+mode, and financial aggregates:
 
 ```sh
 pixi run finances db inspect
 ```
 
-To initialize a fresh database, point `FINANCES_DATABASE_PATH` at a new file in
-an existing writable directory and upgrade it directly:
+Initialize a fresh database by pointing at a new file in an existing writable
+directory and applying the Alembic history:
 
 ```sh
 export FINANCES_DATABASE_PATH=/absolute/path/to/new-db.sqlite3
@@ -78,11 +58,8 @@ pixi run finances db upgrade
 pixi run finances db status
 ```
 
-To adopt an existing Django database, stop every application process first and
-make a verified database backup as described in
-[`docs/legacy-baseline.md`](docs/legacy-baseline.md). Then inspect, stamp the
-verified legacy schema without recreating its tables, and apply forward
-migrations:
+An existing production database created by the previous Django application must
+be inspected, adopted at the protected baseline, and upgraded exactly once:
 
 ```sh
 export FINANCES_DATABASE_PATH=/absolute/path/to/copied-db.sqlite3
@@ -92,11 +69,11 @@ pixi run finances db upgrade
 pixi run finances db status
 ```
 
-`bootstrap-existing` refuses incompatible columns, constraints, indexes,
-foreign-key violations, and any existing Alembic version table. `db upgrade`
-also refuses to treat an uninitialized non-empty database as fresh. Both adoption
-and upgrades enable SQLite foreign keys, WAL mode, and a five-second busy timeout.
-All Django support and obsolete tables remain untouched for rollback.
+`bootstrap-existing` rejects incompatible columns, constraints, indexes,
+foreign-key violations, and unexpected Alembic state. `db upgrade` refuses to
+treat an uninitialized non-empty database as fresh. Unmanaged historical support
+tables are preserved. The complete stopped-application procedure is in
+[docs/production-data-migration.md](docs/production-data-migration.md).
 
 The lower-level Alembic interface remains available for diagnostics and revision
 authoring:
@@ -106,14 +83,12 @@ pixi run alembic -- current
 pixi run alembic -- check
 ```
 
-## CLI
+## Management CLI
 
-The `finances` CLI is the supported operational interface for the new backend.
-Use its help output as the current command reference:
+The `finances` CLI replaces application-admin operations:
 
 ```sh
 pixi run finances --help
-pixi run finances db --help
 pixi run finances users --help
 pixi run finances accounts --help
 pixi run finances depots --help
@@ -121,38 +96,24 @@ pixi run finances assets --help
 pixi run finances asset-transactions --help
 ```
 
-`finances db inspect` is read-only. `bootstrap-existing` is a one-time action
-for a verified, pre-Alembic Django database; use `db upgrade` for every normal
-forward migration. User-management commands prompt for destructive actions or
-passwords where appropriate.
+New and reset passwords use Argon2id. Existing Django PBKDF2 hashes remain valid
+and are replaced with Argon2id atomically after the user's next successful login.
 
-## Backups and restore
+## Backups and deployment
 
-Take a verified, timestamped backup of both the SQLite database and media before
-every deployment or migration. Stop the application before copying either data
-set; SQLite WAL and SHM sidecars are application data, not repository files.
-The detailed, verified backup and restore procedure is in
-[docs/legacy-baseline.md](docs/legacy-baseline.md#backup-restore-and-recovery).
+Back up the SQLite database and complete media directory as one recovery point
+before every deployment or migration. Stop the application first, include any
+SQLite WAL/SHM sidecars in the state being protected, verify checksums and SQLite
+integrity, and retain the prior state until the replacement is validated. See
+[docs/production-data-migration.md](docs/production-data-migration.md) for the
+first adoption and [docs/deployment.md](docs/deployment.md) for normal releases.
 
-Restores are maintenance operations: stop the app, verify the chosen backup,
-move the current database, WAL/SHM sidecars, and media aside, restore both
-artifacts, verify the database and archive, then start and validate the app.
-Keep the moved state until a new verified recovery point exists.
+The production image builds the React bundle with Bun, installs the locked
+backend environment with Pixi, and runs one Uvicorn worker. It serves the API,
+health endpoint, documentation, authenticated files, and SPA from one origin.
+Persistent database and media storage is mounted at `/data`.
 
-## Deployment
-
-The production image builds the React bundle with Bun and the backend with Pixi,
-then runs one Uvicorn worker. It serves API, health, and docs routes before the
-SPA fallback; `index.html` is not cached while hashed frontend assets are cached
-immutably. It mounts persistent database and media storage at `/data`.
-
-Use the stopped-app migration procedure, deployment environment contract,
-backup/restore commands, and rollback guidance in
-[docs/deployment.md](docs/deployment.md). The pre-production rehearsal remains
-an operational task and is tracked separately in
-[docs/migration-rehearsal.md](docs/migration-rehearsal.md).
-
-Quality commands:
+## Quality checks
 
 ```sh
 pixi run lint
@@ -165,22 +126,4 @@ pixi run lefthook run pre-commit
 
 After changing `pixi.toml`, run `pixi lock`. After changing
 `frontend/package.json`, run `pixi run bun install` from `frontend/` and commit
-`frontend/bun.lock` with the package metadata.
-
-## Legacy rollback environment
-
-The `legacy` Pixi environment keeps Python 3.11 and the exact Django dependency
-versions captured before migration. Install and use it explicitly for rollback
-checks:
-
-```sh
-pixi install --locked -e legacy
-pixi run -e legacy legacy-check
-pixi run -e legacy legacy-test
-pixi run -e legacy legacy-migrate
-pixi run -e legacy legacy-dev
-pixi run -e legacy legacy-web
-```
-
-The pre-migration Django runtime, workflows, schema, aggregate data checks, and
-recovery procedure are recorded in [docs/legacy-baseline.md](docs/legacy-baseline.md).
+`frontend/bun.lock` with the manifest.
