@@ -6,15 +6,13 @@ export const AnalyticsFiltersSchema = TransactionDataFiltersSchema
 
 export type AnalyticsFilters = z.infer<typeof AnalyticsFiltersSchema>
 
-export const CategoryTotalSchema = z
+const CategoryTotalSchema = z
   .object({
     category: z.string(),
     income: DecimalSchema,
     expense: DecimalSchema
   })
   .strict()
-
-export type CategoryTotal = z.infer<typeof CategoryTotalSchema>
 
 export const CategoryTotalsSchema = z
   .object({
@@ -26,15 +24,13 @@ export const CategoryTotalsSchema = z
 
 export type CategoryTotals = z.infer<typeof CategoryTotalsSchema>
 
-export const ComparisonPeriodSchema = z
+const ComparisonPeriodSchema = z
   .object({
     period: z.string(),
     label: z.string(),
     series: z.array(CategoryTotalSchema)
   })
   .strict()
-
-export type ComparisonPeriod = z.infer<typeof ComparisonPeriodSchema>
 
 export const CategoryComparisonsSchema = z
   .object({
@@ -46,7 +42,7 @@ export const CategoryComparisonsSchema = z
 
 export type CategoryComparisons = z.infer<typeof CategoryComparisonsSchema>
 
-export const MonthlyTotalSchema = z
+const MonthlyTotalSchema = z
   .object({
     period: z.string(),
     label: z.string(),
@@ -54,8 +50,6 @@ export const MonthlyTotalSchema = z
     expense: DecimalSchema
   })
   .strict()
-
-export type MonthlyTotal = z.infer<typeof MonthlyTotalSchema>
 
 export const MonthlyTotalsSchema = z
   .object({

@@ -2,11 +2,12 @@ import calendar
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
+from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
-from app.db.models import Transaction, User
+from app.db.models import Category, Transaction, User
 from app.services.access import get_visible_bank_account
 from app.services.transactions import TransactionFilters, transaction_filter_clauses
 
@@ -51,17 +52,22 @@ class MonthlyTotal:
     expense: Decimal
 
 
-def _rows(
-    session: Session,
-    current_user: User,
-    account_id: int,
-    filters: TransactionFilters,
-) -> tuple[Transaction, ...]:
-    account = get_visible_bank_account(session, current_user, account_id)
-    clauses = transaction_filter_clauses(session, account.id, filters, date.today())
+def _decimal(value: object | None) -> Decimal:
+    if value is None:
+        return ZERO
+    if isinstance(value, Decimal):
+        return value
+    return Decimal(str(value))
+
+
+def _sorted_category_totals(
+    totals: dict[str, tuple[Decimal, Decimal]],
+) -> tuple[CategoryTotal, ...]:
     return tuple(
-        session.scalars(
-            select(Transaction).where(*clauses).order_by(Transaction.date_issue, Transaction.id)
+        CategoryTotal(category=name, income=income, expense=expense)
+        for name, (income, expense) in sorted(
+            totals.items(),
+            key=lambda item: (-item[1][1], -item[1][0], item[0].casefold()),
         )
     )
 
@@ -72,21 +78,22 @@ def category_totals(
     account_id: int,
     filters: TransactionFilters,
 ) -> tuple[CategoryTotal, ...]:
-    totals: dict[str, tuple[Decimal, Decimal]] = {}
-    for transaction in _rows(session, current_user, account_id, filters):
-        category = transaction.category.name if transaction.category is not None else UNCATEGORIZED
-        income, expense = totals.get(category, (ZERO, ZERO))
-        if transaction.amount >= ZERO:
-            income += transaction.amount
-        else:
-            expense += abs(transaction.amount)
-        totals[category] = (income, expense)
-    return tuple(
-        CategoryTotal(category=name, income=income, expense=expense)
-        for name, (income, expense) in sorted(
-            totals.items(),
-            key=lambda item: (-item[1][1], -item[1][0], item[0].casefold()),
+    account = get_visible_bank_account(session, current_user, account_id)
+    clauses = transaction_filter_clauses(session, account.id, filters, date.today())
+    category_name = func.coalesce(Category.name, UNCATEGORIZED)
+    rows = session.execute(
+        select(
+            category_name,
+            func.sum(case((Transaction.amount >= ZERO, Transaction.amount), else_=ZERO)),
+            func.sum(case((Transaction.amount < ZERO, -Transaction.amount), else_=ZERO)),
         )
+        .select_from(Transaction)
+        .outerjoin(Category, Transaction.category_id == Category.id)
+        .where(*clauses)
+        .group_by(category_name)
+    )
+    return _sorted_category_totals(
+        {str(category): (_decimal(income), _decimal(expense)) for category, income, expense in rows}
     )
 
 
@@ -115,30 +122,69 @@ def category_comparisons(
     filters: TransactionFilters,
     periods: tuple[str, str, str],
 ) -> tuple[ComparisonPeriod, ...]:
-    comparisons: list[ComparisonPeriod] = []
+    period_ranges: list[tuple[str, str, date, date]] = []
     for period in periods:
         date_start, date_end, label = _period_dates(period)
         if filters.date_start is not None:
             date_start = max(date_start, filters.date_start)
         if filters.date_end is not None:
             date_end = min(date_end, filters.date_end)
-        period_filters = TransactionFilters(
-            search_term=filters.search_term,
-            date_start=date_start,
-            date_end=date_end,
-            amount_min=filters.amount_min,
-            amount_max=filters.amount_max,
-            category_ids=filters.category_ids,
-            transaction_type=filters.transaction_type,
-        )
-        comparisons.append(
-            ComparisonPeriod(
-                period=period,
-                label=label,
-                totals=category_totals(session, current_user, account_id, period_filters),
+        period_ranges.append((period, label, date_start, date_end))
+
+    account = get_visible_bank_account(session, current_user, account_id)
+    scan_filters = TransactionFilters(
+        search_term=filters.search_term,
+        date_start=min(item[2] for item in period_ranges),
+        date_end=max(item[3] for item in period_ranges),
+        amount_min=filters.amount_min,
+        amount_max=filters.amount_max,
+        category_ids=filters.category_ids,
+        transaction_type=filters.transaction_type,
+    )
+    clauses = transaction_filter_clauses(session, account.id, scan_filters, date.today())
+    category_name = func.coalesce(Category.name, UNCATEGORIZED)
+    aggregates: list[Any] = []
+    for _, _, date_start, date_end in period_ranges:
+        in_period = Transaction.date_issue.between(date_start, date_end)
+        aggregates.extend(
+            (
+                func.sum(
+                    case(
+                        (in_period & (Transaction.amount >= ZERO), Transaction.amount),
+                        else_=ZERO,
+                    )
+                ),
+                func.sum(
+                    case(
+                        (in_period & (Transaction.amount < ZERO), -Transaction.amount),
+                        else_=ZERO,
+                    )
+                ),
             )
         )
-    return tuple(comparisons)
+    totals_by_period: list[dict[str, tuple[Decimal, Decimal]]] = [{} for _ in period_ranges]
+    for row in session.execute(
+        select(category_name, *aggregates)
+        .select_from(Transaction)
+        .outerjoin(Category, Transaction.category_id == Category.id)
+        .where(*clauses)
+        .group_by(category_name)
+    ):
+        category = str(row[0])
+        for index in range(len(period_ranges)):
+            income = _decimal(row[1 + index * 2])
+            expense = _decimal(row[2 + index * 2])
+            if income != ZERO or expense != ZERO:
+                totals_by_period[index][category] = (income, expense)
+
+    return tuple(
+        ComparisonPeriod(
+            period=period,
+            label=label,
+            totals=_sorted_category_totals(totals_by_period[index]),
+        )
+        for index, (period, label, _, _) in enumerate(period_ranges)
+    )
 
 
 def _shift_month(value: date, months: int) -> date:
@@ -169,20 +215,31 @@ def monthly_totals(
         category_ids=filters.category_ids,
         transaction_type=filters.transaction_type,
     )
-    totals: dict[tuple[int, int], tuple[Decimal, Decimal]] = {}
-    for transaction in _rows(session, current_user, account_id, bounded_filters):
-        key = (transaction.date_issue.year, transaction.date_issue.month)
-        income, expense = totals.get(key, (ZERO, ZERO))
-        if transaction.amount >= ZERO:
-            income += transaction.amount
-        else:
-            expense += abs(transaction.amount)
-        totals[key] = (income, expense)
+    account = get_visible_bank_account(session, current_user, account_id)
+    clauses = transaction_filter_clauses(
+        session,
+        account.id,
+        bounded_filters,
+        today or date.today(),
+    )
+    period_column = func.strftime("%Y-%m", Transaction.date_issue)
+    totals = {
+        str(period): (_decimal(income), _decimal(expense))
+        for period, income, expense in session.execute(
+            select(
+                period_column,
+                func.sum(case((Transaction.amount >= ZERO, Transaction.amount), else_=ZERO)),
+                func.sum(case((Transaction.amount < ZERO, -Transaction.amount), else_=ZERO)),
+            )
+            .where(*clauses)
+            .group_by(period_column)
+        )
+    }
 
     result: list[MonthlyTotal] = []
     for offset in range(months):
         month = _shift_month(first_month, offset)
-        income, expense = totals.get((month.year, month.month), (ZERO, ZERO))
+        income, expense = totals.get(month.strftime("%Y-%m"), (ZERO, ZERO))
         result.append(
             MonthlyTotal(
                 period=month.strftime("%Y-%m"),

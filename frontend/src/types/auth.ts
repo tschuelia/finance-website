@@ -16,9 +16,7 @@ export const AuthenticatedUserSchema = z
     username: z.string(),
     first_name: z.string(),
     last_name: z.string(),
-    email: z.string(),
     is_superuser: z.boolean(),
-    is_staff: z.boolean(),
     csrf_token: z.string().min(1),
     expires_at: DateTimeSchema
   })

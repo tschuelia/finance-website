@@ -20,7 +20,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
 
-def legacy_foreign_key(target: str) -> ForeignKey:
+def production_foreign_key(target: str) -> ForeignKey:
     return ForeignKey(target, deferrable=True, initially="DEFERRED")
 
 
@@ -61,7 +61,7 @@ class BankAccount(Base):
     name: Mapped[str] = mapped_column(String(255))
     bank: Mapped[str] = mapped_column(String(255))
     current_amount: Mapped[Decimal] = mapped_column(Numeric(10, 2))
-    owner_id: Mapped[int] = mapped_column(Integer, legacy_foreign_key("auth_user.id"))
+    owner_id: Mapped[int] = mapped_column(Integer, production_foreign_key("auth_user.id"))
 
     owner: Mapped[User] = relationship(back_populates="bank_accounts")
     transactions: Mapped[list[Transaction]] = relationship(back_populates="bank_account")
@@ -73,7 +73,7 @@ class BankDepot(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(255))
-    owner_id: Mapped[int] = mapped_column(Integer, legacy_foreign_key("auth_user.id"))
+    owner_id: Mapped[int] = mapped_column(Integer, production_foreign_key("auth_user.id"))
 
     owner: Mapped[User] = relationship(back_populates="bank_depots")
     assets: Mapped[list[DepotAsset]] = relationship(back_populates="bank_depot")
@@ -95,10 +95,11 @@ class DepotBalanceSnapshot(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     bank_depot_id: Mapped[int] = mapped_column(
-        Integer, legacy_foreign_key("accounting_bankdepot.id")
+        Integer, production_foreign_key("accounting_bankdepot.id")
     )
     date: Mapped[datetime.date] = mapped_column(Date)
     balance: Mapped[Decimal] = mapped_column(Numeric(10, 2))
+    is_estimated: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
 
     bank_depot: Mapped[BankDepot] = relationship(back_populates="snapshots")
 
@@ -111,7 +112,7 @@ class DepotAsset(Base):
     name: Mapped[str] = mapped_column(String(255))
     current_balance: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     bank_depot_id: Mapped[int | None] = mapped_column(
-        BigInteger, legacy_foreign_key("accounting_bankdepot.id"), nullable=True
+        BigInteger, production_foreign_key("accounting_bankdepot.id"), nullable=True
     )
     last_update: Mapped[datetime.date] = mapped_column(Date)
 
@@ -134,7 +135,9 @@ class DepotAssetBalanceSnapshot(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    asset_id: Mapped[int] = mapped_column(Integer, legacy_foreign_key("accounting_depotasset.id"))
+    asset_id: Mapped[int] = mapped_column(
+        Integer, production_foreign_key("accounting_depotasset.id")
+    )
     date: Mapped[datetime.date] = mapped_column(Date)
     balance: Mapped[Decimal] = mapped_column(Numeric(10, 2))
 
@@ -149,7 +152,7 @@ class DepotAssetTransaction(Base):
     amount: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     date_issue: Mapped[datetime.date] = mapped_column(Date)
     asset_id: Mapped[int | None] = mapped_column(
-        BigInteger, legacy_foreign_key("accounting_depotasset.id"), nullable=True
+        BigInteger, production_foreign_key("accounting_depotasset.id"), nullable=True
     )
 
     asset: Mapped[DepotAsset | None] = relationship(back_populates="transactions")
@@ -172,7 +175,7 @@ class Contract(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(255))
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    owner_id: Mapped[int] = mapped_column(Integer, legacy_foreign_key("auth_user.id"))
+    owner_id: Mapped[int] = mapped_column(Integer, production_foreign_key("auth_user.id"))
     is_active: Mapped[bool] = mapped_column(Boolean)
     end_date: Mapped[datetime.date | None] = mapped_column(Date, nullable=True)
     start_date: Mapped[datetime.date | None] = mapped_column(Date, nullable=True)
@@ -192,7 +195,7 @@ class ContractFile(Base):
     file: Mapped[str] = mapped_column(String(100))
     filename: Mapped[str] = mapped_column(String(255))
     contract_id: Mapped[int] = mapped_column(
-        BigInteger, legacy_foreign_key("accounting_contract.id")
+        BigInteger, production_foreign_key("accounting_contract.id")
     )
 
     contract: Mapped[Contract] = relationship(back_populates="files")
@@ -214,13 +217,13 @@ class Transaction(Base):
     date_booking: Mapped[datetime.date | None] = mapped_column(Date, nullable=True)
     full_subject_string: Mapped[str] = mapped_column(Text)
     bank_account_id: Mapped[int | None] = mapped_column(
-        BigInteger, legacy_foreign_key("accounting_bankaccount.id"), nullable=True
+        BigInteger, production_foreign_key("accounting_bankaccount.id"), nullable=True
     )
     category_id: Mapped[int | None] = mapped_column(
-        BigInteger, legacy_foreign_key("accounting_category.id"), nullable=True
+        BigInteger, production_foreign_key("accounting_category.id"), nullable=True
     )
     contract_id: Mapped[int | None] = mapped_column(
-        BigInteger, legacy_foreign_key("accounting_contract.id"), nullable=True
+        BigInteger, production_foreign_key("accounting_contract.id"), nullable=True
     )
 
     bank_account: Mapped[BankAccount | None] = relationship(back_populates="transactions")
@@ -236,7 +239,7 @@ class ServerSession(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(Integer, legacy_foreign_key("auth_user.id"))
+    user_id: Mapped[int] = mapped_column(Integer, production_foreign_key("auth_user.id"))
     token_hash: Mapped[str] = mapped_column(String(64), unique=True)
     csrf_token_hash: Mapped[str] = mapped_column(String(64))
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime)
@@ -246,7 +249,7 @@ class ServerSession(Base):
     user: Mapped[User] = relationship(back_populates="sessions")
 
 
-LEGACY_MANAGED_TABLE_NAMES = frozenset(
+PRODUCTION_COMPATIBLE_TABLE_NAMES = frozenset(
     {
         "auth_user",
         "accounting_bankaccount",
@@ -260,7 +263,7 @@ LEGACY_MANAGED_TABLE_NAMES = frozenset(
     }
 )
 
-MANAGED_TABLE_NAMES = LEGACY_MANAGED_TABLE_NAMES | {
+MANAGED_TABLE_NAMES = PRODUCTION_COMPATIBLE_TABLE_NAMES | {
     DepotAssetBalanceSnapshot.__tablename__,
     DepotBalanceSnapshot.__tablename__,
     ServerSession.__tablename__,

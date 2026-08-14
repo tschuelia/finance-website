@@ -1,6 +1,6 @@
 # Dependency audit
 
-Audit date: 2026-08-13. Lock cleanup: 2026-08-14.
+Audit date and lock cleanup: 2026-08-14.
 
 ## Scope and policy
 
@@ -18,8 +18,11 @@ were removed when the rollback window closed.
   Updating it requires checking the shared frontend lock and both Pixi targets.
 - Backend PyPI requirements and the frontend manifest use exact pins where the
   migration established them.
-- The runtime base uses the current stable Pixi `0.75.0` image. Its build stage
-  installs exactly the checked-in `pixi.lock` default environment.
+- The runtime base uses Pixi `0.75.0`. Its build stage installs exactly the
+  checked-in `runtime` environment, which excludes Bun, Ruff, Mypy, Pytest,
+  Lefthook, pre-commit helpers, and `pixi-pycharm`.
+- The default development environment combines the runtime, development, and IDE
+  features. The `shadcn` CLI is a frontend development dependency only.
 
 ## Commands and evidence
 
@@ -31,16 +34,16 @@ pixi update --dry-run --json --environment default
 pixi run bun outdated --cwd frontend
 pixi run bun audit --cwd frontend
 # Run pip-audit through an isolated Pixi tool environment.
-pixi exec --spec pip-audit pip-audit --path .pixi/envs/default/lib/python3.14/site-packages
+pixi exec --spec pip-audit --spec filelock pip-audit --path .pixi/envs/runtime/lib/python3.14/site-packages
 ```
 
 `pixi update --dry-run --json --environment default` originally proposed conda
 rebuild updates for `libbrotlicommon`, `libbrotlidec`, and `libbrotlienc` version
 `1.2.0` from build revision `_1` to `_3`. Removing the legacy environment exposed
 that a normal `pixi lock` retained its stale environment section, so the lock was
-regenerated cleanly on 2026-08-14. The regenerated lock contains only `default`,
-applies the current conda build revisions, and contains no Django-only packages.
-No backend or frontend manifest pin changed as part of that cleanup.
+regenerated cleanly on 2026-08-14. The current lock contains `default` and the
+backend-only `runtime` environment, applies the current conda build revisions,
+and contains no retired Django runtime packages.
 
 `pixi run bun outdated --cwd frontend` reports one available frontend update:
 
@@ -57,12 +60,14 @@ compatibility check.
 The audit command identified itself as `bun v1.3.11-canary.1`; this discrepancy
 with the Pixi package constraint `bun ==1.3.11` needs a conda-forge/package
 review before treating the frontend toolchain as a final stable release.
-`pixi run bun audit --cwd frontend` reported no vulnerabilities. Neither frontend package
-metadata nor `bun.lock` was changed by the deployment work; the Recharts update
-was owned by the frontend work.
+`pixi run bun audit --cwd frontend` reported no vulnerabilities. The unused
+`react-day-picker` dependency and unreachable UI files were removed; `bun.lock`
+was regenerated.
 
 `pip-audit` is not a declared runtime dependency, so it was installed in an
-isolated temporary environment and run with `--path` against the default Pixi
-environment’s Python site-packages. It reported no known vulnerabilities. The
-only skipped item was the local editable `finances-backend` package, which is not
-published on PyPI; its pinned runtime dependencies were audited normally.
+isolated temporary environment and run with `--path` against the runtime Pixi
+environment’s Python site-packages. It reported no known vulnerabilities.
+
+The production frontend build remained one approximately 1.240 MB minified
+JavaScript bundle (about 372 kB gzip). This is effectively the audit baseline;
+no route-load performance budget or regression justified adding code splitting.

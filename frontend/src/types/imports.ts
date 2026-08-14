@@ -15,8 +15,6 @@ export const CsvCommitSchema = z
   })
   .strict()
 
-export type CsvCommit = z.infer<typeof CsvCommitSchema>
-
 export const CsvCommitResponseSchema = z
   .object({
     items: z.array(TransactionSchema),

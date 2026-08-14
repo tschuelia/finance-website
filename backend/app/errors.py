@@ -58,6 +58,31 @@ class InvalidImportError(ApplicationError):
     default_detail = "Die CSV-Datei konnte nicht verarbeitet werden."
 
 
+class PayloadTooLargeError(ApplicationError):
+    status_code = HTTPStatus.REQUEST_ENTITY_TOO_LARGE
+    title = "Datei zu groß"
+    problem_type = "urn:finances:error:payload-too-large"
+    default_detail = "Die hochgeladene Datei überschreitet die erlaubte Größe."
+
+
+class LoginRateLimitError(ApplicationError):
+    status_code = HTTPStatus.TOO_MANY_REQUESTS
+    title = "Zu viele Anmeldeversuche"
+    problem_type = "urn:finances:error:login-rate-limit"
+    default_detail = "Bitte warte, bevor Du die Anmeldung erneut versuchst."
+
+    def __init__(self, retry_after_seconds: int) -> None:
+        super().__init__()
+        self.retry_after_seconds = retry_after_seconds
+
+
+class ServiceUnavailableError(ApplicationError):
+    status_code = HTTPStatus.SERVICE_UNAVAILABLE
+    title = "Dienst nicht bereit"
+    problem_type = "urn:finances:error:service-unavailable"
+    default_detail = "Eine erforderliche Laufzeitabhängigkeit ist nicht verfügbar."
+
+
 def _request_id(request: Request) -> str:
     request_id = getattr(request.state, "request_id", None)
     if isinstance(request_id, str):
@@ -76,6 +101,7 @@ def _problem_response(
     title: str,
     detail: str,
     errors: list[ValidationIssue] | None = None,
+    headers: dict[str, str] | None = None,
 ) -> JSONResponse:
     request_id = _request_id(request)
     problem = ProblemDetails(
@@ -91,7 +117,7 @@ def _problem_response(
         status_code=status_code,
         content=problem.model_dump(exclude_none=True),
         media_type="application/problem+json",
-        headers={REQUEST_ID_HEADER: request_id},
+        headers={REQUEST_ID_HEADER: request_id} | (headers or {}),
     )
 
 
@@ -102,6 +128,11 @@ async def application_error_handler(request: Request, exc: ApplicationError) -> 
         problem_type=exc.problem_type,
         title=exc.title,
         detail=exc.detail,
+        headers=(
+            {"Retry-After": str(exc.retry_after_seconds)}
+            if isinstance(exc, LoginRateLimitError)
+            else None
+        ),
     )
 
 
@@ -150,6 +181,21 @@ def _http_problem(status_code: int) -> tuple[str, str, str]:
             ConflictError.problem_type,
             ConflictError.title,
             ConflictError.default_detail,
+        ),
+        HTTPStatus.REQUEST_ENTITY_TOO_LARGE: (
+            PayloadTooLargeError.problem_type,
+            PayloadTooLargeError.title,
+            PayloadTooLargeError.default_detail,
+        ),
+        HTTPStatus.TOO_MANY_REQUESTS: (
+            LoginRateLimitError.problem_type,
+            LoginRateLimitError.title,
+            LoginRateLimitError.default_detail,
+        ),
+        HTTPStatus.SERVICE_UNAVAILABLE: (
+            ServiceUnavailableError.problem_type,
+            ServiceUnavailableError.title,
+            ServiceUnavailableError.default_detail,
         ),
     }
     return problems.get(

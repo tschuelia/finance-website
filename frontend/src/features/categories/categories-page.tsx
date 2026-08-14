@@ -21,6 +21,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { PageHeader } from '@/components/shared/page-header'
 import { EmptyState, ErrorState, LoadingState } from '@/components/shared/query-feedback'
+import { useAuth } from '@/features/auth/use-auth'
 import { categoriesQueryKey, useCategories } from '@/hooks/use-categories'
 import type { Category } from '@/types/categories'
 
@@ -109,8 +110,10 @@ const CategoryEditor = ({ category, onOpenChange, open }: CategoryEditorProps) =
 }
 
 export const CategoriesPage = () => {
+  const { state } = useAuth()
   const categories = useCategories()
   const [editorCategory, setEditorCategory] = useState<Category | null | undefined>(undefined)
+  const canManage = state.status === 'authenticated' && state.user.is_superuser
 
   if (categories.status === 'loading') {
     return <LoadingState title="Kategorien werden geladen" />
@@ -124,23 +127,35 @@ export const CategoriesPage = () => {
     <>
       <PageHeader
         actions={
-          <Button onClick={() => setEditorCategory(null)}>
-            <Plus aria-hidden />
-            Kategorie anlegen
-          </Button>
+          canManage ? (
+            <Button onClick={() => setEditorCategory(null)}>
+              <Plus aria-hidden />
+              Kategorie anlegen
+            </Button>
+          ) : undefined
         }
-        description="Definiere Muster, damit Deine Buchungen schneller die richtige Kategorie erhalten."
+        description={
+          canManage
+            ? 'Definiere Muster, damit Buchungen schneller die richtige Kategorie erhalten.'
+            : 'Kategorien und Zuordnungsmuster werden zentral verwaltet.'
+        }
         title="Kategorien"
       />
       {categories.data.length === 0 ? (
         <EmptyState
           action={
-            <Button onClick={() => setEditorCategory(null)}>
-              <Plus aria-hidden />
-              Erste Kategorie anlegen
-            </Button>
+            canManage ? (
+              <Button onClick={() => setEditorCategory(null)}>
+                <Plus aria-hidden />
+                Erste Kategorie anlegen
+              </Button>
+            ) : undefined
           }
-          description="Lege eine Kategorie und passende Begriffe für die automatische Zuordnung an."
+          description={
+            canManage
+              ? 'Lege eine Kategorie und passende Begriffe für die automatische Zuordnung an.'
+              : 'Es sind noch keine globalen Kategorien hinterlegt.'
+          }
         />
       ) : (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -157,16 +172,18 @@ export const CategoriesPage = () => {
                 <p className="line-clamp-3 min-h-12 whitespace-pre-line text-sm text-muted-foreground">
                   {category.patterns === '' ? 'Noch keine Muster hinterlegt.' : category.patterns}
                 </p>
-                <Button onClick={() => setEditorCategory(category)} size="sm" variant="outline">
-                  <Pencil aria-hidden />
-                  Bearbeiten
-                </Button>
+                {canManage ? (
+                  <Button onClick={() => setEditorCategory(category)} size="sm" variant="outline">
+                    <Pencil aria-hidden />
+                    Bearbeiten
+                  </Button>
+                ) : null}
               </CardContent>
             </Card>
           ))}
         </div>
       )}
-      {editorCategory === undefined ? null : (
+      {!canManage || editorCategory === undefined ? null : (
         <CategoryEditor
           category={editorCategory ?? undefined}
           onOpenChange={(open) => {

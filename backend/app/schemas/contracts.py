@@ -35,12 +35,29 @@ class ContractListResponse(BaseModel):
     inactive: list[ContractSummaryResponse]
 
 
+class ContractTransactionPageResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    items: list[TransactionResponse]
+    page: int
+    page_size: int
+    total: int
+    total_pages: int
+
+
 class ContractDetailResponse(ContractSummaryResponse):
     balance: ApiDecimal
     first_transaction_date: date | None
     last_transaction_date: date | None
-    transactions: list[TransactionResponse]
+    transactions: ContractTransactionPageResponse
     files: list[ContractFileResponse]
+
+
+class ContractDetailQuery(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    page: int = Field(default=1, ge=1)
+    page_size: int = Field(default=50, ge=1, le=100)
 
 
 class ContractWrite(BaseModel):

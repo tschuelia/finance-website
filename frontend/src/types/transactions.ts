@@ -24,7 +24,7 @@ export const TransactionSchema = z
 
 export type Transaction = z.infer<typeof TransactionSchema>
 
-export const TransactionSummarySchema = z
+const TransactionSummarySchema = z
   .object({
     total: DecimalSchema,
     paid: DecimalSchema,

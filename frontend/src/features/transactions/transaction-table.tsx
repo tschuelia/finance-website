@@ -1,17 +1,10 @@
 /* cspell:words Buchungsdatum Kategorien Kontotransaktionen Wertstellungsdatum */
 
-import {
-  BanknoteArrowDown,
-  BanknoteArrowUp,
-  ChevronLeft,
-  ChevronRight,
-  Dot,
-  Euro
-} from 'lucide-react'
+import { BanknoteArrowDown, BanknoteArrowUp, Dot, Euro } from 'lucide-react'
 import { Link } from 'react-router'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { DataPagination } from '@/components/shared/data-pagination'
 import { EmptyState } from '@/components/shared/query-feedback'
 import {
   Table,
@@ -175,29 +168,12 @@ export const TransactionPagination = ({ onPageChange, page }: TransactionPaginat
   }
 
   return (
-    <nav
-      aria-label="Seitennavigation für Transaktionen"
-      className="flex flex-wrap items-center justify-between gap-3"
-    >
-      <Button
-        disabled={page.page <= 1}
-        onClick={() => onPageChange(page.page - 1)}
-        variant="outline"
-      >
-        <ChevronLeft aria-hidden />
-        Zurück
-      </Button>
-      <p className="text-sm text-muted-foreground">
-        Seite {page.page} von {page.total_pages} · {page.total} Transaktionen
-      </p>
-      <Button
-        disabled={page.page >= page.total_pages}
-        onClick={() => onPageChange(page.page + 1)}
-        variant="outline"
-      >
-        Weiter
-        <ChevronRight aria-hidden />
-      </Button>
-    </nav>
+    <DataPagination
+      itemLabel="Transaktionen"
+      onPageChange={onPageChange}
+      page={page.page}
+      totalItems={page.total}
+      totalPages={page.total_pages}
+    />
   )
 }

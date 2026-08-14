@@ -60,7 +60,7 @@ class TransactionWrite(BaseModel):
     contract_id: int | None = None
 
     @model_validator(mode="after")
-    def fill_legacy_optional_text(self) -> Self:
+    def normalize_optional_text(self) -> Self:
         if self.recipient is None:
             self.recipient = ""
         if self.full_subject_string is None:

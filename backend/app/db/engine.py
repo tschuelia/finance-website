@@ -7,6 +7,11 @@ from sqlalchemy.engine import URL
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import Settings
+from app.db.transaction_hooks import (
+    run_after_commit_callbacks,
+    run_after_rollback_callbacks,
+    run_before_commit_callbacks,
+)
 
 SQLITE_BUSY_TIMEOUT_MS = 5_000
 
@@ -44,8 +49,16 @@ def create_session_factory(engine: Engine) -> SessionFactory:
 def session_scope(session_factory: SessionFactory) -> Iterator[Session]:
     session = session_factory()
     try:
-        with session.begin():
+        try:
             yield session
+            run_before_commit_callbacks(session)
+            session.commit()
+        except BaseException:
+            session.rollback()
+            run_after_rollback_callbacks(session)
+            raise
+        else:
+            run_after_commit_callbacks(session)
     finally:
         session.close()
 

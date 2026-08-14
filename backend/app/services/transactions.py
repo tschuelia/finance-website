@@ -4,15 +4,14 @@ from decimal import Decimal
 from enum import StrEnum
 
 from sqlalchemy import case, func, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.sql.elements import ColumnElement
 
-from app.db.models import Category, Transaction, User
-from app.errors import ConflictError, ResourceNotFoundError
+from app.db.models import BankAccount, Category, Contract, Transaction, User
+from app.errors import ConflictError
 from app.services.access import (
     get_visible_account_transaction,
     get_visible_bank_account,
-    get_visible_contract,
 )
 
 DEFAULT_TRANSACTION_PAGE_SIZE = 100
@@ -92,10 +91,10 @@ def transaction_filter_clauses(
     today: date,
 ) -> tuple[ColumnElement[bool], ...]:
     oldest_date, maximum_amount = _account_filter_bounds(session, account_id, today)
-    date_start = filters.date_start or oldest_date
-    date_end = filters.date_end or today
-    amount_min = filters.amount_min or ZERO
-    amount_max = filters.amount_max or maximum_amount
+    date_start = filters.date_start if filters.date_start is not None else oldest_date
+    date_end = filters.date_end if filters.date_end is not None else today
+    amount_min = filters.amount_min if filters.amount_min is not None else ZERO
+    amount_max = filters.amount_max if filters.amount_max is not None else maximum_amount
 
     clauses: list[ColumnElement[bool]] = [
         Transaction.bank_account_id == account_id,
@@ -158,6 +157,10 @@ def get_transaction_page(
     items = tuple(
         session.scalars(
             select(Transaction)
+            .options(
+                selectinload(Transaction.category),
+                selectinload(Transaction.contract),
+            )
             .where(*clauses)
             .order_by(
                 Transaction.date_issue.desc(),
@@ -187,17 +190,27 @@ def get_transaction_page(
 
 def _validate_relationships(
     session: Session,
-    current_user: User,
-    values: TransactionValues,
+    account: BankAccount,
+    rows: tuple[TransactionValues, ...],
 ) -> None:
-    if values.category_id is not None and session.get(Category, values.category_id) is None:
+    category_ids = {row.category_id for row in rows if row.category_id is not None}
+    existing_category_ids = set(
+        session.scalars(select(Category.id).where(Category.id.in_(category_ids)))
+    )
+    if existing_category_ids != category_ids:
         raise ConflictError("Die ausgewählte Kategorie existiert nicht mehr.")
-    if values.contract_id is None:
-        return
-    try:
-        get_visible_contract(session, current_user, values.contract_id)
-    except ResourceNotFoundError:
-        raise ConflictError("Der ausgewählte Vertrag existiert nicht mehr.") from None
+
+    contract_ids = {row.contract_id for row in rows if row.contract_id is not None}
+    contracts = {
+        contract_id: owner_id
+        for contract_id, owner_id in session.execute(
+            select(Contract.id, Contract.owner_id).where(Contract.id.in_(contract_ids))
+        )
+    }
+    if set(contracts) != contract_ids:
+        raise ConflictError("Der ausgewählte Vertrag existiert nicht mehr.")
+    if any(owner_id != account.owner_id for owner_id in contracts.values()):
+        raise ConflictError("Vertrag und Konto müssen derselben Person gehören.")
 
 
 def _apply_values(transaction: Transaction, values: TransactionValues) -> None:
@@ -218,8 +231,7 @@ def create_transactions(
     rows: tuple[TransactionValues, ...],
 ) -> tuple[Transaction, ...]:
     account = get_visible_bank_account(session, current_user, account_id)
-    for values in rows:
-        _validate_relationships(session, current_user, values)
+    _validate_relationships(session, account, rows)
 
     transactions: list[Transaction] = []
     for values in rows:
@@ -253,7 +265,8 @@ def update_transaction(
         account_id,
         transaction_id,
     )
-    _validate_relationships(session, current_user, values)
+    account = get_visible_bank_account(session, current_user, account_id)
+    _validate_relationships(session, account, (values,))
     _apply_values(transaction, values)
     session.flush()
     return transaction

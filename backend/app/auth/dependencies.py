@@ -7,7 +7,6 @@ from app.auth.sessions import (
     CSRF_HEADER_NAME,
     SESSION_COOKIE_NAME,
     AuthenticatedSession,
-    cleanup_expired_sessions,
     csrf_token_matches,
     get_authenticated_session,
 )
@@ -45,7 +44,6 @@ def get_current_user(
     )
     if authenticated is None:
         raise AuthenticationError()
-    cleanup_expired_sessions(session)
     _set_authenticated_session(request, authenticated)
     return authenticated.user
 
@@ -62,4 +60,12 @@ def require_csrf(
         request.headers.get(CSRF_HEADER_NAME),
     ):
         raise AuthorizationError("Die CSRF-Prüfung ist fehlgeschlagen.")
+    return current_user
+
+
+def require_superuser_csrf(
+    current_user: User = Depends(require_csrf),  # noqa: B008
+) -> User:
+    if not current_user.is_superuser:
+        raise AuthorizationError("Nur Administratoren dürfen globale Kategorien ändern.")
     return current_user

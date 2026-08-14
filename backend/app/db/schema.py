@@ -60,6 +60,8 @@ class DatabaseInspection:
     journal_mode: str
     table_counts: Mapping[str, int]
     foreign_key_violations: tuple[str, ...]
+    ownership_mismatches: tuple[str, ...]
+    mixed_depot_update_dates: tuple[str, ...]
     aggregates: Mapping[str, Decimal]
 
 
@@ -75,7 +77,7 @@ def _column(
 
 ID_COLUMN = _column(ColumnKind.INTEGER, primary_key=True)
 
-LEGACY_SCHEMA: dict[str, TableSpec] = {
+PRODUCTION_DATABASE_SCHEMA: dict[str, TableSpec] = {
     "auth_user": TableSpec(
         columns={
             "id": ID_COLUMN,
@@ -249,56 +251,85 @@ def _index_columns(
     return indexed, unique
 
 
-def validate_legacy_schema(connection: sqlite3.Connection) -> SchemaReport:
+def _validate_columns(
+    connection: sqlite3.Connection,
+    table_name: str,
+    table_spec: TableSpec,
+) -> list[str]:
+    mismatches: list[str] = []
+    actual_columns = {
+        str(row[1]): row for row in connection.execute(f'PRAGMA table_info("{table_name}")')
+    }
+    expected_names = set(table_spec.columns)
+    actual_names = set(actual_columns)
+    mismatches.extend(
+        f"{table_name}: missing column {column_name}"
+        for column_name in sorted(expected_names - actual_names)
+    )
+    mismatches.extend(
+        f"{table_name}: unexpected column {column_name}"
+        for column_name in sorted(actual_names - expected_names)
+    )
+    for column_name in sorted(expected_names & actual_names):
+        expected = table_spec.columns[column_name]
+        actual = actual_columns[column_name]
+        declared_type = str(actual[2])
+        if not _declared_type_matches(declared_type, expected):
+            mismatches.append(
+                f"{table_name}.{column_name}: incompatible type {declared_type or '<empty>'}"
+            )
+        actual_primary_key = bool(actual[5])
+        if actual_primary_key != expected.primary_key:
+            mismatches.append(f"{table_name}.{column_name}: primary-key status differs")
+        actual_nullable = not bool(actual[3]) and not actual_primary_key
+        if actual_nullable != expected.nullable:
+            mismatches.append(f"{table_name}.{column_name}: nullability differs")
+    return mismatches
+
+
+def _validate_foreign_keys(
+    connection: sqlite3.Connection,
+    table_name: str,
+    table_spec: TableSpec,
+) -> list[str]:
+    actual = frozenset(
+        ForeignKeySpec(column=str(row[3]), target_table=str(row[2]), target_column=str(row[4]))
+        for row in connection.execute(f'PRAGMA foreign_key_list("{table_name}")')
+    )
+    return [] if actual == table_spec.foreign_keys else [f"{table_name}: foreign keys differ"]
+
+
+def _validate_indexes(
+    connection: sqlite3.Connection,
+    table_name: str,
+    table_spec: TableSpec,
+) -> list[str]:
+    indexed_columns, unique_columns = _index_columns(connection, table_name)
+    return [
+        *(
+            f"{table_name}: missing index on ({', '.join(columns)})"
+            for columns in sorted(table_spec.indexed_columns - indexed_columns)
+        ),
+        *(
+            f"{table_name}: missing unique constraint on ({', '.join(columns)})"
+            for columns in sorted(table_spec.unique_columns - unique_columns)
+        ),
+    ]
+
+
+def validate_production_schema(connection: sqlite3.Connection) -> SchemaReport:
     existing_tables = {
         str(row[0])
         for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
     }
     mismatches: list[str] = []
-
-    for table_name, table_spec in LEGACY_SCHEMA.items():
+    for table_name, table_spec in PRODUCTION_DATABASE_SCHEMA.items():
         if table_name not in existing_tables:
             mismatches.append(f"missing table: {table_name}")
             continue
-
-        actual_columns = {
-            str(row[1]): row for row in connection.execute(f'PRAGMA table_info("{table_name}")')
-        }
-        expected_names = set(table_spec.columns)
-        actual_names = set(actual_columns)
-        for column_name in sorted(expected_names - actual_names):
-            mismatches.append(f"{table_name}: missing column {column_name}")
-        for column_name in sorted(actual_names - expected_names):
-            mismatches.append(f"{table_name}: unexpected column {column_name}")
-
-        for column_name in sorted(expected_names & actual_names):
-            expected = table_spec.columns[column_name]
-            actual = actual_columns[column_name]
-            declared_type = str(actual[2])
-            if not _declared_type_matches(declared_type, expected):
-                mismatches.append(
-                    f"{table_name}.{column_name}: incompatible type {declared_type or '<empty>'}"
-                )
-            actual_primary_key = bool(actual[5])
-            if actual_primary_key != expected.primary_key:
-                mismatches.append(f"{table_name}.{column_name}: primary-key status differs")
-            actual_nullable = not bool(actual[3]) and not actual_primary_key
-            if actual_nullable != expected.nullable:
-                mismatches.append(f"{table_name}.{column_name}: nullability differs")
-
-        actual_foreign_keys = frozenset(
-            ForeignKeySpec(column=str(row[3]), target_table=str(row[2]), target_column=str(row[4]))
-            for row in connection.execute(f'PRAGMA foreign_key_list("{table_name}")')
-        )
-        if actual_foreign_keys != table_spec.foreign_keys:
-            mismatches.append(f"{table_name}: foreign keys differ")
-
-        indexed_columns, unique_columns = _index_columns(connection, table_name)
-        for columns in sorted(table_spec.indexed_columns - indexed_columns):
-            mismatches.append(f"{table_name}: missing index on ({', '.join(columns)})")
-        for columns in sorted(table_spec.unique_columns - unique_columns):
-            mismatches.append(f"{table_name}: missing unique constraint on ({', '.join(columns)})")
-
+        mismatches.extend(_validate_columns(connection, table_name, table_spec))
+        mismatches.extend(_validate_foreign_keys(connection, table_name, table_spec))
+        mismatches.extend(_validate_indexes(connection, table_name, table_spec))
     return SchemaReport(mismatches=tuple(mismatches))
 
 
@@ -337,6 +368,46 @@ def _foreign_key_violations(connection: sqlite3.Connection) -> tuple[str, ...]:
     )
 
 
+def _ownership_mismatches(connection: sqlite3.Connection) -> tuple[str, ...]:
+    return tuple(
+        (
+            f"transaction {row[0]} links account owner {row[1]} "
+            f"to contract {row[2]} owned by {row[3]}"
+        )
+        for row in connection.execute(
+            """
+            SELECT transaction_row.id,
+                   account.owner_id,
+                   contract.id,
+                   contract.owner_id
+            FROM accounting_transaction AS transaction_row
+            JOIN accounting_bankaccount AS account
+              ON account.id = transaction_row.bank_account_id
+            JOIN accounting_contract AS contract
+              ON contract.id = transaction_row.contract_id
+            WHERE account.owner_id != contract.owner_id
+            ORDER BY transaction_row.id
+            """
+        )
+    )
+
+
+def _mixed_depot_update_dates(connection: sqlite3.Connection) -> tuple[str, ...]:
+    return tuple(
+        f"depot {row[0]} combines {row[1]} distinct asset update dates"
+        for row in connection.execute(
+            """
+            SELECT bank_depot_id, COUNT(DISTINCT last_update)
+            FROM accounting_depotasset
+            WHERE bank_depot_id IS NOT NULL
+            GROUP BY bank_depot_id
+            HAVING COUNT(DISTINCT last_update) > 1
+            ORDER BY bank_depot_id
+            """
+        )
+    )
+
+
 def _aggregates(connection: sqlite3.Connection) -> dict[str, Decimal]:
     account_starting = _decimal_total(
         connection, "SELECT current_amount FROM accounting_bankaccount"
@@ -363,14 +434,20 @@ def _aggregates(connection: sqlite3.Connection) -> dict[str, Decimal]:
 def inspect_database(database_path: Path) -> DatabaseInspection:
     with open_read_only_database(database_path) as connection:
         journal_mode = str(connection.execute("PRAGMA journal_mode").fetchone()[0])
-        schema = validate_legacy_schema(connection)
+        schema = validate_production_schema(connection)
         counts = _table_counts(connection)
         violations = _foreign_key_violations(connection)
+        ownership_mismatches = _ownership_mismatches(connection) if schema.compatible else ()
+        mixed_depot_update_dates = (
+            _mixed_depot_update_dates(connection) if schema.compatible else ()
+        )
         aggregates = _aggregates(connection) if schema.compatible else {}
     return DatabaseInspection(
         schema=schema,
         journal_mode=journal_mode,
         table_counts=counts,
         foreign_key_violations=violations,
+        ownership_mismatches=ownership_mismatches,
+        mixed_depot_update_dates=mixed_depot_update_dates,
         aggregates=aggregates,
     )

@@ -19,20 +19,25 @@ from app.db.migrations import (
     upgrade_database,
 )
 from app.db.schema import DatabaseInspection, inspect_database
+from app.services.contracts import delete_orphaned_contract_files, reconcile_contract_files
 
 app = typer.Typer(help="Finances management commands.", no_args_is_help=True)
 db_app = typer.Typer(help="Inspect and migrate the finances database.", no_args_is_help=True)
 users_app = typer.Typer(help="Manage application users.", no_args_is_help=True)
+sessions_app = typer.Typer(help="Manage authenticated sessions.", no_args_is_help=True)
 accounts_app = typer.Typer(help="Manage bank accounts.", no_args_is_help=True)
 depots_app = typer.Typer(help="Manage bank depots.", no_args_is_help=True)
 assets_app = typer.Typer(help="Manage depot assets.", no_args_is_help=True)
 asset_transactions_app = typer.Typer(help="Manage depot asset transactions.", no_args_is_help=True)
+contract_files_app = typer.Typer(help="Inspect stored contract files.", no_args_is_help=True)
 app.add_typer(db_app, name="db")
 app.add_typer(users_app, name="users")
+app.add_typer(sessions_app, name="sessions")
 app.add_typer(accounts_app, name="accounts")
 app.add_typer(depots_app, name="depots")
 app.add_typer(assets_app, name="assets")
 app.add_typer(asset_transactions_app, name="asset-transactions")
+app.add_typer(contract_files_app, name="contract-files")
 
 
 def _database_path() -> Path:
@@ -59,6 +64,14 @@ def _print_inspection(inspection: DatabaseInspection) -> None:
     for violation in inspection.foreign_key_violations:
         typer.echo(f"  - {violation}")
 
+    typer.echo(f"Cross-owner contract links: {len(inspection.ownership_mismatches)}")
+    for mismatch in inspection.ownership_mismatches:
+        typer.echo(f"  - {mismatch}")
+
+    typer.echo(f"Depots with mixed asset update dates: {len(inspection.mixed_depot_update_dates)}")
+    for mismatch in inspection.mixed_depot_update_dates:
+        typer.echo(f"  - {mismatch}")
+
     if inspection.aggregates:
         typer.echo("Financial aggregates:")
         for name, value in inspection.aggregates.items():
@@ -75,7 +88,11 @@ def inspect_command() -> None:
         raise typer.Exit(code=2) from None
 
     _print_inspection(inspection)
-    if not inspection.schema.compatible or inspection.foreign_key_violations:
+    if (
+        not inspection.schema.compatible
+        or inspection.foreign_key_violations
+        or inspection.ownership_mismatches
+    ):
         raise typer.Exit(code=1)
 
 
@@ -125,7 +142,7 @@ def _print_summaries(summaries: tuple[object, ...]) -> None:
 
 @db_app.command("bootstrap-existing")
 def bootstrap_existing_command() -> None:
-    """Verify and stamp an existing Django database at the baseline."""
+    """Verify and stamp an existing production database at the baseline."""
     try:
         settings = load_settings()
         bootstrap_existing_database(settings)
@@ -236,14 +253,14 @@ def reset_password_command(
 ) -> None:
     """Reset one user's password after confirmation."""
     _confirm_destructive_action("Reset this user's password?", yes=yes)
-    summary = _run_management_command(
+    update = _run_management_command(
         lambda session: management.reset_user_password(
             session,
             user=management.resolve_user(session, user_id=user_id, username=username),
             password=_password_option(password),
         )
     )
-    typer.echo(f"Password reset: {management.user_summary_line(summary)}")
+    typer.echo(f"Password reset: {management.user_security_update_line(update)}")
 
 
 @users_app.command("activate")
@@ -252,14 +269,14 @@ def activate_user_command(
     username: str | None = typer.Option(None, "--username", help="Username."),
 ) -> None:
     """Activate a user account."""
-    summary = _run_management_command(
+    update = _run_management_command(
         lambda session: management.set_user_active(
             session,
             user=management.resolve_user(session, user_id=user_id, username=username),
             is_active=True,
         )
     )
-    typer.echo(f"User activated: {management.user_summary_line(summary)}")
+    typer.echo(f"User activated: {management.user_security_update_line(update)}")
 
 
 @users_app.command("deactivate")
@@ -270,14 +287,14 @@ def deactivate_user_command(
 ) -> None:
     """Deactivate a user account after confirmation."""
     _confirm_destructive_action("Deactivate this user?", yes=yes)
-    summary = _run_management_command(
+    update = _run_management_command(
         lambda session: management.set_user_active(
             session,
             user=management.resolve_user(session, user_id=user_id, username=username),
             is_active=False,
         )
     )
-    typer.echo(f"User deactivated: {management.user_summary_line(summary)}")
+    typer.echo(f"User deactivated: {management.user_security_update_line(update)}")
 
 
 @users_app.command("grant-superuser")
@@ -286,14 +303,14 @@ def grant_superuser_command(
     username: str | None = typer.Option(None, "--username", help="Username."),
 ) -> None:
     """Grant superuser status to one user."""
-    summary = _run_management_command(
+    update = _run_management_command(
         lambda session: management.set_user_superuser(
             session,
             user=management.resolve_user(session, user_id=user_id, username=username),
             is_superuser=True,
         )
     )
-    typer.echo(f"Superuser status granted: {management.user_summary_line(summary)}")
+    typer.echo(f"Superuser status granted: {management.user_security_update_line(update)}")
 
 
 @users_app.command("revoke-superuser")
@@ -304,14 +321,83 @@ def revoke_superuser_command(
 ) -> None:
     """Revoke superuser status from one user after confirmation."""
     _confirm_destructive_action("Revoke superuser status from this user?", yes=yes)
-    summary = _run_management_command(
+    update = _run_management_command(
         lambda session: management.set_user_superuser(
             session,
             user=management.resolve_user(session, user_id=user_id, username=username),
             is_superuser=False,
         )
     )
-    typer.echo(f"Superuser status revoked: {management.user_summary_line(summary)}")
+    typer.echo(f"Superuser status revoked: {management.user_security_update_line(update)}")
+
+
+@users_app.command("revoke-sessions")
+def revoke_user_sessions_command(
+    user_id: int | None = typer.Option(None, "--user-id", help="User ID."),
+    username: str | None = typer.Option(None, "--username", help="Username."),
+    yes: bool = typer.Option(False, "--yes", help="Skip destructive-action confirmation."),
+) -> None:
+    """Revoke every active session for one user."""
+    _confirm_destructive_action("Revoke every active session for this user?", yes=yes)
+    update = _run_management_command(
+        lambda session: management.revoke_sessions_for_user(
+            session,
+            user=management.resolve_user(session, user_id=user_id, username=username),
+        )
+    )
+    typer.echo(f"Sessions revoked: {management.user_security_update_line(update)}")
+
+
+@sessions_app.command("revoke-all")
+def revoke_all_sessions_command(
+    yes: bool = typer.Option(False, "--yes", help="Skip destructive-action confirmation."),
+) -> None:
+    """Revoke every active application session."""
+    _confirm_destructive_action("Revoke every active application session?", yes=yes)
+    count = _run_management_command(management.revoke_every_session)
+    typer.echo(f"Revoked sessions: {count}")
+
+
+@sessions_app.command("cleanup-expired")
+def cleanup_expired_sessions_command() -> None:
+    """Delete sessions whose expiry time has passed."""
+    count = _run_management_command(management.cleanup_sessions)
+    typer.echo(f"Deleted expired sessions: {count}")
+
+
+@contract_files_app.command("reconcile")
+def reconcile_contract_files_command(
+    delete_orphans: bool = typer.Option(
+        False,
+        "--delete-orphans",
+        help="Delete files that are not referenced by a database row.",
+    ),
+    yes: bool = typer.Option(False, "--yes", help="Skip destructive-action confirmation."),
+) -> None:
+    """Report missing, invalid, and orphaned contract files."""
+    try:
+        settings = load_settings()
+    except ConfigurationError as exc:
+        _migration_error(exc)
+    report = _run_management_command(
+        lambda session: reconcile_contract_files(session, settings.media_root)
+    )
+    typer.echo(f"Missing referenced files: {len(report.missing)}")
+    for item in report.missing:
+        typer.echo(f"  - {item}")
+    typer.echo(f"Invalid stored paths: {len(report.invalid)}")
+    for item in report.invalid:
+        typer.echo(f"  - {item}")
+    typer.echo(f"Orphaned files: {len(report.orphaned)}")
+    for path in report.orphaned:
+        typer.echo(f"  - {path.relative_to(settings.media_root)}")
+
+    if delete_orphans and report.orphaned:
+        _confirm_destructive_action("Delete every reported orphaned file?", yes=yes)
+        deleted = delete_orphaned_contract_files(report)
+        typer.echo(f"Deleted orphaned files: {deleted}")
+    elif report.missing or report.invalid or report.orphaned:
+        raise typer.Exit(code=1)
 
 
 @accounts_app.command("list")

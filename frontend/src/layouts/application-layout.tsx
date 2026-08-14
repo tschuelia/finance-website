@@ -20,7 +20,7 @@ import {
   SidebarTrigger
 } from '@/components/ui/sidebar'
 
-export type NavigationItem = {
+type NavigationItem = {
   label: string
   href: string
   icon: LucideIcon

@@ -8,7 +8,7 @@ from math import ceil
 from secrets import token_urlsafe
 from typing import TypeGuard
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
 from app.config import Settings
@@ -152,6 +152,40 @@ def ensure_csrf_token(
 def revoke_session(server_session: ServerSession, *, now: datetime | None = None) -> None:
     if server_session.revoked_at is None:
         server_session.revoked_at = now or utc_now()
+
+
+def revoke_user_sessions(
+    session: Session,
+    user_id: int,
+    *,
+    now: datetime | None = None,
+) -> int:
+    """Revoke every currently active session for one user."""
+    timestamp = now or utc_now()
+    result = session.execute(
+        update(ServerSession)
+        .where(
+            ServerSession.user_id == user_id,
+            ServerSession.revoked_at.is_(None),
+            ServerSession.expires_at > timestamp,
+        )
+        .values(revoked_at=timestamp)
+    )
+    return int(getattr(result, "rowcount", 0) or 0)
+
+
+def revoke_all_active_sessions(session: Session, *, now: datetime | None = None) -> int:
+    """Revoke every currently active application session."""
+    timestamp = now or utc_now()
+    result = session.execute(
+        update(ServerSession)
+        .where(
+            ServerSession.revoked_at.is_(None),
+            ServerSession.expires_at > timestamp,
+        )
+        .values(revoked_at=timestamp)
+    )
+    return int(getattr(result, "rowcount", 0) or 0)
 
 
 def session_max_age(server_session: ServerSession, *, now: datetime | None = None) -> int:

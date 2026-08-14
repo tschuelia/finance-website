@@ -35,11 +35,21 @@ export const ContractListSchema = z
 
 export type ContractList = z.infer<typeof ContractListSchema>
 
+const ContractTransactionPageSchema = z
+  .object({
+    items: z.array(TransactionSchema),
+    page: z.number().int().positive(),
+    page_size: z.number().int().positive().max(100),
+    total: z.number().int().nonnegative(),
+    total_pages: z.number().int().positive()
+  })
+  .strict()
+
 export const ContractDetailSchema = ContractSummarySchema.extend({
   balance: DecimalSchema,
   first_transaction_date: DateSchema.nullable(),
   last_transaction_date: DateSchema.nullable(),
-  transactions: z.array(TransactionSchema),
+  transactions: ContractTransactionPageSchema,
   files: z.array(ContractFileSchema)
 }).strict()
 

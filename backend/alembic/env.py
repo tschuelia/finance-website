@@ -7,7 +7,7 @@ from alembic import context
 from app.config import Settings, load_settings
 from app.db.base import Base
 from app.db.engine import create_database_engine
-from app.db.models import LEGACY_MANAGED_TABLE_NAMES, MANAGED_TABLE_NAMES
+from app.db.models import MANAGED_TABLE_NAMES, PRODUCTION_COMPATIBLE_TABLE_NAMES
 
 config = context.config
 if config.config_file_name is not None:
@@ -29,9 +29,9 @@ def include_object(
         return name in MANAGED_TABLE_NAMES
     if type_ in {"foreign_key_constraint", "unique_constraint"}:
         table = getattr(object_, "table", None)
-        if table is not None and table.name in LEGACY_MANAGED_TABLE_NAMES:
-            # SQLite reflection loses Django's deferred-FK options and unnamed
-            # unique constraints. The adoption validator checks their semantics.
+        if table is not None and table.name in PRODUCTION_COMPATIBLE_TABLE_NAMES:
+            # SQLite reflection loses deferred-FK options and unnamed unique
+            # constraints. Production-schema validation checks their semantics.
             return False
     return True
 

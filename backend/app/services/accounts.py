@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import BankAccount, BankDepot, DepotAsset, Transaction, User
 from app.services.access import get_visible_bank_account
+from app.services.depots import DepotFinancials
 
 ZERO = Decimal("0")
 
@@ -20,10 +21,22 @@ class AccountFinancials:
 
 
 @dataclass(frozen=True, slots=True)
+class PortfolioAccount:
+    account: BankAccount
+    financials: AccountFinancials
+
+
+@dataclass(frozen=True, slots=True)
+class PortfolioDepot:
+    depot: BankDepot
+    financials: DepotFinancials
+
+
+@dataclass(frozen=True, slots=True)
 class PortfolioGroup:
     owner: User
-    accounts: tuple[BankAccount, ...]
-    depots: tuple[BankDepot, ...]
+    accounts: tuple[PortfolioAccount, ...]
+    depots: tuple[PortfolioDepot, ...]
     balance: Decimal
 
 
@@ -66,56 +79,68 @@ def get_account_financials(
     )
 
 
-def _balances_by_owner(session: Session, owner_ids: list[int]) -> dict[int, Decimal]:
-    balances: dict[int, Decimal] = {}
-
-    for owner_id, starting_total in session.execute(
-        select(BankAccount.owner_id, func.sum(BankAccount.current_amount))
-        .where(BankAccount.owner_id.in_(owner_ids))
-        .group_by(BankAccount.owner_id)
-    ):
-        balances[owner_id] = _decimal(starting_total)
-
-    for owner_id, transaction_total in session.execute(
-        select(BankAccount.owner_id, func.sum(Transaction.amount))
-        .join(Transaction, Transaction.bank_account_id == BankAccount.id)
-        .where(BankAccount.owner_id.in_(owner_ids))
-        .group_by(BankAccount.owner_id)
-    ):
-        balances[owner_id] = balances.get(owner_id, ZERO) + _decimal(transaction_total)
-
-    for owner_id, depot_total in session.execute(
-        select(BankDepot.owner_id, func.sum(DepotAsset.current_balance))
-        .join(DepotAsset, DepotAsset.bank_depot_id == BankDepot.id)
-        .where(BankDepot.owner_id.in_(owner_ids))
-        .group_by(BankDepot.owner_id)
-    ):
-        balances[owner_id] = balances.get(owner_id, ZERO) + _decimal(depot_total)
-
-    return balances
-
-
-def get_portfolio_overview(session: Session, current_user: User) -> PortfolioOverview:
+def get_portfolio_overview(
+    session: Session,
+    current_user: User,
+    *,
+    today: date | None = None,
+) -> PortfolioOverview:
     user_statement = select(User)
     if not current_user.is_superuser:
         user_statement = user_statement.where(User.id == current_user.id)
     users = tuple(session.scalars(user_statement.order_by(User.id)))
 
     owner_ids = [user.id for user in users]
-    accounts_by_owner: dict[int, list[BankAccount]] = {owner_id: [] for owner_id in owner_ids}
-    depots_by_owner: dict[int, list[BankDepot]] = {owner_id: [] for owner_id in owner_ids}
+    accounts_by_owner: dict[int, list[PortfolioAccount]] = {owner_id: [] for owner_id in owner_ids}
+    depots_by_owner: dict[int, list[PortfolioDepot]] = {owner_id: [] for owner_id in owner_ids}
+    balances: dict[int, Decimal] = {owner_id: ZERO for owner_id in owner_ids}
+    fallback_date = today or date.today()
 
     if owner_ids:
-        for account in session.scalars(
-            select(BankAccount).where(BankAccount.owner_id.in_(owner_ids)).order_by(BankAccount.id)
+        for account, transaction_total, oldest_date, newest_date, maximum_amount in session.execute(
+            select(
+                BankAccount,
+                func.sum(Transaction.amount),
+                func.min(Transaction.date_issue),
+                func.max(Transaction.date_issue),
+                func.max(func.abs(Transaction.amount)),
+            )
+            .outerjoin(Transaction, Transaction.bank_account_id == BankAccount.id)
+            .where(BankAccount.owner_id.in_(owner_ids))
+            .group_by(BankAccount.id)
+            .order_by(BankAccount.id)
         ):
-            accounts_by_owner[account.owner_id].append(account)
-        for depot in session.scalars(
-            select(BankDepot).where(BankDepot.owner_id.in_(owner_ids)).order_by(BankDepot.id)
-        ):
-            depots_by_owner[depot.owner_id].append(depot)
+            account_financials = AccountFinancials(
+                balance=account.current_amount + _decimal(transaction_total),
+                oldest_transaction_date=oldest_date or fallback_date,
+                newest_transaction_date=newest_date or fallback_date,
+                maximum_absolute_transaction_amount=_decimal(maximum_amount),
+            )
+            accounts_by_owner[account.owner_id].append(
+                PortfolioAccount(account=account, financials=account_financials)
+            )
+            balances[account.owner_id] += account_financials.balance
 
-    balances = _balances_by_owner(session, owner_ids)
+        for depot, depot_total, last_update in session.execute(
+            select(
+                BankDepot,
+                func.sum(DepotAsset.current_balance),
+                func.max(DepotAsset.last_update),
+            )
+            .outerjoin(DepotAsset, DepotAsset.bank_depot_id == BankDepot.id)
+            .where(BankDepot.owner_id.in_(owner_ids))
+            .group_by(BankDepot.id)
+            .order_by(BankDepot.id)
+        ):
+            depot_financials = DepotFinancials(
+                balance=_decimal(depot_total),
+                last_update=last_update or fallback_date,
+            )
+            depots_by_owner[depot.owner_id].append(
+                PortfolioDepot(depot=depot, financials=depot_financials)
+            )
+            balances[depot.owner_id] += depot_financials.balance
+
     groups = tuple(
         PortfolioGroup(
             owner=user,

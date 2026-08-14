@@ -1,20 +1,25 @@
 import { useQuery } from '@tanstack/react-query'
 import { getTransactions } from '@/api/transactions'
+import { useAuthenticatedUserId } from '@/features/auth/use-auth'
 import { resolveQuery } from '@/hooks/resolveQuery'
 import type { HookReturnValue } from '@/hooks/resolveQuery'
 import type { TransactionFilters, TransactionPage } from '@/types/transactions'
 
-const transactionQueryKey = (accountId: number, filters: TransactionFilters) =>
-  ['transactions', accountId, filters] as const
+const transactionQueryKey = (
+  userId: number | null,
+  accountId: number,
+  filters: TransactionFilters
+) => ['transactions', userId, accountId, filters] as const
 
 export const useTransactions = (
   accountId: number,
   filters: TransactionFilters
 ): HookReturnValue<TransactionPage> => {
+  const userId = useAuthenticatedUserId()
   const query = useQuery({
-    queryKey: transactionQueryKey(accountId, filters),
+    queryKey: transactionQueryKey(userId, accountId, filters),
     queryFn: async () => await getTransactions(accountId, filters),
-    enabled: Number.isInteger(accountId) && accountId > 0
+    enabled: userId !== null && Number.isInteger(accountId) && accountId > 0
   })
   return resolveQuery(query)
 }

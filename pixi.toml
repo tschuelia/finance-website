@@ -5,20 +5,28 @@ channels = ["conda-forge"]
 platforms = ["osx-arm64", "linux-64"]
 
 [pypi-dependencies]
-lefthook = "==2.1.10"
-pre-commit-hooks = "==6.0.0"
+finances-backend = { path = "backend", editable = true }
 
-[feature.modern.dependencies]
+[feature.runtime.dependencies]
 python = ">=3.14,<3.15"
+
+[feature.development.dependencies]
 bun = "==1.3.11"
 
-[feature.modern.pypi-dependencies]
-finances-backend = { path = "backend", editable = true }
+[feature.development.pypi-dependencies]
+lefthook = "==2.1.10"
+pre-commit-hooks = "==6.0.0"
 ruff = "==0.16.2"
 mypy = "==2.3.0"
+httpx2 = "==2.9.0"
+pytest = "==9.1.1"
+
+[feature.ide.dependencies]
+pixi-pycharm = ">=0.0.12,<0.0.13"
 
 [environments]
-default = ["modern"]
+default = ["runtime", "development", "ide"]
+runtime = ["runtime"]
 
 [tasks]
 backend-dev = "uvicorn app.main:app --reload --app-dir backend"
@@ -27,6 +35,7 @@ dev = { depends-on = ["backend-dev", "frontend-dev"] }
 backend-lint = "ruff check backend"
 backend-format-check = "ruff format --check backend"
 backend-typecheck = "mypy backend/app"
+backend-test = "pytest backend/tests"
 frontend-install = { cmd = "bun install --frozen-lockfile", cwd = "frontend" }
 frontend-dev = { cmd = "bun run dev", cwd = "frontend" }
 frontend-lint = { cmd = "bun run lint", cwd = "frontend" }
@@ -40,6 +49,3 @@ alembic = "alembic -c backend/alembic.ini"
 lint = { depends-on = ["backend-lint", "frontend-lint"] }
 format-check = { depends-on = ["backend-format-check", "frontend-format-check"] }
 hooks-install = "lefthook install"
-
-[dependencies]
-pixi-pycharm = ">=0.0.12,<0.0.13"

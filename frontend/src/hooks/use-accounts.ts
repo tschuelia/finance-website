@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { getAccount, getDepot, getPortfolioOverview } from '@/api/accounts'
+import { useAuthenticatedUserId } from '@/features/auth/use-auth'
 import { resolveQuery } from '@/hooks/resolveQuery'
 import type { HookReturnValue } from '@/hooks/resolveQuery'
 import type { AccountDetail, DepotDetail, PortfolioOverview } from '@/types/accounts'
@@ -7,24 +8,31 @@ import type { AccountDetail, DepotDetail, PortfolioOverview } from '@/types/acco
 const portfolioQueryKey = ['portfolio'] as const
 
 export const usePortfolioOverview = (): HookReturnValue<PortfolioOverview> => {
-  const query = useQuery({ queryKey: portfolioQueryKey, queryFn: getPortfolioOverview })
+  const userId = useAuthenticatedUserId()
+  const query = useQuery({
+    queryKey: [...portfolioQueryKey, userId],
+    queryFn: getPortfolioOverview,
+    enabled: userId !== null
+  })
   return resolveQuery(query)
 }
 
 export const useAccount = (accountId: number): HookReturnValue<AccountDetail> => {
+  const userId = useAuthenticatedUserId()
   const query = useQuery({
-    queryKey: ['account', accountId],
+    queryKey: ['account', userId, accountId],
     queryFn: async () => await getAccount(accountId),
-    enabled: Number.isInteger(accountId) && accountId > 0
+    enabled: userId !== null && Number.isInteger(accountId) && accountId > 0
   })
   return resolveQuery(query)
 }
 
 export const useDepot = (depotId: number): HookReturnValue<DepotDetail> => {
+  const userId = useAuthenticatedUserId()
   const query = useQuery({
-    queryKey: ['depot', depotId],
+    queryKey: ['depot', userId, depotId],
     queryFn: async () => await getDepot(depotId),
-    enabled: Number.isInteger(depotId) && depotId > 0
+    enabled: userId !== null && Number.isInteger(depotId) && depotId > 0
   })
   return resolveQuery(query)
 }

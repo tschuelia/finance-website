@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
-from app.auth.dependencies import get_current_user, require_csrf
+from app.auth.dependencies import get_current_user, require_superuser_csrf
 from app.db import request_session
 from app.db.models import Category, User
 from app.schemas.categories import (
@@ -18,7 +18,7 @@ from app.services.categories import (
 
 router = APIRouter(tags=["categories"])
 CurrentUser = Annotated[User, Depends(get_current_user)]
-CsrfUser = Annotated[User, Depends(require_csrf)]
+CategoryAdmin = Annotated[User, Depends(require_superuser_csrf)]
 DatabaseSession = Annotated[Session, Depends(request_session)]
 
 
@@ -45,7 +45,7 @@ def category_list(
 )
 def category_create(
     payload: CategoryWrite,
-    _current_user: CsrfUser,
+    _current_user: CategoryAdmin,
     session: DatabaseSession,
 ) -> CategoryResponse:
     return category_response(create_category(session, name=payload.name, patterns=payload.patterns))
@@ -55,7 +55,7 @@ def category_create(
 def category_update(
     category_id: int,
     payload: CategoryWrite,
-    _current_user: CsrfUser,
+    _current_user: CategoryAdmin,
     session: DatabaseSession,
 ) -> CategoryResponse:
     return category_response(

@@ -1,7 +1,7 @@
 import * as z from 'zod'
 import { DateSchema, DecimalSchema, UserSummarySchema } from '@/types/common'
 
-export const AccountSummarySchema = z
+const AccountSummarySchema = z
   .object({
     id: z.number().int().positive(),
     name: z.string(),
@@ -14,15 +14,13 @@ export const AccountSummarySchema = z
   })
   .strict()
 
-export type AccountSummary = z.infer<typeof AccountSummarySchema>
-
 export const AccountDetailSchema = AccountSummarySchema.extend({
   owner: UserSummarySchema
 }).strict()
 
 export type AccountDetail = z.infer<typeof AccountDetailSchema>
 
-export const DepotSummarySchema = z
+const DepotSummarySchema = z
   .object({
     id: z.number().int().positive(),
     name: z.string(),
@@ -31,9 +29,7 @@ export const DepotSummarySchema = z
   })
   .strict()
 
-export type DepotSummary = z.infer<typeof DepotSummarySchema>
-
-export const PortfolioGroupSchema = z
+const PortfolioGroupSchema = z
   .object({
     owner: UserSummarySchema,
     accounts: z.array(AccountSummarySchema),
@@ -41,8 +37,6 @@ export const PortfolioGroupSchema = z
     balance: DecimalSchema
   })
   .strict()
-
-export type PortfolioGroup = z.infer<typeof PortfolioGroupSchema>
 
 export const PortfolioOverviewSchema = z
   .object({
@@ -53,7 +47,7 @@ export const PortfolioOverviewSchema = z
 
 export type PortfolioOverview = z.infer<typeof PortfolioOverviewSchema>
 
-export const DepotAssetTransactionSchema = z
+const DepotAssetTransactionSchema = z
   .object({
     id: z.number().int().positive(),
     amount: DecimalSchema,
@@ -61,12 +55,11 @@ export const DepotAssetTransactionSchema = z
   })
   .strict()
 
-export type DepotAssetTransaction = z.infer<typeof DepotAssetTransactionSchema>
-
-export const DepotBalancePointSchema = z
+const DepotBalancePointSchema = z
   .object({
     date: DateSchema,
-    balance: DecimalSchema
+    balance: DecimalSchema,
+    estimated: z.boolean()
   })
   .strict()
 
@@ -100,10 +93,6 @@ export const DepotDetailSchema = z
 
 export type DepotDetail = z.infer<typeof DepotDetailSchema>
 
-export const DepotAssetUpdateSchema = z
-  .object({
-    current_balance: DecimalSchema
-  })
-  .strict()
-
-export type DepotAssetUpdate = z.infer<typeof DepotAssetUpdateSchema>
+export type DepotAssetUpdate = {
+  current_balance: number
+}

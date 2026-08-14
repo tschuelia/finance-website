@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Request, Response, UploadFile, status
+from fastapi import APIRouter, Depends, File, Query, Request, Response, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
@@ -12,10 +12,12 @@ from app.db import request_session
 from app.db.models import Contract, ContractFile, User
 from app.schemas.accounts import UserSummary
 from app.schemas.contracts import (
+    ContractDetailQuery,
     ContractDetailResponse,
     ContractFileResponse,
     ContractListResponse,
     ContractSummaryResponse,
+    ContractTransactionPageResponse,
     ContractWrite,
 )
 from app.services.contracts import (
@@ -104,23 +106,28 @@ def contract_detail(
     contract_id: int,
     current_user: CurrentUser,
     session: DatabaseSession,
+    query: Annotated[ContractDetailQuery, Query()],
 ) -> ContractDetailResponse:
-    detail = get_contract_detail(session, current_user, contract_id)
+    detail = get_contract_detail(
+        session,
+        current_user,
+        contract_id,
+        page=query.page,
+        page_size=query.page_size,
+    )
     summary = _summary(detail.contract)
     return ContractDetailResponse(
         **summary.model_dump(),
         balance=detail.financials.balance,
-        first_transaction_date=(
-            detail.financials.first_transaction.date_issue
-            if detail.financials.first_transaction is not None
-            else None
+        first_transaction_date=(detail.financials.first_transaction_date),
+        last_transaction_date=(detail.financials.last_transaction_date),
+        transactions=ContractTransactionPageResponse(
+            items=[transaction_response(transaction) for transaction in detail.transactions.items],
+            page=detail.transactions.page,
+            page_size=detail.transactions.page_size,
+            total=detail.transactions.total,
+            total_pages=detail.transactions.total_pages,
         ),
-        last_transaction_date=(
-            detail.financials.last_transaction.date_issue
-            if detail.financials.last_transaction is not None
-            else None
-        ),
-        transactions=[transaction_response(transaction) for transaction in detail.transactions],
         files=[_file_response(contract_file) for contract_file in detail.files],
     )
 
@@ -166,6 +173,7 @@ def contract_file_upload(
         _settings(request).media_root,
         filename=upload.filename or "",
         source=upload.file,
+        maximum_bytes=_settings(request).contract_upload_max_bytes,
     )
     return _file_response(contract_file)
 

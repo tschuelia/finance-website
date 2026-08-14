@@ -50,8 +50,7 @@ def transaction_values(account_id: int, payload: TransactionWrite) -> Transactio
     if payload.bank_account_id != account_id:
         raise ConflictError("Das ausgewählte Konto stimmt nicht mit der Route überein.")
     return TransactionValues(
-        # The Django bulk form wrote the placeholder for every omitted
-        # recipient, including CSV rows. Keep that rollback-compatible value.
+        # The database column is non-null and supported imports may omit a recipient.
         recipient=payload.recipient or "unbekannt",
         amount=payload.amount,
         subject=payload.subject,

@@ -16,7 +16,7 @@ export const UserSummarySchema = z
 
 export type UserSummary = z.infer<typeof UserSummarySchema>
 
-export const ValidationIssueSchema = z
+const ValidationIssueSchema = z
   .object({
     location: z.array(z.union([z.string(), z.number().int()])),
     message: z.string(),

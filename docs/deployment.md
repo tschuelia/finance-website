@@ -18,8 +18,23 @@ first start. The required runtime values are `FINANCES_SESSION_SECRET` and
 `FINANCES_ALLOWED_HOSTS`; the image defaults the database and media to `/data`,
 secure cookies on, and development logging off.
 
+The image also enables `FINANCES_PRODUCTION_MODE=true`. Production mode refuses
+to start unless secure cookies are enabled, development logging is disabled, and
+the host allow-list does not contain `*`. It disables OpenAPI/Swagger/ReDoc and
+adds the application-owned CSP, frame, MIME-sniffing, referrer, permissions,
+HSTS, and API `no-store` policies.
+
 Keep TLS termination and the public hostname in a reverse proxy. Publish the
 container only to that proxy.
+
+Uvicorn proxy-header processing is deliberately disabled. By default the login
+throttle uses the direct peer address. If the reverse proxy and application run
+on different peers, set `FINANCES_TRUSTED_PROXY_IPS` to a JSON list of exact IPs
+or CIDR networks, for example `["10.20.0.0/24"]`, and configure the proxy to
+replace (not append to) `X-Forwarded-For`. The application accepts the first
+forwarded address only when the direct peer is in that allow-list; unparseable
+values are ignored. Process-local throttling is the supported topology because
+the SQLite deployment intentionally uses one application process.
 
 ## Build and start
 
@@ -55,8 +70,21 @@ docker run --detach --name finances --restart unless-stopped \
   "$finances_image"
 ```
 
-The image health check calls `/health`. Verify `/health`, `/docs`, a protected
-API route, a hashed asset, and a direct SPA route through the proxy.
+The image health check calls the readiness endpoint `/health`, which verifies
+database access and the configured media directory. `/health/live` is the
+process-only liveness endpoint. In production, verify `/health`, confirm `/docs`
+and `/openapi.json` return 404, inspect the documented response headers, then
+check a protected API route, a hashed asset, and a direct SPA route through the
+proxy.
+
+The application owns all headers listed above. The TLS proxy must preserve them
+and may strengthen HSTS for the deployment's domain policy. A verification
+example is:
+
+```sh
+curl --fail-with-body --include https://finances.example.com/health
+curl --fail-with-body --include https://finances.example.com/api/v1/auth/me
+```
 
 ## Updates and recovery
 

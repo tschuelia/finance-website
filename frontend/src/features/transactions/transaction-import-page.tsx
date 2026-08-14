@@ -83,8 +83,8 @@ const TransactionImportContent = ({ accountId }: TransactionImportContentProps) 
       toast.success('Der CSV-Import wurde gespeichert.', {
         description:
           result.created === 1
-            ? 'Eine Transaktion wurde atomar übernommen.'
-            : `${result.created} Transaktionen wurden atomar übernommen.`,
+            ? 'Eine Transaktion wurde übernommen.'
+            : `${result.created} Transaktionen wurden übernommen.`,
         id: `csv-commit-${accountId}-${Date.now()}`
       })
       navigate(accountUrl(accountId, location.search), { replace: true })
@@ -170,7 +170,6 @@ const TransactionImportContent = ({ accountId }: TransactionImportContentProps) 
           { label: account.data.name, to: accountUrl(accountId, location.search) },
           { label: 'CSV-Import' }
         ]}
-        description="Prüfe jede importierte Zeile, bevor Du sie gemeinsam und atomar übernimmst."
         title="CSV-Import"
       />
       {stage === 'upload' ? (
@@ -270,9 +269,7 @@ const TransactionImportContent = ({ accountId }: TransactionImportContentProps) 
           <div className="flex justify-end">
             <Button disabled={commit.isPending} onClick={commitPreview}>
               <Save aria-hidden />
-              {commit.isPending
-                ? 'Wird atomar gespeichert …'
-                : `${rows.length} Zeilen atomar übernehmen`}
+              {commit.isPending ? 'Wird gespeichert …' : `${rows.length} Zeilen übernehmen`}
             </Button>
           </div>
         </section>

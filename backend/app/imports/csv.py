@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
+MAX_CSV_ROWS = 500
+
 
 class CsvImportError(ValueError):
     """Raised when a bank export cannot be converted safely."""
@@ -144,6 +146,10 @@ def _normalized_rows(content: str, bank_format: BankFormat) -> list[dict[str, st
     for source_row in reader:
         if not source_row or all(not (value or "").strip() for value in source_row.values()):
             continue
+        if len(rows) >= MAX_CSV_ROWS:
+            raise CsvImportError(
+                f"Die CSV-Datei darf höchstens {MAX_CSV_ROWS} Transaktionen enthalten."
+            )
         rows.append(
             {
                 target: (source_row.get(source) or "").strip()

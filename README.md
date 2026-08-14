@@ -94,6 +94,8 @@ pixi run finances accounts --help
 pixi run finances depots --help
 pixi run finances assets --help
 pixi run finances asset-transactions --help
+pixi run finances sessions --help
+pixi run finances contract-files reconcile
 ```
 
 New and reset passwords use Argon2id. Existing Django PBKDF2 hashes remain valid
@@ -109,9 +111,10 @@ integrity, and retain the prior state until the replacement is validated. See
 first adoption and [docs/deployment.md](docs/deployment.md) for normal releases.
 
 The production image builds the React bundle with Bun, installs the locked
-backend environment with Pixi, and runs one Uvicorn worker. It serves the API,
-health endpoint, documentation, authenticated files, and SPA from one origin.
-Persistent database and media storage is mounted at `/data`.
+backend-only runtime environment with Pixi, and runs one Uvicorn worker. It
+serves the API, readiness/liveness endpoints, authenticated files, and SPA from
+one origin; interactive API documentation is disabled in production. Persistent
+database and media storage is mounted at `/data`.
 
 ## Quality checks
 
@@ -121,6 +124,7 @@ pixi run format-check
 pixi run frontend-knip
 pixi run backend-typecheck
 pixi run frontend-typecheck
+pixi run backend-test
 pixi run frontend-build
 pixi run lefthook run pre-commit
 ```

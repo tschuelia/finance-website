@@ -11,3 +11,8 @@ export const useAuth = (): AuthContextValue => {
 
   return context
 }
+
+export const useAuthenticatedUserId = (): number | null => {
+  const { state } = useAuth()
+  return state.status === 'authenticated' ? state.user.id : null
+}

@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_current_user, require_csrf
 from app.db import request_session
-from app.db.models import BankAccount, BankDepot, User
+from app.db.models import BankAccount, User
 from app.schemas.accounts import (
     AccountDetailResponse,
     AccountSummary,
@@ -20,11 +20,16 @@ from app.schemas.accounts import (
     UserSummary,
 )
 from app.services.access import get_visible_bank_account, list_visible_users
-from app.services.accounts import get_account_financials, get_portfolio_overview
+from app.services.accounts import (
+    AccountFinancials,
+    PortfolioAccount,
+    PortfolioDepot,
+    get_account_financials,
+    get_portfolio_overview,
+)
 from app.services.depots import (
     get_depot_asset_balance_history,
     get_depot_asset_financials,
-    get_depot_financials,
     get_depot_overview,
     update_depot_asset,
 )
@@ -46,11 +51,9 @@ def _user_summary(user: User) -> UserSummary:
 
 
 def _account_summary(
-    session: Session,
-    current_user: User,
     account: BankAccount,
+    financials: AccountFinancials,
 ) -> AccountSummary:
-    financials = get_account_financials(session, current_user, account.id)
     return AccountSummary(
         id=account.id,
         name=account.name,
@@ -63,17 +66,16 @@ def _account_summary(
     )
 
 
-def _depot_summary(
-    session: Session,
-    current_user: User,
-    depot: BankDepot,
-) -> DepotSummary:
-    financials = get_depot_financials(session, current_user, depot.id)
+def _portfolio_account_summary(item: PortfolioAccount) -> AccountSummary:
+    return _account_summary(item.account, item.financials)
+
+
+def _depot_summary(item: PortfolioDepot) -> DepotSummary:
     return DepotSummary(
-        id=depot.id,
-        name=depot.name,
-        balance=financials.balance,
-        last_update=financials.last_update,
+        id=item.depot.id,
+        name=item.depot.name,
+        balance=item.financials.balance,
+        last_update=item.financials.last_update,
     )
 
 
@@ -87,10 +89,8 @@ def account_overview(
         groups=[
             PortfolioGroupResponse(
                 owner=_user_summary(group.owner),
-                accounts=[
-                    _account_summary(session, current_user, account) for account in group.accounts
-                ],
-                depots=[_depot_summary(session, current_user, depot) for depot in group.depots],
+                accounts=[_portfolio_account_summary(account) for account in group.accounts],
+                depots=[_depot_summary(depot) for depot in group.depots],
                 balance=group.balance,
             )
             for group in overview.groups
@@ -114,7 +114,10 @@ def account_detail(
     session: DatabaseSession,
 ) -> AccountDetailResponse:
     account = get_visible_bank_account(session, current_user, account_id)
-    summary = _account_summary(session, current_user, account)
+    summary = _account_summary(
+        account,
+        get_account_financials(session, current_user, account.id),
+    )
     return AccountDetailResponse(
         id=summary.id,
         name=summary.name,
@@ -142,7 +145,11 @@ def depot_detail(
         balance=overview.financials.balance,
         last_update=overview.financials.last_update,
         balance_history=[
-            DepotBalancePointResponse(date=point.date, balance=point.balance)
+            DepotBalancePointResponse(
+                date=point.date,
+                balance=point.balance,
+                estimated=point.estimated,
+            )
             for point in overview.balance_history
         ],
         assets=[
@@ -164,7 +171,11 @@ def depot_detail(
                     for transaction in item.transactions
                 ],
                 balance_history=[
-                    DepotBalancePointResponse(date=point.date, balance=point.balance)
+                    DepotBalancePointResponse(
+                        date=point.date,
+                        balance=point.balance,
+                        estimated=point.estimated,
+                    )
                     for point in item.balance_history
                 ],
             )
@@ -211,7 +222,11 @@ def update_asset(
             )
         ],
         balance_history=[
-            DepotBalancePointResponse(date=point.date, balance=point.balance)
+            DepotBalancePointResponse(
+                date=point.date,
+                balance=point.balance,
+                estimated=point.estimated,
+            )
             for point in get_depot_asset_balance_history(
                 session,
                 current_user,

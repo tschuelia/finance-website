@@ -36,6 +36,7 @@ class DepotAssetFinancials:
 class DepotBalancePoint:
     date: date
     balance: Decimal
+    estimated: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -176,7 +177,11 @@ def get_depot_overview(
             for asset in assets
         ),
         balance_history=tuple(
-            DepotBalancePoint(date=snapshot.date, balance=snapshot.balance)
+            DepotBalancePoint(
+                date=snapshot.date,
+                balance=snapshot.balance,
+                estimated=snapshot.is_estimated,
+            )
             for snapshot in session.scalars(
                 select(DepotBalanceSnapshot)
                 .where(DepotBalanceSnapshot.bank_depot_id == depot.id)
@@ -224,6 +229,16 @@ def update_depot_asset(
         depot_id,
         today=snapshot_date,
     ).balance
+    is_estimated = bool(
+        session.scalar(
+            select(func.count())
+            .select_from(DepotAsset)
+            .where(
+                DepotAsset.bank_depot_id == depot_id,
+                DepotAsset.last_update != snapshot_date,
+            )
+        )
+    )
     snapshot = session.scalar(
         select(DepotBalanceSnapshot).where(
             DepotBalanceSnapshot.bank_depot_id == depot_id,
@@ -236,9 +251,11 @@ def update_depot_asset(
                 bank_depot_id=depot_id,
                 date=snapshot_date,
                 balance=balance,
+                is_estimated=is_estimated,
             )
         )
     else:
         snapshot.balance = balance
+        snapshot.is_estimated = is_estimated
     session.flush()
     return asset

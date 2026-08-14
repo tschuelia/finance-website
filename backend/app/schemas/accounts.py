@@ -70,6 +70,7 @@ class DepotBalancePointResponse(BaseModel):
 
     date: date
     balance: ApiDecimal
+    estimated: bool
 
 
 class DepotAssetResponse(BaseModel):

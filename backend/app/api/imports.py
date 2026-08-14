@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, UploadFile, status
+from fastapi import APIRouter, Depends, File, Request, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.api.transactions import transaction_response, transaction_values
@@ -13,6 +13,7 @@ from app.schemas.imports import CsvCommitRequest, CsvCommitResponse, CsvPreviewR
 from app.schemas.transactions import TransactionWrite
 from app.services.imports import preview_csv_import
 from app.services.transactions import create_transactions
+from app.uploads import read_limited_upload
 
 router = APIRouter(prefix="/accounts/{account_id}/transactions/import", tags=["csv-imports"])
 CurrentUser = Annotated[User, Depends(get_current_user)]
@@ -22,6 +23,7 @@ DatabaseSession = Annotated[Session, Depends(request_session)]
 
 @router.post("/preview", response_model=CsvPreviewResponse)
 def csv_preview(
+    request: Request,
     account_id: int,
     upload: Annotated[UploadFile, File()],
     current_user: CurrentUser,
@@ -32,7 +34,10 @@ def csv_preview(
             session,
             current_user,
             account_id,
-            upload.file.read(),
+            read_limited_upload(
+                upload.file,
+                maximum_bytes=request.app.state.settings.csv_upload_max_bytes,
+            ),
         )
     except CsvImportError as exc:
         raise InvalidImportError(str(exc)) from None

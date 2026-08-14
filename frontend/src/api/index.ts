@@ -4,11 +4,7 @@ import type { z } from 'zod'
 import { ProblemDetailsSchema } from '@/types/common'
 import type { ProblemDetails } from '@/types/common'
 
-type ApiRequestConfig = AxiosRequestConfig & {
-  skipSessionExpired?: boolean
-}
-
-type RequestConfigWithSession = AxiosRequestConfig & {
+export type ApiRequestConfig = AxiosRequestConfig & {
   skipSessionExpired?: boolean
 }
 
@@ -59,7 +55,7 @@ apiClient.interceptors.response.use(
     const status = error.response?.status
     const parsedProblem = ProblemDetailsSchema.safeParse(error.response?.data)
     const problem = parsedProblem.success ? parsedProblem.data : undefined
-    const requestConfig = error.config as RequestConfigWithSession | undefined
+    const requestConfig = error.config as ApiRequestConfig | undefined
 
     if (status === 401 && !requestConfig?.skipSessionExpired) {
       unauthorizedHandler?.()
@@ -96,5 +92,3 @@ export const clearCsrfToken = () => {
 export const setUnauthorizedHandler = (handler: (() => void) | undefined) => {
   unauthorizedHandler = handler
 }
-
-export const withSession = (config: ApiRequestConfig = {}): ApiRequestConfig => config

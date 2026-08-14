@@ -17,8 +17,6 @@ class AuthenticatedUserResponse(BaseModel):
     username: str
     first_name: str
     last_name: str
-    email: str
     is_superuser: bool
-    is_staff: bool
     csrf_token: str = Field(min_length=1)
     expires_at: datetime

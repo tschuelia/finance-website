@@ -19,8 +19,8 @@ export const getContracts = async (): Promise<ContractList> => {
   return parseApiResponse(ContractListSchema, response.data)
 }
 
-export const getContract = async (contractId: number): Promise<ContractDetail> => {
-  const response = await apiClient.get(`/contracts/${contractId}`)
+export const getContract = async (contractId: number, page = 1): Promise<ContractDetail> => {
+  const response = await apiClient.get(`/contracts/${contractId}`, { params: { page } })
   return parseApiResponse(ContractDetailSchema, response.data)
 }
 

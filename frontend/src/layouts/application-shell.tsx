@@ -3,6 +3,7 @@
 import { BarChart3, Landmark, LogOut, ReceiptText, Tags } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router'
+import { toast } from 'sonner'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -104,8 +105,16 @@ export const ApplicationShell = ({ children }: ApplicationShellProps) => {
   }
 
   const logout = async () => {
-    await signOut()
-    navigate(LOGIN, { replace: true })
+    try {
+      await signOut()
+      navigate(LOGIN, { replace: true })
+    } catch (error) {
+      toast.error('Die Abmeldung ist fehlgeschlagen.', {
+        description:
+          error instanceof Error ? error.message : 'Bitte versuche die Abmeldung erneut.',
+        id: 'logout-error'
+      })
+    }
   }
 
   return (

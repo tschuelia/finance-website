@@ -167,4 +167,3 @@ const MonthPicker = ({
 }
 
 export { MonthPicker }
-export type { MonthPickerProps }

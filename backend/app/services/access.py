@@ -1,5 +1,5 @@
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.db.models import BankAccount, BankDepot, Contract, DepotAsset, Transaction, User
 from app.errors import AuthorizationError, ResourceNotFoundError
@@ -30,28 +30,12 @@ def list_visible_users(session: Session, current_user: User) -> tuple[User, ...]
     return tuple(session.scalars(statement.order_by(User.username, User.id)))
 
 
-def list_visible_bank_accounts(session: Session, current_user: User) -> tuple[BankAccount, ...]:
-    statement = select(BankAccount)
-    if not current_user.is_superuser:
-        statement = statement.where(BankAccount.owner_id == current_user.id)
-    statement = statement.order_by(BankAccount.id)
-    return tuple(session.scalars(statement))
-
-
 def get_visible_bank_account(session: Session, current_user: User, account_id: int) -> BankAccount:
     account = session.get(BankAccount, account_id)
     if account is None:
         raise ResourceNotFoundError()
     _require_owner_or_superuser(current_user, account.owner_id)
     return account
-
-
-def list_visible_bank_depots(session: Session, current_user: User) -> tuple[BankDepot, ...]:
-    statement = select(BankDepot)
-    if not current_user.is_superuser:
-        statement = statement.where(BankDepot.owner_id == current_user.id)
-    statement = statement.order_by(BankDepot.id)
-    return tuple(session.scalars(statement))
 
 
 def get_visible_bank_depot(session: Session, current_user: User, depot_id: int) -> BankDepot:
@@ -63,7 +47,7 @@ def get_visible_bank_depot(session: Session, current_user: User, depot_id: int) 
 
 
 def list_visible_contracts(session: Session, current_user: User) -> tuple[Contract, ...]:
-    statement = select(Contract)
+    statement = select(Contract).options(selectinload(Contract.owner))
     if not current_user.is_superuser:
         statement = statement.where(Contract.owner_id == current_user.id)
     statement = statement.order_by(Contract.owner_id, Contract.name, Contract.id)
@@ -71,7 +55,9 @@ def list_visible_contracts(session: Session, current_user: User) -> tuple[Contra
 
 
 def get_visible_contract(session: Session, current_user: User, contract_id: int) -> Contract:
-    contract = session.get(Contract, contract_id)
+    contract = session.scalar(
+        select(Contract).options(selectinload(Contract.owner)).where(Contract.id == contract_id)
+    )
     if contract is None:
         raise ResourceNotFoundError()
     _require_owner_or_superuser(current_user, contract.owner_id)

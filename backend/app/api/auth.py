@@ -1,5 +1,5 @@
 from datetime import datetime
-from time import sleep
+from ipaddress import ip_address, ip_network
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, Response, status
@@ -24,10 +24,32 @@ from app.auth.sessions import (
 from app.auth.throttle import login_throttle
 from app.db import request_session
 from app.db.models import User
-from app.errors import AuthenticationError
+from app.errors import AuthenticationError, LoginRateLimitError
 from app.schemas.auth import AuthenticatedUserResponse, LoginRequest
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+def _client_ip(request: Request) -> str | None:
+    direct_client = request.client.host if request.client is not None else None
+    settings = get_settings(request)
+    try:
+        direct_address = ip_address(direct_client) if direct_client is not None else None
+    except ValueError:
+        return direct_client
+    if direct_address is None or not any(
+        direct_address in ip_network(proxy, strict=False) for proxy in settings.trusted_proxy_ips
+    ):
+        return direct_client
+
+    forwarded_for = request.headers.get("X-Forwarded-For")
+    if forwarded_for is None:
+        return direct_client
+    forwarded_client = forwarded_for.split(",", maxsplit=1)[0].strip()
+    try:
+        return str(ip_address(forwarded_client))
+    except ValueError:
+        return direct_client
 
 
 def _authenticated_user_response(
@@ -41,9 +63,7 @@ def _authenticated_user_response(
         username=user.username,
         first_name=user.first_name,
         last_name=user.last_name,
-        email=user.email,
         is_superuser=user.is_superuser,
-        is_staff=user.is_staff,
         csrf_token=csrf_token,
         expires_at=expires_at,
     )
@@ -102,12 +122,12 @@ def login(
     session: Annotated[Session, Depends(request_session)],
 ) -> AuthenticatedUserResponse:
     throttle_key = login_throttle.attempt_key(
-        client_host=request.client.host if request.client is not None else None,
+        client_host=_client_ip(request),
         username=payload.username,
     )
     delay_seconds = login_throttle.delay_seconds(throttle_key)
     if delay_seconds > 0:
-        sleep(delay_seconds)
+        raise LoginRateLimitError(login_throttle.retry_after_seconds(throttle_key))
 
     user = authenticate_user(session, payload.username, payload.password)
     if user is None:

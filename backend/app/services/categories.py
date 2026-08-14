@@ -9,12 +9,14 @@ from app.errors import ConflictError, ResourceNotFoundError
 
 
 def category_patterns(category: Category) -> tuple[str, ...]:
-    return tuple(pattern.strip() for pattern in category.patterns.split("\n"))
+    return tuple(
+        normalized for pattern in category.patterns.splitlines() if (normalized := pattern.strip())
+    )
 
 
 def matches_any_pattern(value: str | None, patterns: Iterable[str]) -> bool:
-    normalized_value = (value or "").lower()
-    return any(pattern.lower() in normalized_value for pattern in patterns)
+    normalized_value = (value or "").casefold()
+    return any(pattern and pattern.casefold() in normalized_value for pattern in patterns)
 
 
 def _matching_category(

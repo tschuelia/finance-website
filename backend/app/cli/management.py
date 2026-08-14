@@ -8,7 +8,20 @@ from decimal import Decimal, InvalidOperation
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import BankAccount, BankDepot, DepotAsset, DepotAssetTransaction, User
+from app.auth.sessions import (
+    cleanup_expired_sessions,
+    revoke_all_active_sessions,
+    revoke_user_sessions,
+)
+from app.db.models import (
+    BankAccount,
+    BankDepot,
+    Contract,
+    DepotAsset,
+    DepotAssetTransaction,
+    Transaction,
+    User,
+)
 
 MONEY_LIMIT = Decimal("99999999.99")
 MONEY_QUANTUM = Decimal("0.01")
@@ -24,6 +37,12 @@ class UserSummary:
     username: str
     is_active: bool
     is_superuser: bool
+
+
+@dataclass(frozen=True, slots=True)
+class UserSecurityUpdate:
+    user: UserSummary
+    revoked_sessions: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -241,39 +260,70 @@ def create_user(
     )
 
 
-def reset_user_password(session: Session, *, user: User, password: str) -> UserSummary:
+def _user_summary(user: User) -> UserSummary:
+    return UserSummary(
+        id=user.id,
+        username=user.username,
+        is_active=user.is_active,
+        is_superuser=user.is_superuser,
+    )
+
+
+def reset_user_password(session: Session, *, user: User, password: str) -> UserSecurityUpdate:
     user.password = _hash_password(password)
+    revoked_sessions = revoke_user_sessions(session, user.id)
     session.flush()
-    return UserSummary(
-        id=user.id,
-        username=user.username,
-        is_active=user.is_active,
-        is_superuser=user.is_superuser,
+    return UserSecurityUpdate(
+        user=_user_summary(user),
+        revoked_sessions=revoked_sessions,
     )
 
 
-def set_user_active(session: Session, *, user: User, is_active: bool) -> UserSummary:
+def set_user_active(session: Session, *, user: User, is_active: bool) -> UserSecurityUpdate:
     user.is_active = is_active
+    revoked_sessions = revoke_user_sessions(session, user.id) if not is_active else 0
     session.flush()
-    return UserSummary(
-        id=user.id,
-        username=user.username,
-        is_active=user.is_active,
-        is_superuser=user.is_superuser,
+    return UserSecurityUpdate(
+        user=_user_summary(user),
+        revoked_sessions=revoked_sessions,
     )
 
 
-def set_user_superuser(session: Session, *, user: User, is_superuser: bool) -> UserSummary:
+def set_user_superuser(
+    session: Session,
+    *,
+    user: User,
+    is_superuser: bool,
+) -> UserSecurityUpdate:
     user.is_superuser = is_superuser
-    if is_superuser:
-        user.is_staff = True
+    user.is_staff = is_superuser
+    revoked_sessions = revoke_user_sessions(session, user.id)
     session.flush()
-    return UserSummary(
-        id=user.id,
-        username=user.username,
-        is_active=user.is_active,
-        is_superuser=user.is_superuser,
+    return UserSecurityUpdate(
+        user=_user_summary(user),
+        revoked_sessions=revoked_sessions,
     )
+
+
+def revoke_sessions_for_user(session: Session, *, user: User) -> UserSecurityUpdate:
+    revoked_sessions = revoke_user_sessions(session, user.id)
+    session.flush()
+    return UserSecurityUpdate(
+        user=_user_summary(user),
+        revoked_sessions=revoked_sessions,
+    )
+
+
+def revoke_every_session(session: Session) -> int:
+    revoked_sessions = revoke_all_active_sessions(session)
+    session.flush()
+    return revoked_sessions
+
+
+def cleanup_sessions(session: Session) -> int:
+    deleted_sessions = cleanup_expired_sessions(session)
+    session.flush()
+    return deleted_sessions
 
 
 def _account_summary(account: BankAccount, owner_username: str) -> AccountSummary:
@@ -342,6 +392,19 @@ def update_account(
     if current_amount is not None:
         account.current_amount = parse_money(current_amount, field_name="current amount")
     if owner is not None:
+        mismatched_contract = session.scalar(
+            select(Contract.id)
+            .join(Transaction, Transaction.contract_id == Contract.id)
+            .where(
+                Transaction.bank_account_id == account.id,
+                Contract.owner_id != owner.id,
+            )
+            .limit(1)
+        )
+        if mismatched_contract is not None:
+            raise ManagementCommandError(
+                "account owner cannot change while linked contracts have another owner"
+            )
         account.owner_id = owner.id
     session.flush()
     owner_username = owner.username if owner is not None else account.owner.username
@@ -508,6 +571,10 @@ def user_summary_line(summary: UserSummary) -> str:
         f"active={'yes' if summary.is_active else 'no'} "
         f"superuser={'yes' if summary.is_superuser else 'no'}"
     )
+
+
+def user_security_update_line(update: UserSecurityUpdate) -> str:
+    return f"{user_summary_line(update.user)} revoked_sessions={update.revoked_sessions}"
 
 
 def account_summary_line(summary: AccountSummary) -> str:

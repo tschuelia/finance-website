@@ -1,7 +1,9 @@
 """Small in-process throttle for repeated failed authentication attempts."""
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from hashlib import sha256
+from math import ceil
 from threading import RLock
 from time import monotonic
 
@@ -21,16 +23,17 @@ class _FailedAttempt:
 class LoginThrottle:
     """Bounded-memory exponential delay state for a single application process."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, clock: Callable[[], float] = monotonic) -> None:
         self._attempts: dict[str, _FailedAttempt] = {}
         self._lock = RLock()
+        self._clock = clock
 
     def attempt_key(self, *, client_host: str | None, username: str) -> str:
         value = f"{client_host or 'unknown'}\0{username}".encode()
         return sha256(value).hexdigest()
 
     def delay_seconds(self, key: str) -> float:
-        now = monotonic()
+        now = self._clock()
         with self._lock:
             self._discard_stale_attempts(now)
             attempt = self._attempts.get(key)
@@ -39,8 +42,11 @@ class LoginThrottle:
             attempt.last_seen = now
             return max(0.0, attempt.retry_after - now)
 
+    def retry_after_seconds(self, key: str) -> int:
+        return max(1, ceil(self.delay_seconds(key)))
+
     def register_failure(self, key: str) -> None:
-        now = monotonic()
+        now = self._clock()
         with self._lock:
             self._discard_stale_attempts(now)
             attempt = self._attempts.get(key)
@@ -59,6 +65,15 @@ class LoginThrottle:
     def register_success(self, key: str) -> None:
         with self._lock:
             self._attempts.pop(key, None)
+
+    def clear(self) -> None:
+        with self._lock:
+            self._attempts.clear()
+
+    @property
+    def entry_count(self) -> int:
+        with self._lock:
+            return len(self._attempts)
 
     def _discard_stale_attempts(self, now: float) -> None:
         stale_keys = [

@@ -60,56 +60,65 @@ const BalanceHistoryChart = ({ className, data, label }: BalanceHistoryChartProp
     return <p className="text-sm text-muted-foreground">Noch keine Snapshots vorhanden.</p>
   }
 
+  const containsEstimate = data.some((point) => point.estimated)
+  const effectiveLabel = containsEstimate ? `${label} (geschätzt)` : label
   const config = {
     balance: {
-      label,
+      label: effectiveLabel,
       color: 'var(--chart-2)'
     }
   } satisfies ChartConfig
 
   return (
-    <ChartContainer className={className} config={config}>
-      <AreaChart accessibilityLayer data={data} margin={{ left: 4, right: 4 }}>
-        <CartesianGrid vertical={false} />
-        <XAxis
-          dataKey="date"
-          minTickGap={24}
-          tickFormatter={(value: string) => formatDate(value)}
-          tickLine={false}
-          tickMargin={8}
-        />
-        <YAxis
-          tickFormatter={(value: number) => formatDecimal(value, { currency: false })}
-          tickLine={false}
-          width={64}
-        />
-        <ChartTooltip
-          isAnimationActive={false}
-          content={
-            <ChartTooltipContent
-              formatter={(value) => (
-                <>
-                  <span className="text-muted-foreground">{label}</span>
-                  <span className="ml-auto font-mono font-medium text-foreground tabular-nums">
-                    {formatDecimal(Number(value))}
-                  </span>
-                </>
-              )}
-              labelFormatter={(value) => formatDate(String(value))}
-            />
-          }
-        />
-        <Area
-          dataKey="balance"
-          dot={data.length === 1}
-          fill="var(--color-balance)"
-          fillOpacity={0.2}
-          isAnimationActive={false}
-          stroke="var(--color-balance)"
-          type="monotone"
-        />
-      </AreaChart>
-    </ChartContainer>
+    <div className="grid gap-2">
+      <ChartContainer className={className} config={config}>
+        <AreaChart accessibilityLayer data={data} margin={{ left: 4, right: 4 }}>
+          <CartesianGrid vertical={false} />
+          <XAxis
+            dataKey="date"
+            minTickGap={24}
+            tickFormatter={(value: string) => formatDate(value)}
+            tickLine={false}
+            tickMargin={8}
+          />
+          <YAxis
+            tickFormatter={(value: number) => formatDecimal(value, { currency: false })}
+            tickLine={false}
+            width={64}
+          />
+          <ChartTooltip
+            isAnimationActive={false}
+            content={
+              <ChartTooltipContent
+                formatter={(value) => (
+                  <>
+                    <span className="text-muted-foreground">{effectiveLabel}</span>
+                    <span className="ml-auto font-mono font-medium text-foreground tabular-nums">
+                      {formatDecimal(Number(value))}
+                    </span>
+                  </>
+                )}
+                labelFormatter={(value) => formatDate(String(value))}
+              />
+            }
+          />
+          <Area
+            dataKey="balance"
+            dot={data.length === 1}
+            fill="var(--color-balance)"
+            fillOpacity={0.2}
+            isAnimationActive={false}
+            stroke="var(--color-balance)"
+            type="monotone"
+          />
+        </AreaChart>
+      </ChartContainer>
+      {containsEstimate ? (
+        <p className="text-xs text-muted-foreground">
+          Geschätzte Depotwerte fassen Vermögenswerte mit unterschiedlichen Stichtagen zusammen.
+        </p>
+      ) : null}
+    </div>
   )
 }
 
@@ -130,7 +139,7 @@ const AssetEditor = ({ asset, depotId, onOpenChange, open }: AssetEditorProps) =
       })
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['depot', depotId] })
+      await queryClient.invalidateQueries({ queryKey: ['depot'] })
       await queryClient.invalidateQueries({ queryKey: ['portfolio'] })
       toast.success('Der Vermögenswert wurde aktualisiert.', {
         id: `asset-updated-${depotId}-${asset.id}`

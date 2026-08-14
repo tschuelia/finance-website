@@ -1,6 +1,9 @@
-import { apiClient, clearCsrfToken, parseApiResponse, setCsrfToken, withSession } from '@/api/index'
+import { apiClient, clearCsrfToken, parseApiResponse, setCsrfToken } from '@/api/index'
+import type { ApiRequestConfig } from '@/api/index'
 import { AuthenticatedUserSchema, LoginRequestSchema } from '@/types/auth'
 import type { AuthenticatedUser, LoginRequest } from '@/types/auth'
+
+const skipSessionExpiredConfig: ApiRequestConfig = { skipSessionExpired: true }
 
 const parseAuthenticatedUser = (responseData: unknown): AuthenticatedUser => {
   const user = parseApiResponse(AuthenticatedUserSchema, responseData)
@@ -10,11 +13,7 @@ const parseAuthenticatedUser = (responseData: unknown): AuthenticatedUser => {
 
 export const login = async (payload: LoginRequest): Promise<AuthenticatedUser> => {
   const request = LoginRequestSchema.parse(payload)
-  const response = await apiClient.post(
-    '/auth/login',
-    request,
-    withSession({ skipSessionExpired: true })
-  )
+  const response = await apiClient.post('/auth/login', request, skipSessionExpiredConfig)
   return parseAuthenticatedUser(response.data)
 }
 
@@ -24,6 +23,6 @@ export const logout = async (): Promise<void> => {
 }
 
 export const getCurrentUser = async (): Promise<AuthenticatedUser> => {
-  const response = await apiClient.get('/auth/me', withSession({ skipSessionExpired: true }))
+  const response = await apiClient.get('/auth/me', skipSessionExpiredConfig)
   return parseAuthenticatedUser(response.data)
 }

@@ -72,11 +72,15 @@ pixi run finances db bootstrap-existing
 pixi run finances db upgrade
 pixi run finances db status
 pixi run finances db inspect
+pixi run finances contract-files reconcile
 ```
 
 The first and final inspections must report compatible schemas, zero foreign-key
-violations, and identical counts and financial aggregates for the preserved
-domain tables. Status must report the Alembic head with no pending upgrade.
+violations and cross-owner contract links, and identical counts and financial
+aggregates for the preserved domain tables. File reconciliation must report no
+missing, invalid, or orphaned paths. It is read-only unless the separately
+confirmed `--delete-orphans --yes` mode is supplied. Status must report the
+Alembic head with no pending upgrade.
 
 Start the candidate application and verify existing-user login, owner and
 superuser boundaries, account/depot totals, transaction read/write workflows,
@@ -97,8 +101,9 @@ During an announced maintenance window:
    `finances db inspect`; stop if it reports any incompatibility or violation.
 4. Run `finances db bootstrap-existing` exactly once.
 5. Run `finances db upgrade`, then `finances db status` and a final inspection.
-6. Start the FastAPI/React image and wait for `/health` to pass.
-7. Verify existing login, totals, transaction mutation, contract-file download,
+6. Run `finances contract-files reconcile` and stop on any discrepancy.
+7. Start the FastAPI/React image and wait for `/health` to pass.
+8. Verify existing login, totals, transaction mutation, contract-file download,
    analytics, and CLI access before ending maintenance.
 
 If any adoption or validation step fails, keep the application stopped and
