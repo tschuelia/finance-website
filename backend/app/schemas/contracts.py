@@ -1,11 +1,11 @@
 from datetime import date
-from decimal import Decimal
 from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.schemas.accounts import UserSummary
 from app.schemas.transactions import TransactionResponse
+from app.schemas.types import ApiDecimal
 
 
 class ContractFileResponse(BaseModel):
@@ -36,7 +36,7 @@ class ContractListResponse(BaseModel):
 
 
 class ContractDetailResponse(ContractSummaryResponse):
-    balance: Decimal
+    balance: ApiDecimal
     first_transaction_date: date | None
     last_transaction_date: date | None
     transactions: list[TransactionResponse]

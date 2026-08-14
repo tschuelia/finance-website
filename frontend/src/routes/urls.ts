@@ -16,23 +16,8 @@ const withSearch = (path: string, search?: string): string => {
 export const accountUrl = (accountId: number, search?: string): string =>
   withSearch(`/konten/${accountId}`, search)
 
-export const accountTransactionNewUrl = (accountId: number): string =>
-  `/konten/${accountId}/transaktionen/neu`
-
-export const accountTransactionBulkUrl = (accountId: number): string =>
-  `/konten/${accountId}/transaktionen/sammelerfassung`
-
 export const accountTransactionImportUrl = (accountId: number): string =>
   `/konten/${accountId}/transaktionen/importieren`
-
-export const transactionUrl = (accountId: number, transactionId: number, search?: string): string =>
-  withSearch(`/konten/${accountId}/transaktionen/${transactionId}`, search)
-
-export const transactionEditUrl = (
-  accountId: number,
-  transactionId: number,
-  search?: string
-): string => withSearch(`/konten/${accountId}/transaktionen/${transactionId}/bearbeiten`, search)
 
 export const depotUrl = (depotId: number): string => `/depots/${depotId}`
 

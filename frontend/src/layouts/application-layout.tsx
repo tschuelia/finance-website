@@ -4,7 +4,6 @@ import type { ReactNode } from 'react'
 import type { LucideIcon } from 'lucide-react'
 import { Landmark } from 'lucide-react'
 import { Link } from 'react-router'
-import { Separator } from '@/components/ui/separator'
 import {
   Sidebar,
   SidebarContent,
@@ -32,7 +31,6 @@ type ApplicationLayoutProps = {
   navigation: NavigationItem[]
   activeHref?: string
   brand?: string
-  headerActions?: ReactNode
   footer?: ReactNode
 }
 
@@ -41,20 +39,22 @@ export const ApplicationLayout = ({
   navigation,
   activeHref,
   brand = 'Finanzen',
-  headerActions,
   footer
 }: ApplicationLayoutProps) => {
   return (
     <SidebarProvider>
-      <Sidebar collapsible="offcanvas">
-        <SidebarHeader>
-          <Link
-            className="flex items-center gap-2 px-2 py-1.5 font-heading text-base font-semibold"
-            to="/"
-          >
-            <Landmark className="size-4" aria-hidden />
-            <span>{brand}</span>
-          </Link>
+      <Sidebar collapsible="icon">
+        <SidebarHeader className="h-14 shrink-0 justify-center border-b">
+          <div className="flex items-center justify-between gap-2 group-data-[collapsible=icon]:justify-center">
+            <Link
+              className="flex min-w-0 items-center gap-2 px-2 py-1.5 font-heading text-base font-semibold group-data-[collapsible=icon]:hidden"
+              to="/"
+            >
+              <Landmark className="size-4 shrink-0" aria-hidden />
+              <span className="truncate">{brand}</span>
+            </Link>
+            <SidebarTrigger className="hidden shrink-0 md:inline-flex" />
+          </div>
         </SidebarHeader>
         <SidebarContent>
           <SidebarGroup>
@@ -78,12 +78,13 @@ export const ApplicationLayout = ({
         {footer === undefined ? null : <SidebarFooter>{footer}</SidebarFooter>}
       </Sidebar>
       <SidebarInset>
-        <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4 sm:px-6">
-          <SidebarTrigger aria-label="Seitenleiste umschalten" />
-          <Separator orientation="vertical" className="h-4" />
-          <div className="ml-auto flex items-center gap-2">{headerActions}</div>
-        </header>
-        <main className="flex min-h-0 flex-1 flex-col px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+        <SidebarTrigger
+          className="absolute top-4 left-4 z-10 bg-background shadow-sm md:hidden"
+          variant="outline"
+        />
+        <main className="flex min-h-0 flex-1 flex-col px-4 pt-16 pb-6 sm:px-6 md:py-6 lg:px-8">
+          {children}
+        </main>
       </SidebarInset>
     </SidebarProvider>
   )

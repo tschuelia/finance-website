@@ -30,7 +30,10 @@ backend-typecheck = "mypy backend/app"
 frontend-install = { cmd = "bun install --frozen-lockfile", cwd = "frontend" }
 frontend-dev = { cmd = "bun run dev", cwd = "frontend" }
 frontend-lint = { cmd = "bun run lint", cwd = "frontend" }
+frontend-format = { cmd = "bun run format", cwd = "frontend" }
 frontend-format-check = { cmd = "bun run format:check", cwd = "frontend" }
+frontend-format-staged = { cmd = "bun run format:staged", cwd = "frontend" }
+frontend-knip = { cmd = "bun run knip", cwd = "frontend" }
 frontend-typecheck = { cmd = "bun run typecheck", cwd = "frontend" }
 frontend-build = { cmd = "bun run build", cwd = "frontend" }
 alembic = "alembic -c backend/alembic.ini"

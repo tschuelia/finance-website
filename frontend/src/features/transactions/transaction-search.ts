@@ -21,13 +21,13 @@ const validDate = (value: string | null): string | undefined => {
   return parsed.success ? parsed.data : undefined
 }
 
-const validAmount = (value: string | null): string | undefined => {
-  if (value === null || value.startsWith('-')) {
+const validAmount = (value: string | null): number | undefined => {
+  if (value === null || value === '') {
     return undefined
   }
 
-  const parsed = DecimalSchema.safeParse(value)
-  return parsed.success ? parsed.data : undefined
+  const parsed = DecimalSchema.safeParse(Number(value))
+  return parsed.success && parsed.data >= 0 ? parsed.data : undefined
 }
 
 const validTransactionType = (value: string | null): TransactionType => {
@@ -60,11 +60,11 @@ export const transactionFiltersFromSearch = (search: string): TransactionFilters
         ? dateEnd
         : undefined,
     amount_min:
-      amountMin !== undefined && (amountMax === undefined || Number(amountMin) <= Number(amountMax))
+      amountMin !== undefined && (amountMax === undefined || amountMin <= amountMax)
         ? amountMin
         : undefined,
     amount_max:
-      amountMax !== undefined && (amountMin === undefined || Number(amountMin) <= Number(amountMax))
+      amountMax !== undefined && (amountMin === undefined || amountMin <= amountMax)
         ? amountMax
         : undefined,
     category_ids: validCategoryIds(params.getAll('category_ids')),
@@ -92,11 +92,11 @@ export const transactionFiltersToSearch = (filters: TransactionFilters): string 
   }
 
   if (filters.amount_min !== undefined) {
-    params.set('amount_min', filters.amount_min)
+    params.set('amount_min', String(filters.amount_min))
   }
 
   if (filters.amount_max !== undefined) {
-    params.set('amount_max', filters.amount_max)
+    params.set('amount_max', String(filters.amount_max))
   }
 
   for (const categoryId of filters.category_ids) {

@@ -86,7 +86,7 @@
       - Account and depot overview.
       - Transaction filtering, pagination, detail, update, delete, and bulk entry.
       - CSV upload and editable preview.
-      - Category create, update, and reassignment.
+      - Category create and update.
       - Contract create, update, detail, and file management.
       - Depot asset display and update.
       - Dash analytics.
@@ -253,7 +253,7 @@
       - Reverse chronological ordering.
 
   - [x] Port transaction summaries and pagination calculations.
-  - [x] Port category-pattern matching and reassignment.
+  - [x] Port category-pattern matching.
   - [x] Port contract balance and first/last transaction calculations.
   - [x] Port depot and asset balance calculations.
   - [x] Keep persistence details out of API route functions.
@@ -264,7 +264,7 @@
 
   Completed with SQLAlchemy-backed domain services for resource visibility,
   portfolio and resource balances, transaction filtering and pagination,
-  category reassignment, and nested-resource authorization. The legacy database
+  category-pattern matching, and nested-resource authorization. The legacy database
   left equal-key ordering unspecified; transaction and contract services now use
   explicit ID tie-breakers, with contract boundaries matching the preserved
   snapshot.
@@ -338,15 +338,15 @@
     asset transactions.
 
   - [x] Add asset update endpoint for balance and last-update date.
-  - [x] Serialize decimals as strings and dates as ISO-8601 values.
+  - [x] Serialize monetary decimals as JSON numbers and dates as ISO-8601 values.
   - [x] Enforce ownership consistently.
 
   Done when all current account and depot pages can be supported by JSON APIs.
 
   Completed with authenticated portfolio, account detail, depot detail, visible
-  user, and asset-update endpoints. Pydantic serializes exact decimals as strings
-  and dates as ISO values, while every lookup reuses the owner/superuser access
-  services.
+  user, and asset-update endpoints. Monetary API values are native JSON numbers,
+  while backend calculations retain exact `Decimal` values; dates are ISO values
+  and every lookup reuses the owner/superuser access services.
 
   ## Issue 10 — Implement transaction APIs
 
@@ -399,16 +399,14 @@
 
   - [x] Add category list, create, and update endpoints.
   - [x] Preserve unique names and newline-separated patterns.
-  - [x] Add account recategorization as an explicit mutation.
   - [x] Restrict all endpoints to authenticated users.
   - [x] Preserve the current global-category model.
   - [x] Defer category deletion because the current UI does not implement it.
 
-  Done when Django category forms and reassignment are replaceable.
+  Done when Django category forms are replaceable.
 
   Completed with authenticated global category CRUD (excluding intentionally
-  deferred deletion), conflict handling for unique names, and an explicit
-  CSRF-protected account recategorization mutation.
+  deferred deletion) and conflict handling for unique names.
 
   ## Issue 13 — Implement contract and file APIs
 
@@ -514,30 +512,34 @@
 
   Done when the legacy overview and depot screens are replaceable.
 
-  Completed with owner-grouped portfolio cards, exact string-decimal euro
-  formatting, responsive depot asset/history cards, and an invalidating asset
-  edit dialog. Shared feedback components cover loading, empty, permission, and
-  backend-error states; no automated tests were added.
+  Completed with owner-grouped portfolio cards, German-locale euro formatting
+  for native numeric values, responsive depot asset/history cards, and an
+  invalidating asset edit dialog. Shared feedback components cover loading,
+  empty, permission, and backend-error states; no automated tests were added.
 
   ## Issue 18 — Build transaction screens
 
   - [x] Build the server-driven transaction data table.
   - [x] Preserve all filters and keep them in URL search parameters.
-  - [x] Preserve filters when moving between pages and transaction detail.
+  - [x] Preserve filters when moving between transaction pages.
   - [x] Display filtered summaries.
-  - [x] Add detail, edit, delete-confirmation, and bulk-entry interfaces.
+  - [x] Add a row-opened detail/edit dialog with deletion confirmation.
   - [x] Build CSV upload, preview, row editing/removal, and atomic commit.
-  - [x] Add explicit recategorization confirmation.
   - [x] Refetch affected balances, lists, and analytics after mutations.
 
   Done when all daily transaction work can be completed in React.
 
-  Completed with React transaction list, detail, create, edit, bulk-entry, and
-  CSV-import routes. Filters are URL-backed through pagination and detail
-  navigation; mutations invalidate account balances, transaction and contract
-  lists, portfolio data, and analytics queries. CSV rows are previewed and
-  editable before the atomic import endpoint is called. No automated tests were
-  added, as required by this migration phase.
+  Completed with the React transaction list, its inline detail/edit/delete
+  dialog, and the CSV-import route. Filters are URL-backed through pagination;
+  mutations invalidate account balances, transaction and contract lists,
+  portfolio data, and analytics queries. CSV rows are previewed and editable
+  before the atomic import endpoint is called. No automated tests were added, as
+  required by this migration phase.
+
+  A later product decision retired the manual single-transaction and bulk-entry
+  creation routes and API. CSV import is now the only transaction-creation path;
+  imported transactions are edited and deleted from the account table dialog,
+  with no standalone transaction links or routes.
 
   ## Issue 19 — Build category, contract, and file screens
 
@@ -655,11 +657,11 @@
   - [ ] Log in using an existing password.
   - [ ] Manually check owner and superuser access boundaries.
   - [ ] Check account and depot totals.
-  - [ ] Check transaction filters, pagination, summaries, editing, deletion, and
-    bulk entry.
+  - [ ] Check transaction filters, pagination, summaries, editing, and deletion.
 
   - [ ] Import representative files from all four supported banks.
-  - [ ] Check category updates and recategorization.
+  - [ ] Confirm that manual transaction creation routes and APIs are unavailable.
+  - [ ] Check category updates.
   - [ ] Check contracts and existing file downloads.
   - [ ] Check all charts against the Django application.
   - [ ] Exercise the user/account/depot CLI commands.

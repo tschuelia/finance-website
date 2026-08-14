@@ -9,12 +9,10 @@ from app.db.models import Category, User
 from app.schemas.categories import (
     CategoryResponse,
     CategoryWrite,
-    RecategorizationResponse,
 )
 from app.services.categories import (
     create_category,
     list_categories,
-    reassign_account_categories,
     update_category,
 )
 
@@ -67,18 +65,4 @@ def category_update(
             name=payload.name,
             patterns=payload.patterns,
         )
-    )
-
-
-@router.post(
-    "/accounts/{account_id}/recategorize",
-    response_model=RecategorizationResponse,
-)
-def account_recategorize(
-    account_id: int,
-    current_user: CsrfUser,
-    session: DatabaseSession,
-) -> RecategorizationResponse:
-    return RecategorizationResponse(
-        changed=reassign_account_categories(session, current_user, account_id)
     )

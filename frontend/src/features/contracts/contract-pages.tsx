@@ -37,14 +37,7 @@ import { PageHeader } from '@/components/shared/page-header'
 import { contractsQueryKey, useContract, useContracts } from '@/hooks/use-contracts'
 import { useUsers } from '@/hooks/use-users'
 import { formatDate, formatDecimal, parsePositiveId } from '@/lib/format'
-import {
-  CONTRACT_NEW,
-  CONTRACTS,
-  accountUrl,
-  contractEditUrl,
-  contractUrl,
-  transactionUrl
-} from '@/routes/urls'
+import { CONTRACT_NEW, CONTRACTS, accountUrl, contractEditUrl, contractUrl } from '@/routes/urls'
 import type {
   ContractDetail,
   ContractFile,
@@ -646,18 +639,9 @@ export const ContractDetailPage = () => {
                   className="flex flex-wrap items-center justify-between gap-3 p-3"
                   key={transaction.id}
                 >
-                  {transaction.bank_account_id === null ? (
-                    <span className="min-w-0 font-medium">
-                      {transaction.recipient || transaction.subject}
-                    </span>
-                  ) : (
-                    <Link
-                      className="min-w-0 font-medium hover:underline"
-                      to={transactionUrl(transaction.bank_account_id, transaction.id)}
-                    >
-                      {transaction.recipient || transaction.subject}
-                    </Link>
-                  )}
+                  <span className="min-w-0 font-medium">
+                    {transaction.recipient || transaction.subject}
+                  </span>
                   <span className="text-sm text-muted-foreground">
                     {formatDate(transaction.date_issue)}
                   </span>

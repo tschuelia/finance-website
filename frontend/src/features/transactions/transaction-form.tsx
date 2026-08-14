@@ -1,7 +1,6 @@
 /* cspell:words Buchungsreferenz Empfänger Wertstellungsdatum */
 
 import { CalendarDays, FileText, Landmark, Tag, UserRound } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -158,38 +157,5 @@ export const TransactionDraftFields = ({
       </div>
       <input name={`${idPrefix}-account`} type="hidden" value={accountId} />
     </div>
-  )
-}
-
-type TransactionFormProps = TransactionDraftFieldsProps & {
-  error?: string
-  isSubmitting: boolean
-  onSubmit: () => void
-  submitLabel: string
-}
-
-export const TransactionForm = ({
-  error,
-  isSubmitting,
-  onSubmit,
-  submitLabel,
-  ...fieldsProps
-}: TransactionFormProps) => {
-  return (
-    <form
-      className="grid gap-5"
-      onSubmit={(event) => {
-        event.preventDefault()
-        onSubmit()
-      }}
-    >
-      <TransactionDraftFields {...fieldsProps} />
-      {error === undefined ? null : <p className="text-sm text-destructive">{error}</p>}
-      <div className="flex justify-end">
-        <Button disabled={isSubmitting} type="submit">
-          {isSubmitting ? 'Wird gespeichert …' : submitLabel}
-        </Button>
-      </div>
-    </form>
   )
 }

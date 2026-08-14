@@ -1,7 +1,8 @@
 from datetime import date
-from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from app.schemas.types import ApiDecimal
 
 
 class UserSummary(BaseModel):
@@ -20,11 +21,11 @@ class AccountSummary(BaseModel):
     id: int
     name: str
     bank: str
-    current_amount: Decimal
-    balance: Decimal
+    current_amount: ApiDecimal
+    balance: ApiDecimal
     oldest_transaction_date: date
     newest_transaction_date: date
-    maximum_absolute_transaction_amount: Decimal
+    maximum_absolute_transaction_amount: ApiDecimal
 
 
 class DepotSummary(BaseModel):
@@ -32,7 +33,7 @@ class DepotSummary(BaseModel):
 
     id: int
     name: str
-    balance: Decimal
+    balance: ApiDecimal
     last_update: date
 
 
@@ -42,21 +43,21 @@ class PortfolioGroupResponse(BaseModel):
     owner: UserSummary
     accounts: list[AccountSummary]
     depots: list[DepotSummary]
-    balance: Decimal
+    balance: ApiDecimal
 
 
 class PortfolioOverviewResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     groups: list[PortfolioGroupResponse]
-    total_balance: Decimal
+    total_balance: ApiDecimal
 
 
 class DepotAssetTransactionResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: int
-    amount: Decimal
+    amount: ApiDecimal
     date_issue: date
 
 
@@ -65,9 +66,9 @@ class DepotAssetResponse(BaseModel):
 
     id: int
     name: str
-    current_balance: Decimal
+    current_balance: ApiDecimal
     last_update: date
-    transaction_total: Decimal
+    transaction_total: ApiDecimal
     transactions: list[DepotAssetTransactionResponse]
 
 
@@ -77,7 +78,7 @@ class DepotDetailResponse(BaseModel):
     id: int
     name: str
     owner: UserSummary
-    balance: Decimal
+    balance: ApiDecimal
     last_update: date
     assets: list[DepotAssetResponse]
 
@@ -85,5 +86,5 @@ class DepotDetailResponse(BaseModel):
 class DepotAssetUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    current_balance: Decimal = Field(max_digits=10, decimal_places=2)
+    current_balance: ApiDecimal = Field(max_digits=10, decimal_places=2)
     last_update: date

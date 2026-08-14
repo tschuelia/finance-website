@@ -8,8 +8,6 @@ from app.db import request_session
 from app.db.models import Transaction, User
 from app.errors import ConflictError
 from app.schemas.transactions import (
-    TransactionBulkCreate,
-    TransactionBulkResponse,
     TransactionFilterQuery,
     TransactionPageResponse,
     TransactionResponse,
@@ -20,7 +18,6 @@ from app.services.access import get_visible_account_transaction
 from app.services.transactions import (
     TransactionFilters,
     TransactionValues,
-    create_transactions,
     delete_transaction,
     get_transaction_page,
     update_transaction,
@@ -102,21 +99,6 @@ def transaction_list(
             minimum_date=result.summary.minimum_date,
             maximum_date=result.summary.maximum_date,
         ),
-    )
-
-
-@router.post("/bulk", response_model=TransactionBulkResponse, status_code=status.HTTP_201_CREATED)
-def transaction_bulk_create(
-    account_id: int,
-    payload: TransactionBulkCreate,
-    current_user: CsrfUser,
-    session: DatabaseSession,
-) -> TransactionBulkResponse:
-    values = tuple(transaction_values(account_id, item) for item in payload.items)
-    transactions = create_transactions(session, current_user, account_id, values)
-    return TransactionBulkResponse(
-        items=[transaction_response(transaction) for transaction in transactions],
-        created=len(transactions),
     )
 
 

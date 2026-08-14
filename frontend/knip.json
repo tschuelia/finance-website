@@ -1,0 +1,8 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": ["src/features/design-system/design-system-showcase.tsx"],
+  "ignoreIssues": {
+    "src/components/ui/**/*.{ts,tsx}": ["exports", "types"],
+    "src/types/**/*.ts": ["exports", "types"]
+  }
+}

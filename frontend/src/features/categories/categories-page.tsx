@@ -71,7 +71,7 @@ const CategoryEditor = ({ category, onOpenChange, open }: CategoryEditorProps) =
             {category === undefined ? 'Kategorie anlegen' : 'Kategorie bearbeiten'}
           </DialogTitle>
           <DialogDescription>
-            Lege Begriffe zeilenweise fest, nach denen Buchungen automatisch kategorisiert werden.
+            Buchungen werden basierend auf diesen Begriffen automatisch kategorisiert.
           </DialogDescription>
         </DialogHeader>
         <form className="grid gap-4" onSubmit={submit}>
@@ -93,7 +93,7 @@ const CategoryEditor = ({ category, onOpenChange, open }: CategoryEditorProps) =
               placeholder={'z. B. Supermarkt\nBäckerei'}
               value={patterns}
             />
-            <p className="text-xs text-muted-foreground">Ein Begriff pro Zeile genügt.</p>
+            <p className="text-xs text-muted-foreground">Begriffe durch eine neue Zeile trennen.</p>
           </div>
           {formError === undefined ? null : <p className="text-sm text-destructive">{formError}</p>}
           <DialogFooter showCloseButton>

@@ -18,11 +18,3 @@ export const CategoryWriteSchema = z
   .strict()
 
 export type CategoryWrite = z.infer<typeof CategoryWriteSchema>
-
-export const RecategorizationSchema = z
-  .object({
-    changed: z.number().int().nonnegative()
-  })
-  .strict()
-
-export type Recategorization = z.infer<typeof RecategorizationSchema>

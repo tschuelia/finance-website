@@ -1,6 +1,6 @@
 /* cspell:words Buchungsdatum Kategorien Kontotransaktionen Wertstellungsdatum */
 
-import { ChevronLeft, ChevronRight, Eye, Pencil, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Link } from 'react-router'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -15,7 +15,7 @@ import {
   TableRow
 } from '@/components/ui/table'
 import { formatDate, formatDecimal } from '@/lib/format'
-import { contractUrl, transactionEditUrl, transactionUrl } from '@/routes/urls'
+import { contractUrl } from '@/routes/urls'
 import type { Transaction, TransactionPage, TransactionSummary } from '@/types/transactions'
 
 type TransactionSummaryCardsProps = {
@@ -23,10 +23,8 @@ type TransactionSummaryCardsProps = {
 }
 
 type TransactionTableProps = {
-  accountId: number
   items: Transaction[]
-  onDelete: (transaction: Transaction) => void
-  search: string
+  onSelect: (transaction: Transaction) => void
 }
 
 type TransactionPaginationProps = {
@@ -70,11 +68,11 @@ export const TransactionSummaryCards = ({ summary }: TransactionSummaryCardsProp
   )
 }
 
-export const TransactionTable = ({ accountId, items, onDelete, search }: TransactionTableProps) => {
+export const TransactionTable = ({ items, onSelect }: TransactionTableProps) => {
   if (items.length === 0) {
     return (
       <EmptyState
-        description="Passe Deine Filter an oder erfasse eine neue Transaktion."
+        description="Passe Deine Filter an oder importiere Transaktionen aus einer CSV-Datei."
         title="Keine Transaktionen gefunden"
       />
     )
@@ -96,12 +94,27 @@ export const TransactionTable = ({ accountId, items, onDelete, search }: Transac
               <TableHead>Betreff</TableHead>
               <TableHead>Kategorie</TableHead>
               <TableHead>Vertrag</TableHead>
-              <TableHead className="text-right">Aktionen</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {items.map((transaction) => (
-              <TableRow key={transaction.id}>
+              <TableRow
+                aria-haspopup="dialog"
+                aria-label={`Transaktion für ${transaction.recipient || transaction.subject} öffnen`}
+                className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                key={transaction.id}
+                onClick={() => onSelect(transaction)}
+                onKeyDown={(event) => {
+                  if (
+                    event.target === event.currentTarget &&
+                    (event.key === 'Enter' || event.key === ' ')
+                  ) {
+                    event.preventDefault()
+                    onSelect(transaction)
+                  }
+                }}
+                tabIndex={0}
+              >
                 <TableCell>{formatDate(transaction.date_issue)}</TableCell>
                 <TableCell>{formatDate(transaction.date_booking)}</TableCell>
                 <TableCell className="max-w-48 truncate font-medium">
@@ -109,7 +122,7 @@ export const TransactionTable = ({ accountId, items, onDelete, search }: Transac
                 </TableCell>
                 <TableCell
                   className={`text-right font-medium ${
-                    transaction.amount.startsWith('-')
+                    transaction.amount < 0
                       ? 'text-destructive'
                       : 'text-emerald-700 dark:text-emerald-400'
                   }`}
@@ -130,43 +143,12 @@ export const TransactionTable = ({ accountId, items, onDelete, search }: Transac
                   ) : (
                     <Link
                       className="text-primary hover:underline"
+                      onClick={(event) => event.stopPropagation()}
                       to={contractUrl(transaction.contract_id)}
                     >
                       {transaction.contract_name}
                     </Link>
                   )}
-                </TableCell>
-                <TableCell>
-                  <div className="flex justify-end gap-1">
-                    <Button
-                      asChild
-                      aria-label="Transaktion anzeigen"
-                      size="icon-sm"
-                      variant="ghost"
-                    >
-                      <Link to={transactionUrl(accountId, transaction.id, search)}>
-                        <Eye aria-hidden />
-                      </Link>
-                    </Button>
-                    <Button
-                      asChild
-                      aria-label="Transaktion bearbeiten"
-                      size="icon-sm"
-                      variant="ghost"
-                    >
-                      <Link to={transactionEditUrl(accountId, transaction.id, search)}>
-                        <Pencil aria-hidden />
-                      </Link>
-                    </Button>
-                    <Button
-                      aria-label="Transaktion löschen"
-                      onClick={() => onDelete(transaction)}
-                      size="icon-sm"
-                      variant="ghost"
-                    >
-                      <Trash2 aria-hidden className="text-destructive" />
-                    </Button>
-                  </div>
                 </TableCell>
               </TableRow>
             ))}

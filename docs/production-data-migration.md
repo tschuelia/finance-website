@@ -80,7 +80,7 @@ domain tables. Status must report the Alembic head with no pending upgrade.
 
 Start the candidate application and verify existing-user login, owner and
 superuser boundaries, account/depot totals, transaction read/write workflows,
-all four CSV formats, category reassignment, contract file access, analytics,
+all four CSV formats, category updates, contract file access, analytics,
 and the management CLI. A successful PBKDF2 login should continue working; it
 will upgrade only that user's stored password hash to Argon2id.
 

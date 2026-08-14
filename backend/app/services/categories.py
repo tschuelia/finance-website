@@ -4,9 +4,8 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.db.models import Category, Transaction, User
+from app.db.models import Category
 from app.errors import ConflictError, ResourceNotFoundError
-from app.services.access import get_visible_bank_account
 
 
 def category_patterns(category: Category) -> tuple[str, ...]:
@@ -39,33 +38,6 @@ def match_transaction_category(
     return _matching_category(recipient, category_patterns_by_id) or _matching_category(
         subject, category_patterns_by_id
     )
-
-
-def reassign_account_categories(
-    session: Session,
-    current_user: User,
-    account_id: int,
-) -> int:
-    account = get_visible_bank_account(session, current_user, account_id)
-    categories = tuple(session.scalars(select(Category).order_by(Category.id)))
-    transactions = session.scalars(
-        select(Transaction)
-        .where(Transaction.bank_account_id == account.id)
-        .order_by(Transaction.id)
-    )
-
-    changed = 0
-    for transaction in transactions:
-        category = match_transaction_category(
-            transaction.recipient,
-            transaction.subject,
-            categories,
-        )
-        category_id = category.id if category is not None else None
-        if transaction.category_id != category_id:
-            transaction.category_id = category_id
-            changed += 1
-    return changed
 
 
 def list_categories(session: Session) -> tuple[Category, ...]:

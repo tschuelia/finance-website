@@ -118,6 +118,7 @@ Persistent database and media storage is mounted at `/data`.
 ```sh
 pixi run lint
 pixi run format-check
+pixi run frontend-knip
 pixi run backend-typecheck
 pixi run frontend-typecheck
 pixi run frontend-build

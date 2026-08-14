@@ -4,6 +4,7 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.schemas.types import ApiDecimal
 from app.services.transactions import TransactionType
 
 
@@ -62,8 +63,8 @@ class CategoryTotalResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     category: str
-    income: Decimal
-    expense: Decimal
+    income: ApiDecimal
+    expense: ApiDecimal
 
 
 class CategoryTotalsResponse(BaseModel):
@@ -95,8 +96,8 @@ class MonthlyTotalResponse(BaseModel):
 
     period: str
     label: str
-    income: Decimal
-    expense: Decimal
+    income: ApiDecimal
+    expense: ApiDecimal
 
 
 class MonthlyTotalsResponse(BaseModel):

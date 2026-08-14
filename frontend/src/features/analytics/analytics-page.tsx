@@ -21,7 +21,7 @@ import { PageHeader } from '@/components/shared/page-header'
 import { useCategoryComparisons, useCategoryTotals, useMonthlyTotals } from '@/hooks/use-analytics'
 import { usePortfolioOverview } from '@/hooks/use-accounts'
 import { useCategories } from '@/hooks/use-categories'
-import { formatDecimal, parseDecimalInput, parsePositiveId } from '@/lib/format'
+import { decimalInputValue, formatDecimal, parseDecimalInput, parsePositiveId } from '@/lib/format'
 import type {
   AnalyticsFilters,
   CategoryTotals,
@@ -47,16 +47,17 @@ const readPositiveIds = (values: string[]): number[] =>
     return id === undefined ? [] : [id]
   })
 
+const readAmount = (value: string | null): number | undefined =>
+  value === null || value === '' ? undefined : parseDecimalInput(value)
+
 const readFilters = (searchParams: URLSearchParams): AnalyticsFilters => ({
   date_start: searchParams.get('von') || undefined,
   date_end: searchParams.get('bis') || undefined,
-  amount_min: searchParams.get('betrag_von') || undefined,
-  amount_max: searchParams.get('betrag_bis') || undefined,
+  amount_min: readAmount(searchParams.get('betrag_von')),
+  amount_max: readAmount(searchParams.get('betrag_bis')),
   category_ids: readPositiveIds(searchParams.getAll('kategorie')),
   transaction_type: readType(searchParams.get('art'))
 })
-
-const chartValue = (value: string): number => Number(value)
 
 type AnalyticsFilterFormProps = {
   accountId: number
@@ -112,11 +113,11 @@ const AnalyticsFilterForm = ({
     }
 
     if (amountMin !== undefined) {
-      next.set('betrag_von', amountMin)
+      next.set('betrag_von', String(amountMin))
     }
 
     if (amountMax !== undefined) {
-      next.set('betrag_bis', amountMax)
+      next.set('betrag_bis', String(amountMax))
     }
 
     for (const value of formData.getAll('kategorie')) {
@@ -163,7 +164,11 @@ const AnalyticsFilterForm = ({
             <div className="grid gap-2">
               <Label htmlFor="analytics-amount-min">Betrag von</Label>
               <Input
-                defaultValue={filters.amount_min?.replace('.', ',')}
+                defaultValue={
+                  filters.amount_min === undefined
+                    ? undefined
+                    : decimalInputValue(filters.amount_min)
+                }
                 id="analytics-amount-min"
                 inputMode="decimal"
                 name="betrag_von"
@@ -172,7 +177,11 @@ const AnalyticsFilterForm = ({
             <div className="grid gap-2">
               <Label htmlFor="analytics-amount-max">Betrag bis</Label>
               <Input
-                defaultValue={filters.amount_max?.replace('.', ',')}
+                defaultValue={
+                  filters.amount_max === undefined
+                    ? undefined
+                    : decimalInputValue(filters.amount_max)
+                }
                 id="analytics-amount-max"
                 inputMode="decimal"
                 name="betrag_bis"
@@ -271,8 +280,8 @@ const AnalyticsFilterForm = ({
 const CategoryChart = ({ data }: { data: CategoryTotals }) => {
   const chartData = data.series.map((item) => ({
     category: item.category,
-    income: chartValue(item.income),
-    expense: chartValue(item.expense)
+    income: item.income,
+    expense: item.expense
   }))
 
   if (chartData.length === 0) {
@@ -292,9 +301,7 @@ const CategoryChart = ({ data }: { data: CategoryTotals }) => {
       <BarChart accessibilityLayer data={chartData} margin={{ left: 8, right: 8 }}>
         <CartesianGrid vertical={false} />
         <XAxis dataKey="category" tickLine={false} tickMargin={8} />
-        <YAxis
-          tickFormatter={(value: number) => formatDecimal(String(value), { currency: false })}
-        />
+        <YAxis tickFormatter={(value: number) => formatDecimal(value, { currency: false })} />
         <ChartTooltip content={<ChartTooltipContent />} cursor={false} />
         <ChartLegend content={<ChartLegendContent />} />
         <Bar dataKey="income" fill="var(--color-income)" radius={4} />
@@ -396,17 +403,15 @@ const AnalyticsDashboard = ({
                 accessibilityLayer
                 data={monthlyTotals.data.series.map((item) => ({
                   label: item.label,
-                  income: chartValue(item.income),
-                  expense: chartValue(item.expense)
+                  income: item.income,
+                  expense: item.expense
                 }))}
                 margin={{ left: 8, right: 8 }}
               >
                 <CartesianGrid vertical={false} />
                 <XAxis dataKey="label" tickLine={false} tickMargin={8} />
                 <YAxis
-                  tickFormatter={(value: number) =>
-                    formatDecimal(String(value), { currency: false })
-                  }
+                  tickFormatter={(value: number) => formatDecimal(value, { currency: false })}
                 />
                 <ChartTooltip content={<ChartTooltipContent />} cursor={false} />
                 <ChartLegend content={<ChartLegendContent />} />

@@ -18,8 +18,6 @@ type TransactionDraftResult =
   | { status: 'valid'; value: TransactionWrite }
   | { status: 'invalid'; message: string }
 
-const currentDate = (): string => new Date().toISOString().slice(0, 10)
-
 const optionalId = (value: string): number | null | undefined => {
   if (value === '') {
     return null
@@ -28,17 +26,6 @@ const optionalId = (value: string): number | null | undefined => {
   const parsed = Number(value)
   return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined
 }
-
-export const createTransactionDraft = (): TransactionDraft => ({
-  recipient: '',
-  amount: '',
-  subject: '',
-  dateIssue: currentDate(),
-  dateBooking: '',
-  fullSubjectString: '',
-  categoryId: '',
-  contractId: ''
-})
 
 export const transactionDraftFromTransaction = (transaction: Transaction): TransactionDraft => ({
   recipient: transaction.recipient,

@@ -1,6 +1,2 @@
-export { TransactionBulkPage } from '@/features/transactions/transaction-bulk-page'
-export { TransactionCreatePage } from '@/features/transactions/transaction-create-page'
-export { TransactionDetailPage } from '@/features/transactions/transaction-detail-page'
-export { TransactionEditPage } from '@/features/transactions/transaction-edit-page'
 export { TransactionImportPage } from '@/features/transactions/transaction-import-page'
 export { TransactionListPage } from '@/features/transactions/transaction-list-page'

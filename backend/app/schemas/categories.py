@@ -14,9 +14,3 @@ class CategoryWrite(BaseModel):
 
     name: str = Field(min_length=1, max_length=255)
     patterns: str = ""
-
-
-class RecategorizationResponse(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    changed: int

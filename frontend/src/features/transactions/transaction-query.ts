@@ -6,7 +6,6 @@ export const invalidateAccountTransactionData = async (
 ): Promise<void> => {
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: ['transactions', accountId] }),
-    queryClient.invalidateQueries({ queryKey: ['transaction', accountId] }),
     queryClient.invalidateQueries({ queryKey: ['account', accountId] }),
     queryClient.invalidateQueries({ queryKey: ['portfolio'] }),
     queryClient.invalidateQueries({ queryKey: ['analytics'] }),

@@ -17,14 +17,7 @@ import {
   ContractsPage
 } from '@/features/contracts/contract-pages'
 import { AppErrorBoundary, FatalErrorPage, NotFoundPage } from '@/features/errors/error-pages'
-import {
-  TransactionBulkPage,
-  TransactionCreatePage,
-  TransactionDetailPage,
-  TransactionEditPage,
-  TransactionImportPage,
-  TransactionListPage
-} from '@/features/transactions'
+import { TransactionImportPage, TransactionListPage } from '@/features/transactions'
 import { ApplicationShell } from '@/layouts/application-shell'
 import { HOME, LOGIN } from '@/routes/urls'
 
@@ -67,24 +60,8 @@ export const App = () => {
                   <Route element={<PortfolioPage />} index />
                   <Route element={<TransactionListPage />} path="konten/:accountId" />
                   <Route
-                    element={<TransactionCreatePage />}
-                    path="konten/:accountId/transaktionen/neu"
-                  />
-                  <Route
-                    element={<TransactionBulkPage />}
-                    path="konten/:accountId/transaktionen/sammelerfassung"
-                  />
-                  <Route
                     element={<TransactionImportPage />}
                     path="konten/:accountId/transaktionen/importieren"
-                  />
-                  <Route
-                    element={<TransactionDetailPage />}
-                    path="konten/:accountId/transaktionen/:transactionId"
-                  />
-                  <Route
-                    element={<TransactionEditPage />}
-                    path="konten/:accountId/transaktionen/:transactionId/bearbeiten"
                   />
                   <Route element={<DepotPage />} path="depots/:depotId" />
                   <Route element={<CategoriesPage />} path="kategorien" />

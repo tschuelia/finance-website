@@ -30,11 +30,19 @@ pre-commit:
       priority: 6
       glob: "**/*.py"
       run: pixi run ruff format -- {staged_files}
-    frontend-eslint:
+    frontend-biome:
       priority: 7
+      glob: "frontend/**/*.{css,html,js,json,jsx,ts,tsx}"
+      run: pixi run frontend-format-staged
+    frontend-eslint:
+      priority: 8
       glob: "frontend/**/*.{js,jsx,ts,tsx}"
       run: pixi run frontend-lint
-    frontend-biome:
-      priority: 8
-      glob: "frontend/**/*.{css,html,js,json,jsx,ts,tsx}"
-      run: pixi run frontend-format-check
+    frontend-knip:
+      priority: 9
+      glob:
+        - ".gitignore"
+        - "lefthook.yml"
+        - "pixi.toml"
+        - "frontend/**"
+      run: pixi run frontend-knip

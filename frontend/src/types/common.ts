@@ -1,6 +1,6 @@
 import * as z from 'zod'
 
-export const DecimalSchema = z.string().regex(/^-?\d+(?:\.\d+)?$/, 'Ungültiger Dezimalwert')
+export const DecimalSchema = z.number()
 export const DateSchema = z.iso.date()
 export const DateTimeSchema = z.iso.datetime({ local: true })
 

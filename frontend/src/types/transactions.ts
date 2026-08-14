@@ -65,23 +65,6 @@ export const TransactionWriteSchema = z
 
 export type TransactionWrite = z.infer<typeof TransactionWriteSchema>
 
-export const TransactionBulkCreateSchema = z
-  .object({
-    items: z.array(TransactionWriteSchema).min(1).max(500)
-  })
-  .strict()
-
-export type TransactionBulkCreate = z.infer<typeof TransactionBulkCreateSchema>
-
-export const TransactionBulkSchema = z
-  .object({
-    items: z.array(TransactionSchema),
-    created: z.number().int().nonnegative()
-  })
-  .strict()
-
-export type TransactionBulk = z.infer<typeof TransactionBulkSchema>
-
 export const TransactionFiltersSchema = z
   .object({
     q: z.string().optional(),

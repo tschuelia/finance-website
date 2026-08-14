@@ -1,16 +1,14 @@
-/* cspell:words Auswertungen Buchungsübersicht Designsystems Formularbausteine Hauptkontos Kontenübersicht Kontostand Ladestatus Monatsvergleich Profilmenü Voransicht */
+/* cspell:words Auswertungen Buchungsübersicht Formularbausteine Hauptkontos Kontenübersicht Kontostand Ladestatus Monatsvergleich */
 
 import { useState } from 'react'
 import {
   ChartNoAxesCombined,
-  Download,
   Landmark,
   MoreHorizontal,
   Plus,
   SlidersHorizontal,
   Tags,
   Trash2,
-  UserRound,
   WalletCards
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -53,8 +51,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import {
@@ -104,7 +100,6 @@ import {
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ApplicationLayout } from '@/layouts/application-layout'
 import type { NavigationItem } from '@/layouts/application-layout'
 
@@ -149,45 +144,7 @@ export const DesignSystemShowcase = () => {
   const [bookingDate, setBookingDate] = useState<Date | undefined>(new Date(2026, 7, 13))
 
   return (
-    <ApplicationLayout
-      navigation={navigation}
-      activeHref="#konten"
-      footer={
-        <p className="px-2 text-xs text-sidebar-foreground/70">Voransicht des Designsystems</p>
-      }
-      headerActions={
-        <>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label="Als CSV exportieren">
-                <Download />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Als CSV exportieren</TooltipContent>
-          </Tooltip>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label="Profilmenü öffnen">
-                <UserRound />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Mein Bereich</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onSelect={() => {
-                  toast.info('Die Einstellungen sind noch nicht verfügbar.', {
-                    id: 'design-system-settings-unavailable'
-                  })
-                }}
-              >
-                Einstellungen
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </>
-      }
-    >
+    <ApplicationLayout navigation={navigation} activeHref="#konten">
       <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-6">
         <section className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>

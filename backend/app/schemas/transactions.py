@@ -4,6 +4,7 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.schemas.types import ApiDecimal
 from app.services.transactions import TransactionType
 
 
@@ -13,7 +14,7 @@ class TransactionResponse(BaseModel):
     id: int
     bank_account_id: int | None
     recipient: str
-    amount: Decimal
+    amount: ApiDecimal
     subject: str
     date_issue: date
     date_booking: date | None
@@ -27,9 +28,9 @@ class TransactionResponse(BaseModel):
 class TransactionSummaryResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    total: Decimal
-    paid: Decimal
-    received: Decimal
+    total: ApiDecimal
+    paid: ApiDecimal
+    received: ApiDecimal
     minimum_date: date | None
     maximum_date: date | None
 
@@ -50,7 +51,7 @@ class TransactionWrite(BaseModel):
 
     bank_account_id: int
     recipient: str | None = Field(default=None, max_length=255)
-    amount: Decimal = Field(max_digits=10, decimal_places=2)
+    amount: ApiDecimal = Field(max_digits=10, decimal_places=2)
     subject: str = Field(max_length=1024)
     date_issue: date
     date_booking: date | None = None
@@ -65,19 +66,6 @@ class TransactionWrite(BaseModel):
         if self.full_subject_string is None:
             self.full_subject_string = self.subject
         return self
-
-
-class TransactionBulkCreate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    items: list[TransactionWrite] = Field(min_length=1)
-
-
-class TransactionBulkResponse(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    items: list[TransactionResponse]
-    created: int
 
 
 class TransactionFilterQuery(BaseModel):

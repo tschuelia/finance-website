@@ -20,7 +20,6 @@ from app.services.categories import (
     category_patterns,
     match_transaction_category,
     matches_any_pattern,
-    reassign_account_categories,
 )
 from app.services.contracts import ContractFinancials, get_contract_financials
 from app.services.depots import (
@@ -68,5 +67,4 @@ __all__ = [
     "list_visible_contracts",
     "match_transaction_category",
     "matches_any_pattern",
-    "reassign_account_categories",
 ]

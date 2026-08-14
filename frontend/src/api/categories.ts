@@ -1,6 +1,6 @@
 import { apiClient, parseApiResponse } from '@/api/index'
-import { CategorySchema, CategoryWriteSchema, RecategorizationSchema } from '@/types/categories'
-import type { Category, CategoryWrite, Recategorization } from '@/types/categories'
+import { CategorySchema, CategoryWriteSchema } from '@/types/categories'
+import type { Category, CategoryWrite } from '@/types/categories'
 import * as z from 'zod'
 
 const CategoryListSchema = z.array(CategorySchema)
@@ -23,9 +23,4 @@ export const updateCategory = async (
   const request = CategoryWriteSchema.parse(payload)
   const response = await apiClient.put(`/categories/${categoryId}`, request)
   return parseApiResponse(CategorySchema, response.data)
-}
-
-export const recategorizeAccount = async (accountId: number): Promise<Recategorization> => {
-  const response = await apiClient.post(`/accounts/${accountId}/recategorize`)
-  return parseApiResponse(RecategorizationSchema, response.data)
 }
