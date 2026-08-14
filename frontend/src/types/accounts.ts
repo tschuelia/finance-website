@@ -16,6 +16,12 @@ export const AccountSummarySchema = z
 
 export type AccountSummary = z.infer<typeof AccountSummarySchema>
 
+export const AccountDetailSchema = AccountSummarySchema.extend({
+  owner: UserSummarySchema
+}).strict()
+
+export type AccountDetail = z.infer<typeof AccountDetailSchema>
+
 export const DepotSummarySchema = z
   .object({
     id: z.number().int().positive(),

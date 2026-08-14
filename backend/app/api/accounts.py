@@ -7,6 +7,7 @@ from app.auth.dependencies import get_current_user, require_csrf
 from app.db import request_session
 from app.db.models import BankAccount, BankDepot, User
 from app.schemas.accounts import (
+    AccountDetailResponse,
     AccountSummary,
     DepotAssetResponse,
     DepotAssetTransactionResponse,
@@ -104,14 +105,25 @@ def user_list(
     return [_user_summary(user) for user in list_visible_users(session, current_user)]
 
 
-@router.get("/accounts/{account_id}", response_model=AccountSummary)
+@router.get("/accounts/{account_id}", response_model=AccountDetailResponse)
 def account_detail(
     account_id: int,
     current_user: CurrentUser,
     session: DatabaseSession,
-) -> AccountSummary:
+) -> AccountDetailResponse:
     account = get_visible_bank_account(session, current_user, account_id)
-    return _account_summary(session, current_user, account)
+    summary = _account_summary(session, current_user, account)
+    return AccountDetailResponse(
+        id=summary.id,
+        name=summary.name,
+        bank=summary.bank,
+        current_amount=summary.current_amount,
+        balance=summary.balance,
+        oldest_transaction_date=summary.oldest_transaction_date,
+        newest_transaction_date=summary.newest_transaction_date,
+        maximum_absolute_transaction_amount=summary.maximum_absolute_transaction_amount,
+        owner=_user_summary(account.owner),
+    )
 
 
 @router.get("/depots/{depot_id}", response_model=DepotDetailResponse)

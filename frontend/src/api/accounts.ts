@@ -1,10 +1,26 @@
 import { apiClient, parseApiResponse } from '@/api/index'
-import { DepotAssetSchema, DepotDetailSchema, PortfolioOverviewSchema } from '@/types/accounts'
-import type { DepotAsset, DepotAssetUpdate, DepotDetail, PortfolioOverview } from '@/types/accounts'
+import {
+  AccountDetailSchema,
+  DepotAssetSchema,
+  DepotDetailSchema,
+  PortfolioOverviewSchema
+} from '@/types/accounts'
+import type {
+  AccountDetail,
+  DepotAsset,
+  DepotAssetUpdate,
+  DepotDetail,
+  PortfolioOverview
+} from '@/types/accounts'
 
 export const getPortfolioOverview = async (): Promise<PortfolioOverview> => {
   const response = await apiClient.get('/accounts')
   return parseApiResponse(PortfolioOverviewSchema, response.data)
+}
+
+export const getAccount = async (accountId: number): Promise<AccountDetail> => {
+  const response = await apiClient.get(`/accounts/${accountId}`)
+  return parseApiResponse(AccountDetailSchema, response.data)
 }
 
 export const getDepot = async (depotId: number): Promise<DepotDetail> => {

@@ -1,13 +1,22 @@
 import { useQuery } from '@tanstack/react-query'
-import { getDepot, getPortfolioOverview } from '@/api/accounts'
+import { getAccount, getDepot, getPortfolioOverview } from '@/api/accounts'
 import { resolveQuery } from '@/hooks/resolveQuery'
 import type { HookReturnValue } from '@/hooks/resolveQuery'
-import type { DepotDetail, PortfolioOverview } from '@/types/accounts'
+import type { AccountDetail, DepotDetail, PortfolioOverview } from '@/types/accounts'
 
 const portfolioQueryKey = ['portfolio'] as const
 
 export const usePortfolioOverview = (): HookReturnValue<PortfolioOverview> => {
   const query = useQuery({ queryKey: portfolioQueryKey, queryFn: getPortfolioOverview })
+  return resolveQuery(query)
+}
+
+export const useAccount = (accountId: number): HookReturnValue<AccountDetail> => {
+  const query = useQuery({
+    queryKey: ['account', accountId],
+    queryFn: async () => await getAccount(accountId),
+    enabled: Number.isInteger(accountId) && accountId > 0
+  })
   return resolveQuery(query)
 }
 

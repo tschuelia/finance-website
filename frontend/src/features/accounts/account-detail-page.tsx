@@ -1,14 +1,13 @@
-/* cspell:words Kontotransaktionen */
-
-import { Upload } from 'lucide-react'
+import { Building, Calendar, Dot, Upload, User } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/shared/page-header'
 import { EmptyState, ErrorState, LoadingState } from '@/components/shared/query-feedback'
+import { useAccount } from '@/hooks/use-accounts'
 import { useCategories } from '@/hooks/use-categories'
 import { useTransactions } from '@/hooks/use-transactions'
-import { parsePositiveId } from '@/lib/format'
+import { formatDate, parsePositiveId } from '@/lib/format'
 import { accountTransactionImportUrl, accountUrl } from '@/routes/urls'
 import type { Transaction, TransactionFilters } from '@/types/transactions'
 import { TransactionEditorDialog } from '@/features/transactions/transaction-editor-dialog'
@@ -24,14 +23,15 @@ import {
   TransactionTable
 } from '@/features/transactions/transaction-table'
 
-type TransactionListContentProps = {
+type AccountDetailContentProps = {
   accountId: number
 }
 
-const TransactionListContent = ({ accountId }: TransactionListContentProps) => {
+const AccountDetailContent = ({ accountId }: AccountDetailContentProps) => {
   const location = useLocation()
   const navigate = useNavigate()
   const filters = useMemo(() => transactionFiltersFromSearch(location.search), [location.search])
+  const account = useAccount(accountId)
   const transactions = useTransactions(accountId, filters)
   const categories = useCategories()
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | undefined>()
@@ -49,14 +49,41 @@ const TransactionListContent = ({ accountId }: TransactionListContentProps) => {
     </Button>
   )
 
+  if (account.status === 'loading') {
+    return <LoadingState title="Konto wird geladen" />
+  }
+
+  if (account.status === 'error') {
+    return <ErrorState error={account.error} />
+  }
+
+  const metadata = (
+    <span className="flex flex-wrap items-center gap-2">
+      <span className="flex items-center gap-1">
+        <User aria-hidden size={14} />
+        {account.data.owner.username}
+      </span>
+      <Dot aria-hidden size={12} />
+      <span className="flex items-center gap-1">
+        <Calendar aria-hidden size={14} />
+        {formatDate(account.data.newest_transaction_date)}
+      </span>
+      <Dot aria-hidden size={12} />
+      <span className="flex items-center gap-1">
+        <Building aria-hidden size={14} />
+        {account.data.bank}
+      </span>
+    </span>
+  )
+
+  const pageHeader = (
+    <PageHeader actions={pageActions} description={metadata} title={account.data.name} />
+  )
+
   if (transactions.status === 'loading') {
     return (
       <>
-        <PageHeader
-          actions={pageActions}
-          description="Deine Buchungen werden serverseitig gefiltert und paginiert."
-          title="Kontotransaktionen"
-        />
+        {pageHeader}
         <LoadingState title="Transaktionen werden geladen" />
       </>
     )
@@ -65,7 +92,7 @@ const TransactionListContent = ({ accountId }: TransactionListContentProps) => {
   if (transactions.status === 'error') {
     return (
       <>
-        <PageHeader title="Kontotransaktionen" />
+        {pageHeader}
         <ErrorState error={transactions.error} />
       </>
     )
@@ -76,11 +103,9 @@ const TransactionListContent = ({ accountId }: TransactionListContentProps) => {
       ? (categories.error.problem?.detail ?? 'Die Kategorien konnten nicht geladen werden.')
       : undefined
 
-  const metadata = <div className="flex items-center gap-2 text-muted-foreground text-sm">{}</div>
-
   return (
     <>
-      <PageHeader actions={pageActions} description={metadata} title="Kontotransaktionen" />
+      {pageHeader}
       <TransactionFilterForm
         categories={categories.status === 'success' ? categories.data : []}
         categoriesError={categoryError}
@@ -117,7 +142,7 @@ const TransactionListContent = ({ accountId }: TransactionListContentProps) => {
   )
 }
 
-export const TransactionListPage = () => {
+export const AccountDetailPage = () => {
   const { accountId: accountIdParam } = useParams()
   const accountId = parsePositiveId(accountIdParam)
 
@@ -125,5 +150,5 @@ export const TransactionListPage = () => {
     return <EmptyState description="Die Konto-Adresse ist ungültig." title="Konto nicht gefunden" />
   }
 
-  return <TransactionListContent accountId={accountId} />
+  return <AccountDetailContent accountId={accountId} />
 }

@@ -28,6 +28,10 @@ class AccountSummary(BaseModel):
     maximum_absolute_transaction_amount: ApiDecimal
 
 
+class AccountDetailResponse(AccountSummary):
+    owner: UserSummary
+
+
 class DepotSummary(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

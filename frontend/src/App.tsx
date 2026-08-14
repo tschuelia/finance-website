@@ -3,6 +3,7 @@
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router'
 import { ApplicationProviders } from '@/components/providers/application-providers'
 import { LoadingState } from '@/components/shared/query-feedback'
+import { AccountDetailPage } from '@/features/accounts/account-detail-page'
 import { DepotPage } from '@/features/accounts/depot-page'
 import { PortfolioPage } from '@/features/accounts/portfolio-page'
 import { AnalyticsPage } from '@/features/analytics/analytics-page'
@@ -17,7 +18,7 @@ import {
   ContractsPage
 } from '@/features/contracts/contract-pages'
 import { AppErrorBoundary, FatalErrorPage, NotFoundPage } from '@/features/errors/error-pages'
-import { TransactionImportPage, TransactionListPage } from '@/features/transactions'
+import { TransactionImportPage } from '@/features/transactions'
 import { ApplicationShell } from '@/layouts/application-shell'
 import { HOME, LOGIN } from '@/routes/urls'
 
@@ -58,7 +59,7 @@ export const App = () => {
               <Route element={<ProtectedRoute />}>
                 <Route element={<AuthenticatedLayout />}>
                   <Route element={<PortfolioPage />} index />
-                  <Route element={<TransactionListPage />} path="konten/:accountId" />
+                  <Route element={<AccountDetailPage />} path="konten/:accountId" />
                   <Route
                     element={<TransactionImportPage />}
                     path="konten/:accountId/transaktionen/importieren"
