@@ -1,14 +1,20 @@
 /* cspell:words Transaktionsfilter */
 
 import { DateSchema, DecimalSchema } from '@/types/common'
-import { TransactionFiltersSchema, TransactionTypeSchema } from '@/types/transactions'
-import type { TransactionFilters, TransactionType } from '@/types/transactions'
+import {
+  TransactionDataFiltersSchema,
+  TransactionFiltersSchema,
+  TransactionTypeSchema
+} from '@/types/transactions'
+import type {
+  TransactionDataFilters,
+  TransactionFilters,
+  TransactionType
+} from '@/types/transactions'
 
-const defaultFilters = (): TransactionFilters => ({
+const defaultDataFilters = (): TransactionDataFilters => ({
   category_ids: [],
-  transaction_type: 'all',
-  page: 1,
-  page_size: 100
+  transaction_type: 'all'
 })
 
 const positiveInteger = (value: string | null, fallback: number): number => {
@@ -43,13 +49,13 @@ const validCategoryIds = (values: string[]): number[] => {
   return [...new Set(ids)]
 }
 
-export const transactionFiltersFromSearch = (search: string): TransactionFilters => {
+export const transactionDataFiltersFromSearch = (search: string): TransactionDataFilters => {
   const params = new URLSearchParams(search)
   const dateStart = validDate(params.get('date_start'))
   const dateEnd = validDate(params.get('date_end'))
   const amountMin = validAmount(params.get('amount_min'))
   const amountMax = validAmount(params.get('amount_max'))
-  const filters = TransactionFiltersSchema.parse({
+  return TransactionDataFiltersSchema.parse({
     q: params.get('q')?.trim() || undefined,
     date_start:
       dateStart !== undefined && (dateEnd === undefined || dateStart <= dateEnd)
@@ -68,15 +74,22 @@ export const transactionFiltersFromSearch = (search: string): TransactionFilters
         ? amountMax
         : undefined,
     category_ids: validCategoryIds(params.getAll('category_ids')),
-    transaction_type: validTransactionType(params.get('transaction_type')),
+    transaction_type: validTransactionType(params.get('transaction_type'))
+  })
+}
+
+export const transactionFiltersFromSearch = (search: string): TransactionFilters => {
+  const params = new URLSearchParams(search)
+  return TransactionFiltersSchema.parse({
+    ...transactionDataFiltersFromSearch(search),
     page: positiveInteger(params.get('page'), 1),
     page_size: Math.min(positiveInteger(params.get('page_size'), 100), 500)
   })
-
-  return filters
 }
 
-export const transactionFiltersToSearch = (filters: TransactionFilters): string => {
+export const transactionDataFiltersToSearchParams = (
+  filters: TransactionDataFilters
+): URLSearchParams => {
   const params = new URLSearchParams()
 
   if (filters.q !== undefined && filters.q !== '') {
@@ -104,6 +117,11 @@ export const transactionFiltersToSearch = (filters: TransactionFilters): string 
   }
 
   params.set('transaction_type', filters.transaction_type)
+  return params
+}
+
+export const transactionFiltersToSearch = (filters: TransactionFilters): string => {
+  const params = transactionDataFiltersToSearchParams(filters)
   params.set('page', String(filters.page))
   params.set('page_size', String(filters.page_size))
 
@@ -119,4 +137,4 @@ export const transactionFiltersForPage = (
   page
 })
 
-export const defaultTransactionFilters = (): TransactionFilters => defaultFilters()
+export const defaultTransactionDataFilters = (): TransactionDataFilters => defaultDataFilters()

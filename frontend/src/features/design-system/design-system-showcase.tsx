@@ -334,9 +334,19 @@ export const DesignSystemShowcase = () => {
                 <BarChart accessibilityLayer data={chartData}>
                   <CartesianGrid vertical={false} />
                   <XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="einnahmen" fill="var(--color-einnahmen)" radius={4} />
-                  <Bar dataKey="ausgaben" fill="var(--color-ausgaben)" radius={4} />
+                  <ChartTooltip content={<ChartTooltipContent />} isAnimationActive={false} />
+                  <Bar
+                    dataKey="einnahmen"
+                    fill="var(--color-einnahmen)"
+                    isAnimationActive={false}
+                    radius={4}
+                  />
+                  <Bar
+                    dataKey="ausgaben"
+                    fill="var(--color-ausgaben)"
+                    isAnimationActive={false}
+                    radius={4}
+                  />
                 </BarChart>
               </ChartContainer>
             </section>

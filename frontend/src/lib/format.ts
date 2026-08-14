@@ -28,6 +28,8 @@ export const formatDate = (date: string | null | undefined): string => {
   return dateFormatter.format(new Date(`${date.slice(0, 10)}T12:00:00`))
 }
 
+export const formatToday = (): string => dateFormatter.format(new Date())
+
 export const formatDecimal = (value: number, options?: { currency?: boolean }): string =>
   ((options?.currency ?? true) ? currencyFormatter : decimalFormatter).format(value)
 

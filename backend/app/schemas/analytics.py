@@ -1,38 +1,13 @@
 from datetime import date
-from decimal import Decimal
-from typing import Self
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.schemas.transactions import TransactionDataFilterQuery
 from app.schemas.types import ApiDecimal
-from app.services.transactions import TransactionType
 
 
-class AnalyticsFilterQuery(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    date_start: date | None = None
-    date_end: date | None = None
-    amount_min: Decimal | None = Field(default=None, ge=0)
-    amount_max: Decimal | None = Field(default=None, ge=0)
-    category_ids: list[int] = Field(default_factory=list)
-    transaction_type: TransactionType = TransactionType.ALL
-
-    @model_validator(mode="after")
-    def validate_ranges(self) -> Self:
-        if (
-            self.date_start is not None
-            and self.date_end is not None
-            and self.date_start > self.date_end
-        ):
-            raise ValueError("date_start must not be after date_end")
-        if (
-            self.amount_min is not None
-            and self.amount_max is not None
-            and self.amount_min > self.amount_max
-        ):
-            raise ValueError("amount_min must not exceed amount_max")
-        return self
+class AnalyticsFilterQuery(TransactionDataFilterQuery):
+    pass
 
 
 class ComparisonQuery(AnalyticsFilterQuery):

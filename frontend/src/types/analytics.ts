@@ -1,17 +1,8 @@
 import * as z from 'zod'
-import { DateSchema, DecimalSchema } from '@/types/common'
-import { TransactionTypeSchema } from '@/types/transactions'
+import { DecimalSchema } from '@/types/common'
+import { TransactionDataFiltersSchema } from '@/types/transactions'
 
-export const AnalyticsFiltersSchema = z
-  .object({
-    date_start: DateSchema.optional(),
-    date_end: DateSchema.optional(),
-    amount_min: DecimalSchema.optional(),
-    amount_max: DecimalSchema.optional(),
-    category_ids: z.array(z.number().int().positive()).default([]),
-    transaction_type: TransactionTypeSchema.default('all')
-  })
-  .strict()
+export const AnalyticsFiltersSchema = TransactionDataFiltersSchema
 
 export type AnalyticsFilters = z.infer<typeof AnalyticsFiltersSchema>
 

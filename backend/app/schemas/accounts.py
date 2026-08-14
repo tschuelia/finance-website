@@ -65,6 +65,13 @@ class DepotAssetTransactionResponse(BaseModel):
     date_issue: date
 
 
+class DepotBalancePointResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    date: date
+    balance: ApiDecimal
+
+
 class DepotAssetResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -74,6 +81,7 @@ class DepotAssetResponse(BaseModel):
     last_update: date
     transaction_total: ApiDecimal
     transactions: list[DepotAssetTransactionResponse]
+    balance_history: list[DepotBalancePointResponse]
 
 
 class DepotDetailResponse(BaseModel):
@@ -84,6 +92,7 @@ class DepotDetailResponse(BaseModel):
     owner: UserSummary
     balance: ApiDecimal
     last_update: date
+    balance_history: list[DepotBalancePointResponse]
     assets: list[DepotAssetResponse]
 
 
@@ -91,4 +100,3 @@ class DepotAssetUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     current_balance: ApiDecimal = Field(max_digits=10, decimal_places=2)
-    last_update: date

@@ -4,7 +4,7 @@ import type { FormEvent } from 'react'
 import { useState } from 'react'
 import { Filter, RotateCcw, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Combobox,
   ComboboxChip,
@@ -28,15 +28,15 @@ import {
 } from '@/components/ui/select'
 import { decimalInputValue, parseDecimalInput } from '@/lib/format'
 import type { Category } from '@/types/categories'
-import type { TransactionFilters, TransactionType } from '@/types/transactions'
-import { defaultTransactionFilters } from '@/features/transactions/transaction-search'
+import type { TransactionDataFilters, TransactionType } from '@/types/transactions'
+import { defaultTransactionDataFilters } from '@/features/transactions/transaction-search'
 
 type TransactionFilterFormProps = {
   categories: Category[]
   categoriesError?: string
   categoriesLoading: boolean
-  filters: TransactionFilters
-  onApply: (filters: TransactionFilters) => void
+  filters: TransactionDataFilters
+  onApply: (filters: TransactionDataFilters) => void
 }
 
 type TransactionFilterDraft = {
@@ -49,7 +49,7 @@ type TransactionFilterDraft = {
   transactionType: TransactionType
 }
 
-const draftFromFilters = (filters: TransactionFilters): TransactionFilterDraft => ({
+const draftFromFilters = (filters: TransactionDataFilters): TransactionFilterDraft => ({
   q: filters.q ?? '',
   dateStart: filters.date_start ?? '',
   dateEnd: filters.date_end ?? '',
@@ -92,6 +92,14 @@ export const TransactionFilterForm = ({
   const selectedCategories = categories.filter((category) =>
     draft.categoryIds.includes(category.id)
   )
+  const hasActiveFilters =
+    filters.q !== undefined ||
+    filters.date_start !== undefined ||
+    filters.date_end !== undefined ||
+    filters.amount_min !== undefined ||
+    filters.amount_max !== undefined ||
+    filters.category_ids.length > 0 ||
+    filters.transaction_type !== 'all'
 
   const change = <Key extends keyof TransactionFilterDraft>(
     key: Key,
@@ -128,17 +136,12 @@ export const TransactionFilterForm = ({
       amount_min: amountMin,
       amount_max: amountMax,
       category_ids: draft.categoryIds,
-      transaction_type: draft.transactionType,
-      page: 1,
-      page_size: filters.page_size
+      transaction_type: draft.transactionType
     })
   }
 
   const reset = () => {
-    const resetFilters = {
-      ...defaultTransactionFilters(),
-      page_size: filters.page_size
-    }
+    const resetFilters = defaultTransactionDataFilters()
     setDraft(draftFromFilters(resetFilters))
     setFormError(undefined)
     onApply(resetFilters)
@@ -148,12 +151,20 @@ export const TransactionFilterForm = ({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Filter className="size-4" aria-hidden />
+          <span className="relative inline-flex">
+            <Filter className="size-4" aria-hidden />
+            {hasActiveFilters ? (
+              <>
+                <span
+                  aria-hidden
+                  className="absolute -top-1 -right-1 size-2 rounded-full bg-primary ring-2 ring-card"
+                />
+                <span className="sr-only">Aktive Filter</span>
+              </>
+            ) : null}
+          </span>
           Transaktionen filtern
         </CardTitle>
-        <CardDescription>
-          Die Filter werden in der Adresse gespeichert und bleiben beim Weiterblättern erhalten.
-        </CardDescription>
       </CardHeader>
       <CardContent>
         <form className="grid gap-5" onSubmit={submit}>

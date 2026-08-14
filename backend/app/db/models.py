@@ -77,6 +77,30 @@ class BankDepot(Base):
 
     owner: Mapped[User] = relationship(back_populates="bank_depots")
     assets: Mapped[list[DepotAsset]] = relationship(back_populates="bank_depot")
+    snapshots: Mapped[list[DepotBalanceSnapshot]] = relationship(
+        back_populates="bank_depot", cascade="all, delete-orphan"
+    )
+
+
+class DepotBalanceSnapshot(Base):
+    __tablename__ = "finances_depot_balance_snapshot"
+    __table_args__ = (
+        Index(
+            "finances_depot_balance_snapshot_depot_date_idx",
+            "bank_depot_id",
+            "date",
+            unique=True,
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    bank_depot_id: Mapped[int] = mapped_column(
+        Integer, legacy_foreign_key("accounting_bankdepot.id")
+    )
+    date: Mapped[datetime.date] = mapped_column(Date)
+    balance: Mapped[Decimal] = mapped_column(Numeric(10, 2))
+
+    bank_depot: Mapped[BankDepot] = relationship(back_populates="snapshots")
 
 
 class DepotAsset(Base):
@@ -93,6 +117,28 @@ class DepotAsset(Base):
 
     bank_depot: Mapped[BankDepot | None] = relationship(back_populates="assets")
     transactions: Mapped[list[DepotAssetTransaction]] = relationship(back_populates="asset")
+    balance_snapshots: Mapped[list[DepotAssetBalanceSnapshot]] = relationship(
+        back_populates="asset", cascade="all, delete-orphan"
+    )
+
+
+class DepotAssetBalanceSnapshot(Base):
+    __tablename__ = "finances_depot_asset_balance_snapshot"
+    __table_args__ = (
+        Index(
+            "finances_depot_asset_balance_snapshot_asset_date_idx",
+            "asset_id",
+            "date",
+            unique=True,
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    asset_id: Mapped[int] = mapped_column(Integer, legacy_foreign_key("accounting_depotasset.id"))
+    date: Mapped[datetime.date] = mapped_column(Date)
+    balance: Mapped[Decimal] = mapped_column(Numeric(10, 2))
+
+    asset: Mapped[DepotAsset] = relationship(back_populates="balance_snapshots")
 
 
 class DepotAssetTransaction(Base):
@@ -214,4 +260,8 @@ LEGACY_MANAGED_TABLE_NAMES = frozenset(
     }
 )
 
-MANAGED_TABLE_NAMES = LEGACY_MANAGED_TABLE_NAMES | {ServerSession.__tablename__}
+MANAGED_TABLE_NAMES = LEGACY_MANAGED_TABLE_NAMES | {
+    DepotAssetBalanceSnapshot.__tablename__,
+    DepotBalanceSnapshot.__tablename__,
+    ServerSession.__tablename__,
+}

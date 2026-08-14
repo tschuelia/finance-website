@@ -27,6 +27,7 @@ DatabaseSession = Annotated[Session, Depends(request_session)]
 
 def _filters(query: AnalyticsFilterQuery) -> TransactionFilters:
     return TransactionFilters(
+        search_term=query.q,
         date_start=query.date_start,
         date_end=query.date_end,
         amount_min=query.amount_min,

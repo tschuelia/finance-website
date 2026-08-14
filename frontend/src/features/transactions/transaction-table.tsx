@@ -1,10 +1,17 @@
 /* cspell:words Buchungsdatum Kategorien Kontotransaktionen Wertstellungsdatum */
 
-import { BanknoteArrowDown, BanknoteArrowUp, ChevronLeft, ChevronRight, Euro } from 'lucide-react'
+import {
+  BanknoteArrowDown,
+  BanknoteArrowUp,
+  ChevronLeft,
+  ChevronRight,
+  Dot,
+  Euro
+} from 'lucide-react'
 import { Link } from 'react-router'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { EmptyState } from '@/components/shared/query-feedback'
 import {
   Table,
@@ -20,6 +27,7 @@ import type { Transaction, TransactionPage, TransactionSummary } from '@/types/t
 
 type TransactionSummaryCardsProps = {
   summary: TransactionSummary
+  total: number
 }
 
 type TransactionTableProps = {
@@ -32,7 +40,7 @@ type TransactionPaginationProps = {
   page: TransactionPage
 }
 
-export const TransactionSummaryCards = ({ summary }: TransactionSummaryCardsProps) => {
+export const TransactionSummaryCards = ({ summary, total }: TransactionSummaryCardsProps) => {
   const period =
     summary.minimum_date === null && summary.maximum_date === null
       ? 'Keine Buchungen im gewählten Zeitraum'
@@ -67,12 +75,16 @@ export const TransactionSummaryCards = ({ summary }: TransactionSummaryCardsProp
             <BanknoteArrowUp size={14} />
             Einnahmen
           </CardDescription>
-          <CardTitle className="text-xl text-emerald-700 dark:text-emerald-400">
+          <CardTitle className="text-xl text-emerald-700 ">
             {formatDecimal(summary.received)}
           </CardTitle>
         </CardHeader>
       </Card>
-      <p className="sm:col-span-3 text-sm text-muted-foreground">Zeitraum: {period}</p>
+      <div className="flex flex-wrap items-center gap-1 text-sm text-muted-foreground sm:col-span-3">
+        <span>Zeitraum: {period}</span>
+        <Dot aria-hidden className="shrink-0" size={16} />
+        <span>{total === 1 ? '1 passende Transaktion' : `${total} passende Transaktionen`}</span>
+      </div>
     </section>
   )
 }
@@ -88,83 +100,72 @@ export const TransactionTable = ({ items, onSelect }: TransactionTableProps) => 
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Transaktionen</CardTitle>
-      </CardHeader>
-      <CardContent className="px-0 sm:px-6">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Buchungsdatum</TableHead>
-              <TableHead>Wertstellung</TableHead>
-              <TableHead>Zahlung an/von</TableHead>
-              <TableHead className="text-right">Betrag</TableHead>
-              <TableHead>Betreff</TableHead>
-              <TableHead>Kategorie</TableHead>
-              <TableHead>Vertrag</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {items.map((transaction) => (
-              <TableRow
-                aria-haspopup="dialog"
-                aria-label={`Transaktion für ${transaction.recipient || transaction.subject} öffnen`}
-                className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-                key={transaction.id}
-                onClick={() => onSelect(transaction)}
-                onKeyDown={(event) => {
-                  if (
-                    event.target === event.currentTarget &&
-                    (event.key === 'Enter' || event.key === ' ')
-                  ) {
-                    event.preventDefault()
-                    onSelect(transaction)
-                  }
-                }}
-                tabIndex={0}
-              >
-                <TableCell>{formatDate(transaction.date_issue)}</TableCell>
-                <TableCell>{formatDate(transaction.date_booking)}</TableCell>
-                <TableCell className="max-w-48 truncate font-medium">
-                  {transaction.recipient}
-                </TableCell>
-                <TableCell
-                  className={`text-right font-medium ${
-                    transaction.amount < 0
-                      ? 'text-destructive'
-                      : 'text-emerald-700 dark:text-emerald-400'
-                  }`}
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Buchungsdatum</TableHead>
+          <TableHead>Wertstellung</TableHead>
+          <TableHead>Zahlung an/von</TableHead>
+          <TableHead className="text-right">Betrag</TableHead>
+          <TableHead>Betreff</TableHead>
+          <TableHead>Kategorie</TableHead>
+          <TableHead>Vertrag</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {items.map((transaction) => (
+          <TableRow
+            aria-haspopup="dialog"
+            aria-label={`Transaktion für ${transaction.recipient || transaction.subject} öffnen`}
+            className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+            key={transaction.id}
+            onClick={() => onSelect(transaction)}
+            onKeyDown={(event) => {
+              if (
+                event.target === event.currentTarget &&
+                (event.key === 'Enter' || event.key === ' ')
+              ) {
+                event.preventDefault()
+                onSelect(transaction)
+              }
+            }}
+            tabIndex={0}
+          >
+            <TableCell>{formatDate(transaction.date_issue)}</TableCell>
+            <TableCell>{formatDate(transaction.date_booking)}</TableCell>
+            <TableCell className="max-w-48 truncate font-medium">{transaction.recipient}</TableCell>
+            <TableCell
+              className={`text-right font-medium ${
+                transaction.amount < 0 ? 'text-destructive' : 'text-emerald-700'
+              }`}
+            >
+              {formatDecimal(transaction.amount)}
+            </TableCell>
+            <TableCell className="max-w-64 truncate">{transaction.subject}</TableCell>
+            <TableCell>
+              {transaction.category_name === null ? (
+                <span className="text-muted-foreground">Nicht zugeordnet</span>
+              ) : (
+                <Badge variant="outline">{transaction.category_name}</Badge>
+              )}
+            </TableCell>
+            <TableCell>
+              {transaction.contract_id === null || transaction.contract_name === null ? (
+                <span className="text-muted-foreground">Kein Vertrag</span>
+              ) : (
+                <Link
+                  className="text-primary hover:underline"
+                  onClick={(event) => event.stopPropagation()}
+                  to={contractUrl(transaction.contract_id)}
                 >
-                  {formatDecimal(transaction.amount)}
-                </TableCell>
-                <TableCell className="max-w-64 truncate">{transaction.subject}</TableCell>
-                <TableCell>
-                  {transaction.category_name === null ? (
-                    <span className="text-muted-foreground">Nicht zugeordnet</span>
-                  ) : (
-                    <Badge variant="outline">{transaction.category_name}</Badge>
-                  )}
-                </TableCell>
-                <TableCell>
-                  {transaction.contract_id === null || transaction.contract_name === null ? (
-                    <span className="text-muted-foreground">Kein Vertrag</span>
-                  ) : (
-                    <Link
-                      className="text-primary hover:underline"
-                      onClick={(event) => event.stopPropagation()}
-                      to={contractUrl(transaction.contract_id)}
-                    >
-                      {transaction.contract_name}
-                    </Link>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+                  {transaction.contract_name}
+                </Link>
+              )}
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   )
 }
 

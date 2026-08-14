@@ -1,15 +1,21 @@
 /* cspell:words Buchungsreferenz Empfänger Wertstellungsdatum */
 
-import { CalendarDays, FileText, Landmark, Tag, UserRound } from 'lucide-react'
+import { CalendarDays, ChevronDown, FileText, Landmark, Tag, UserRound } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import {
+  Combobox,
+  ComboboxCollection,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxGroup,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxSeparator
+} from '@/components/ui/combobox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import type { Category } from '@/types/categories'
 import type { ContractSummary } from '@/types/contracts'
@@ -26,9 +32,34 @@ type TransactionDraftFieldsProps = {
   onChange: (draft: TransactionDraft) => void
 }
 
-const selectValue = (value: string): string | undefined => (value === '' ? undefined : value)
+type CategoryOption = {
+  category: Category | null
+  label: string
+  value: string
+}
 
-const fromSelectValue = (value: string): string => (value === noSelection ? '' : value)
+type ContractOption = {
+  contract: ContractSummary | null
+  label: string
+  value: string
+}
+
+type ContractGroup = {
+  items: ContractOption[]
+  value: 'active' | 'inactive'
+}
+
+const noCategoryOption: CategoryOption = {
+  category: null,
+  label: 'Keine Kategorie',
+  value: noSelection
+}
+
+const noContractOption: ContractOption = {
+  contract: null,
+  label: 'Kein Vertrag',
+  value: noSelection
+}
 
 export const TransactionDraftFields = ({
   accountId,
@@ -38,6 +69,38 @@ export const TransactionDraftFields = ({
   idPrefix,
   onChange
 }: TransactionDraftFieldsProps) => {
+  const categoryOptions: CategoryOption[] = [
+    noCategoryOption,
+    ...categories.map((category) => ({
+      category,
+      label: category.name,
+      value: String(category.id)
+    }))
+  ]
+  const contractOptions: ContractOption[] = contracts.map((contract) => ({
+    contract,
+    label: contract.name,
+    value: String(contract.id)
+  }))
+  const selectedCategory =
+    categoryOptions.find((option) => option.value === draft.categoryId) ?? noCategoryOption
+  const selectedContract =
+    contractOptions.find((option) => option.value === draft.contractId) ?? noContractOption
+  const contractGroups = [
+    {
+      value: 'active',
+      items: [
+        noContractOption,
+        ...contractOptions.filter((option) => option.contract?.is_active === true)
+      ]
+    },
+    {
+      value: 'inactive',
+      items: contractOptions.filter((option) => option.contract?.is_active === false)
+    }
+  ] satisfies ContractGroup[]
+  const populatedContractGroups = contractGroups.filter((group) => group.items.length > 0)
+
   const change = <Key extends keyof TransactionDraft>(key: Key, value: TransactionDraft[Key]) => {
     onChange({ ...draft, [key]: value })
   }
@@ -106,55 +169,106 @@ export const TransactionDraftFields = ({
           <Tag className="size-3.5" aria-hidden />
           Kategorie
         </Label>
-        <Select
-          onValueChange={(value) => change('categoryId', fromSelectValue(value))}
-          value={selectValue(draft.categoryId)}
+        <Combobox
+          isItemEqualToValue={(item: CategoryOption, value: CategoryOption) =>
+            item.value === value.value
+          }
+          itemToStringLabel={(option: CategoryOption) => option.label}
+          itemToStringValue={(option: CategoryOption) => option.value}
+          items={categoryOptions}
+          onValueChange={(option: CategoryOption | null) =>
+            change('categoryId', option?.category === null ? '' : (option?.value ?? ''))
+          }
+          value={selectedCategory}
         >
-          <SelectTrigger id={`${idPrefix}-category`} className="w-full">
-            <SelectValue placeholder="Keine Kategorie" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={noSelection}>Keine Kategorie</SelectItem>
-            {categories.map((category) => (
-              <SelectItem key={category.id} value={String(category.id)}>
-                {category.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <ComboboxInput
+            className="w-full"
+            id={`${idPrefix}-category`}
+            placeholder="Keine Kategorie"
+          />
+          <ComboboxContent>
+            <ComboboxEmpty>Keine passende Kategorie gefunden.</ComboboxEmpty>
+            <ComboboxList>
+              {(option: CategoryOption) => (
+                <ComboboxItem key={option.value} value={option}>
+                  {option.label}
+                </ComboboxItem>
+              )}
+            </ComboboxList>
+          </ComboboxContent>
+        </Combobox>
       </div>
       <div className="grid gap-2">
         <Label htmlFor={`${idPrefix}-contract`}>
           <Landmark className="size-3.5" aria-hidden />
           Vertrag
         </Label>
-        <Select
-          onValueChange={(value) => change('contractId', fromSelectValue(value))}
-          value={selectValue(draft.contractId)}
+        <Combobox
+          isItemEqualToValue={(item: ContractOption, value: ContractOption) =>
+            item.value === value.value
+          }
+          itemToStringLabel={(option: ContractOption) => option.label}
+          itemToStringValue={(option: ContractOption) => option.value}
+          items={populatedContractGroups}
+          onValueChange={(option: ContractOption | null) =>
+            change('contractId', option?.contract === null ? '' : (option?.value ?? ''))
+          }
+          value={selectedContract}
         >
-          <SelectTrigger id={`${idPrefix}-contract`} className="w-full">
-            <SelectValue placeholder="Kein Vertrag" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={noSelection}>Kein Vertrag</SelectItem>
-            {contracts.map((contract) => (
-              <SelectItem key={contract.id} value={String(contract.id)}>
-                {contract.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <ComboboxInput
+            className="w-full"
+            id={`${idPrefix}-contract`}
+            placeholder="Kein Vertrag"
+          />
+          <ComboboxContent>
+            <ComboboxEmpty>Kein passender Vertrag gefunden.</ComboboxEmpty>
+            <ComboboxList>
+              {(group: ContractGroup, index: number) => (
+                <ComboboxGroup key={group.value} items={group.items}>
+                  {index > 0 ? <ComboboxSeparator /> : null}
+                  <ComboboxCollection>
+                    {(option: ContractOption) => (
+                      <ComboboxItem
+                        className={group.value === 'inactive' ? 'text-muted-foreground' : undefined}
+                        key={option.value}
+                        value={option}
+                      >
+                        {option.label}
+                      </ComboboxItem>
+                    )}
+                  </ComboboxCollection>
+                </ComboboxGroup>
+              )}
+            </ComboboxList>
+          </ComboboxContent>
+        </Combobox>
       </div>
-      <div className="grid gap-2 md:col-span-2 xl:col-span-4">
-        <Label htmlFor={`${idPrefix}-reference`}>Gesamte Buchungsreferenz</Label>
-        <Textarea
-          id={`${idPrefix}-reference`}
-          onChange={(event) => change('fullSubjectString', event.target.value)}
-          placeholder="Optional: vollständiger Text aus dem Kontoauszug"
-          rows={3}
-          value={draft.fullSubjectString}
-        />
-      </div>
+      <Collapsible className="group md:col-span-2 xl:col-span-4">
+        <CollapsibleTrigger asChild>
+          <Button
+            className="w-full justify-between px-0 hover:bg-transparent"
+            id={`${idPrefix}-reference-trigger`}
+            type="button"
+            variant="ghost"
+          >
+            Gesamte Buchungsreferenz
+            <ChevronDown
+              aria-hidden
+              className="text-muted-foreground transition-transform group-data-[state=open]:rotate-180"
+            />
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pt-2">
+          <Textarea
+            aria-labelledby={`${idPrefix}-reference-trigger`}
+            id={`${idPrefix}-reference`}
+            onChange={(event) => change('fullSubjectString', event.target.value)}
+            placeholder="Optional: vollständiger Text aus dem Kontoauszug"
+            rows={3}
+            value={draft.fullSubjectString}
+          />
+        </CollapsibleContent>
+      </Collapsible>
       <input name={`${idPrefix}-account`} type="hidden" value={accountId} />
     </div>
   )

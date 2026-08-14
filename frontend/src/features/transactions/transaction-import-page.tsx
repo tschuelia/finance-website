@@ -1,20 +1,28 @@
 /* cspell:words Buchungsreferenz CSV-Datei Kontoexport Kontotransaktionen */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, FileSearch, Save, Trash2, Upload } from 'lucide-react'
+import { FileSearch, Save, Trash2, Upload } from 'lucide-react'
 import type { FormEvent } from 'react'
 import { useState } from 'react'
-import { Link, useLocation, useNavigate, useParams } from 'react-router'
+import { useLocation, useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { commitCsvImport, previewCsvImport } from '@/api/imports'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PageHeader } from '@/components/shared/page-header'
 import { EmptyState, ErrorState, LoadingState } from '@/components/shared/query-feedback'
+import { useAccount } from '@/hooks/use-accounts'
 import { parsePositiveId } from '@/lib/format'
-import { accountUrl } from '@/routes/urls'
+import { HOME, accountUrl } from '@/routes/urls'
 import {
   transactionDraftFromWrite,
   transactionWriteFromDraft
@@ -38,6 +46,7 @@ const TransactionImportContent = ({ accountId }: TransactionImportContentProps) 
   const location = useLocation()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const account = useAccount(accountId)
   const options = useTransactionFormOptions()
   const [stage, setStage] = useState<ImportStage>('upload')
   const [file, setFile] = useState<File | undefined>()
@@ -141,8 +150,12 @@ const TransactionImportContent = ({ accountId }: TransactionImportContentProps) 
     commit.mutate(items)
   }
 
-  if (options.status === 'loading') {
+  if (account.status === 'loading' || options.status === 'loading') {
     return <LoadingState title="CSV-Import wird vorbereitet" />
+  }
+
+  if (account.status === 'error') {
+    return <ErrorState error={account.error} title="Konto konnte nicht geladen werden" />
   }
 
   if (options.status === 'error') {
@@ -152,14 +165,11 @@ const TransactionImportContent = ({ accountId }: TransactionImportContentProps) 
   return (
     <>
       <PageHeader
-        actions={
-          <Button asChild variant="outline">
-            <Link to={accountUrl(accountId, location.search)}>
-              <ArrowLeft aria-hidden />
-              Zurück zu den Transaktionen
-            </Link>
-          </Button>
-        }
+        breadcrumbs={[
+          { label: 'Übersicht', to: HOME },
+          { label: account.data.name, to: accountUrl(accountId, location.search) },
+          { label: 'CSV-Import' }
+        ]}
         description="Prüfe jede importierte Zeile, bevor Du sie gemeinsam und atomar übernimmst."
         title="CSV-Import"
       />
@@ -230,22 +240,19 @@ const TransactionImportContent = ({ accountId }: TransactionImportContentProps) 
           </Card>
           {rows.map((row, index) => (
             <Card key={`csv-row-${index}`}>
-              <CardHeader className="flex-row items-start justify-between gap-4">
-                <div>
-                  <CardTitle className="text-base">Zeile {index + 1}</CardTitle>
-                  <CardDescription>
-                    Du kannst die übernommenen Werte vor dem Speichern ändern.
-                  </CardDescription>
-                </div>
-                <Button
-                  aria-label={`Importzeile ${index + 1} entfernen`}
-                  disabled={commit.isPending}
-                  onClick={() => removeRow(index)}
-                  size="icon-sm"
-                  variant="ghost"
-                >
-                  <Trash2 aria-hidden className="text-destructive" />
-                </Button>
+              <CardHeader>
+                <CardTitle className="text-base">Zeile {index + 1}</CardTitle>
+                <CardAction>
+                  <Button
+                    aria-label={`Importzeile ${index + 1} entfernen`}
+                    disabled={commit.isPending}
+                    onClick={() => removeRow(index)}
+                    size="icon-sm"
+                    variant="ghost"
+                  >
+                    <Trash2 aria-hidden className="text-destructive" />
+                  </Button>
+                </CardAction>
               </CardHeader>
               <CardContent>
                 <TransactionDraftFields

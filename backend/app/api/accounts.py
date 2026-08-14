@@ -12,6 +12,7 @@ from app.schemas.accounts import (
     DepotAssetResponse,
     DepotAssetTransactionResponse,
     DepotAssetUpdate,
+    DepotBalancePointResponse,
     DepotDetailResponse,
     DepotSummary,
     PortfolioGroupResponse,
@@ -21,6 +22,7 @@ from app.schemas.accounts import (
 from app.services.access import get_visible_bank_account, list_visible_users
 from app.services.accounts import get_account_financials, get_portfolio_overview
 from app.services.depots import (
+    get_depot_asset_balance_history,
     get_depot_asset_financials,
     get_depot_financials,
     get_depot_overview,
@@ -139,6 +141,10 @@ def depot_detail(
         owner=_user_summary(overview.depot.owner),
         balance=overview.financials.balance,
         last_update=overview.financials.last_update,
+        balance_history=[
+            DepotBalancePointResponse(date=point.date, balance=point.balance)
+            for point in overview.balance_history
+        ],
         assets=[
             DepotAssetResponse(
                 id=item.asset.id,
@@ -156,6 +162,10 @@ def depot_detail(
                         date_issue=transaction.date_issue,
                     )
                     for transaction in item.transactions
+                ],
+                balance_history=[
+                    DepotBalancePointResponse(date=point.date, balance=point.balance)
+                    for point in item.balance_history
                 ],
             )
             for item in overview.assets
@@ -180,7 +190,6 @@ def update_asset(
         depot_id,
         asset_id,
         current_balance=payload.current_balance,
-        last_update=payload.last_update,
     )
     financials = get_depot_asset_financials(session, current_user, depot_id, asset.id)
     return DepotAssetResponse(
@@ -199,6 +208,15 @@ def update_asset(
                 asset.transactions,
                 key=lambda item: (item.date_issue, item.id),
                 reverse=True,
+            )
+        ],
+        balance_history=[
+            DepotBalancePointResponse(date=point.date, balance=point.balance)
+            for point in get_depot_asset_balance_history(
+                session,
+                current_user,
+                depot_id,
+                asset.id,
             )
         ],
     )

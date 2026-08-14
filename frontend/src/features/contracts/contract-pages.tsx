@@ -3,7 +3,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Activity,
-  ArrowLeft,
   Calendar,
   Download,
   Euro,
@@ -57,6 +56,14 @@ import type {
 } from '@/types/contracts'
 import type { UserSummary } from '@/types/common'
 
+const formatContractPeriod = ({
+  start_date,
+  end_date
+}: Pick<ContractSummary, 'start_date' | 'end_date'>): string =>
+  end_date
+    ? `${formatDate(start_date)} – ${formatDate(end_date)}`
+    : `Seit ${formatDate(start_date)}`
+
 const ContractCard = ({ contract }: { contract: ContractSummary }) => {
   const owner =
     `${contract.owner.first_name} ${contract.owner.last_name}`.trim() || contract.owner.username
@@ -79,9 +86,7 @@ const ContractCard = ({ contract }: { contract: ContractSummary }) => {
               ? 'Keine Beschreibung hinterlegt.'
               : contract.description}
           </p>
-          <p className="text-xs text-muted-foreground">
-            {formatDate(contract.start_date)} – {formatDate(contract.end_date)}
-          </p>
+          <p className="text-xs text-muted-foreground">{formatContractPeriod(contract)}</p>
         </CardContent>
       </Card>
     </Link>
@@ -303,15 +308,14 @@ const ContractEditor = ({ contractId, initialForm, mode, users }: ContractEditor
   return (
     <>
       <PageHeader
-        actions={
-          <Button asChild variant="outline">
-            <Link
-              to={mode === 'edit' && contractId !== undefined ? contractUrl(contractId) : CONTRACTS}
-            >
-              <ArrowLeft aria-hidden />
-              Zurück
-            </Link>
-          </Button>
+        breadcrumbs={
+          mode === 'edit' && contractId !== undefined
+            ? [
+                { label: 'Verträge', to: CONTRACTS },
+                { label: initialForm.name, to: contractUrl(contractId) },
+                { label: 'Bearbeiten' }
+              ]
+            : [{ label: 'Verträge', to: CONTRACTS }, { label: 'Vertrag anlegen' }]
         }
         description={
           mode === 'create'
@@ -574,29 +578,18 @@ export const ContractDetailPage = () => {
     (transaction) => transaction.bank_account_id !== null
   )
 
-  const contractTime = contract.data.end_date
-    ? `${formatDate(contract.data.start_date)} – ${formatDate(contract.data.end_date)}`
-    : `Seit ${formatDate(contract.data.start_date)}`
-
   return (
     <>
       <PageHeader
         actions={
-          <>
-            <Button asChild variant="outline">
-              <Link to={CONTRACTS}>
-                <ArrowLeft aria-hidden />
-                Verträge
-              </Link>
-            </Button>
-            <Button asChild>
-              <Link to={contractEditUrl(contract.data.id)}>
-                <Pencil aria-hidden />
-                Bearbeiten
-              </Link>
-            </Button>
-          </>
+          <Button asChild>
+            <Link to={contractEditUrl(contract.data.id)}>
+              <Pencil aria-hidden />
+              Bearbeiten
+            </Link>
+          </Button>
         }
+        breadcrumbs={[{ label: 'Verträge', to: CONTRACTS }, { label: contract.data.name }]}
         description={`Vertragsinhaber: ${owner}`}
         title={contract.data.name}
       />
@@ -616,7 +609,7 @@ export const ContractDetailPage = () => {
               <Calendar size={14} />
               Vertragslaufzeit
             </CardDescription>
-            <CardTitle className="text-base">{contractTime}</CardTitle>
+            <CardTitle className="text-base">{formatContractPeriod(contract.data)}</CardTitle>
           </CardHeader>
         </Card>
         <Card>

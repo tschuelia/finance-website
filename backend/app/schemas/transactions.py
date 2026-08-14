@@ -68,7 +68,7 @@ class TransactionWrite(BaseModel):
         return self
 
 
-class TransactionFilterQuery(BaseModel):
+class TransactionDataFilterQuery(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     q: str | None = None
@@ -78,8 +78,6 @@ class TransactionFilterQuery(BaseModel):
     amount_max: Decimal | None = Field(default=None, ge=0)
     category_ids: list[int] = Field(default_factory=list)
     transaction_type: TransactionType = TransactionType.ALL
-    page: int = Field(default=1, ge=1)
-    page_size: int = Field(default=100, ge=1, le=500)
 
     @model_validator(mode="after")
     def validate_ranges(self) -> Self:
@@ -96,3 +94,8 @@ class TransactionFilterQuery(BaseModel):
         ):
             raise ValueError("amount_min must not exceed amount_max")
         return self
+
+
+class TransactionFilterQuery(TransactionDataFilterQuery):
+    page: int = Field(default=1, ge=1)
+    page_size: int = Field(default=100, ge=1, le=500)

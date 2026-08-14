@@ -65,7 +65,7 @@ export const TransactionWriteSchema = z
 
 export type TransactionWrite = z.infer<typeof TransactionWriteSchema>
 
-export const TransactionFiltersSchema = z
+export const TransactionDataFiltersSchema = z
   .object({
     q: z.string().optional(),
     date_start: DateSchema.optional(),
@@ -73,10 +73,15 @@ export const TransactionFiltersSchema = z
     amount_min: DecimalSchema.optional(),
     amount_max: DecimalSchema.optional(),
     category_ids: z.array(z.number().int().positive()).default([]),
-    transaction_type: TransactionTypeSchema.default('all'),
-    page: z.number().int().positive().default(1),
-    page_size: z.number().int().positive().max(500).default(100)
+    transaction_type: TransactionTypeSchema.default('all')
   })
   .strict()
+
+export type TransactionDataFilters = z.infer<typeof TransactionDataFiltersSchema>
+
+export const TransactionFiltersSchema = TransactionDataFiltersSchema.extend({
+  page: z.number().int().positive().default(1),
+  page_size: z.number().int().positive().max(500).default(100)
+}).strict()
 
 export type TransactionFilters = z.infer<typeof TransactionFiltersSchema>

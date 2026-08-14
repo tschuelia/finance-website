@@ -8,8 +8,8 @@ import { useAccount } from '@/hooks/use-accounts'
 import { useCategories } from '@/hooks/use-categories'
 import { useTransactions } from '@/hooks/use-transactions'
 import { formatDate, parsePositiveId } from '@/lib/format'
-import { accountTransactionImportUrl, accountUrl } from '@/routes/urls'
-import type { Transaction, TransactionFilters } from '@/types/transactions'
+import { HOME, accountTransactionImportUrl, accountUrl } from '@/routes/urls'
+import type { Transaction, TransactionDataFilters, TransactionFilters } from '@/types/transactions'
 import { TransactionEditorDialog } from '@/features/transactions/transaction-editor-dialog'
 import { TransactionFilterForm } from '@/features/transactions/transaction-filters'
 import {
@@ -38,6 +38,10 @@ const AccountDetailContent = ({ accountId }: AccountDetailContentProps) => {
 
   const applyFilters = (nextFilters: TransactionFilters) => {
     navigate(accountUrl(accountId, transactionFiltersToSearch(nextFilters)))
+  }
+
+  const applyDataFilters = (nextFilters: TransactionDataFilters) => {
+    applyFilters({ ...nextFilters, page: 1, page_size: filters.page_size })
   }
 
   const pageActions = (
@@ -77,7 +81,12 @@ const AccountDetailContent = ({ accountId }: AccountDetailContentProps) => {
   )
 
   const pageHeader = (
-    <PageHeader actions={pageActions} description={metadata} title={account.data.name} />
+    <PageHeader
+      actions={pageActions}
+      breadcrumbs={[{ label: 'Übersicht', to: HOME }, { label: account.data.name }]}
+      description={metadata}
+      title={account.data.name}
+    />
   )
 
   if (transactions.status === 'loading') {
@@ -106,20 +115,18 @@ const AccountDetailContent = ({ accountId }: AccountDetailContentProps) => {
   return (
     <>
       {pageHeader}
+      <TransactionSummaryCards
+        summary={transactions.data.summary}
+        total={transactions.data.total}
+      />
       <TransactionFilterForm
         categories={categories.status === 'success' ? categories.data : []}
         categoriesError={categoryError}
         categoriesLoading={categories.status === 'loading'}
         filters={filters}
         key={location.search}
-        onApply={applyFilters}
+        onApply={applyDataFilters}
       />
-      <p className="text-sm text-muted-foreground">
-        {transactions.data.total === 1
-          ? '1 passende Transaktion'
-          : `${transactions.data.total} passende Transaktionen`}
-      </p>
-      <TransactionSummaryCards summary={transactions.data.summary} />
       <TransactionTable items={transactions.data.items} onSelect={setSelectedTransaction} />
       <TransactionPagination
         onPageChange={(page) => applyFilters(transactionFiltersForPage(filters, page))}

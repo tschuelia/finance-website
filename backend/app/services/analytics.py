@@ -118,6 +118,10 @@ def category_comparisons(
     comparisons: list[ComparisonPeriod] = []
     for period in periods:
         date_start, date_end, label = _period_dates(period)
+        if filters.date_start is not None:
+            date_start = max(date_start, filters.date_start)
+        if filters.date_end is not None:
+            date_end = min(date_end, filters.date_end)
         period_filters = TransactionFilters(
             search_term=filters.search_term,
             date_start=date_start,

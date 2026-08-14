@@ -63,6 +63,15 @@ export const DepotAssetTransactionSchema = z
 
 export type DepotAssetTransaction = z.infer<typeof DepotAssetTransactionSchema>
 
+export const DepotBalancePointSchema = z
+  .object({
+    date: DateSchema,
+    balance: DecimalSchema
+  })
+  .strict()
+
+export type DepotBalancePoint = z.infer<typeof DepotBalancePointSchema>
+
 export const DepotAssetSchema = z
   .object({
     id: z.number().int().positive(),
@@ -70,7 +79,8 @@ export const DepotAssetSchema = z
     current_balance: DecimalSchema,
     last_update: DateSchema,
     transaction_total: DecimalSchema,
-    transactions: z.array(DepotAssetTransactionSchema)
+    transactions: z.array(DepotAssetTransactionSchema),
+    balance_history: z.array(DepotBalancePointSchema)
   })
   .strict()
 
@@ -83,6 +93,7 @@ export const DepotDetailSchema = z
     owner: UserSummarySchema,
     balance: DecimalSchema,
     last_update: DateSchema,
+    balance_history: z.array(DepotBalancePointSchema),
     assets: z.array(DepotAssetSchema)
   })
   .strict()
@@ -91,8 +102,7 @@ export type DepotDetail = z.infer<typeof DepotDetailSchema>
 
 export const DepotAssetUpdateSchema = z
   .object({
-    current_balance: DecimalSchema,
-    last_update: DateSchema
+    current_balance: DecimalSchema
   })
   .strict()
 
