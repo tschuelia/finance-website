@@ -100,11 +100,11 @@ Mount one durable host directory or named volume at `/data`:
 | `/data/media` | Uploaded and imported files |
 
 For a bind mount, create the directory and its `media` child with ownership
-`10001:10001` before the first start. `FINANCES_SESSION_SECRET` and
-`FINANCES_ALLOWED_HOSTS` are required. The image defaults the database and media
-paths to `/data`, enables secure cookies and production mode, and disables
-development logging. Production mode rejects wildcard hosts or unsafe cookie and
-logging settings.
+`32767:1003` (`dokku-herokuishuser:web`) before the first start.
+`FINANCES_SESSION_SECRET` and `FINANCES_ALLOWED_HOSTS` are required. The image
+defaults the database and media paths to `/data`, enables secure cookies and
+production mode, and disables development logging. Production mode rejects
+wildcard hosts or unsafe cookie and logging settings.
 
 The Pixi lock supports `linux-64`, so build an AMD64 image explicitly when the
 builder is running on Apple Silicon:

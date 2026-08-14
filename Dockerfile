@@ -24,18 +24,18 @@ FROM debian:bookworm-slim AS runtime
 RUN apt-get update \
     && apt-get install --no-install-recommends --yes ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
-    && groupadd --gid 10001 finances \
-    && useradd --create-home --home-dir /app --uid 10001 --gid finances finances
+    && groupadd --gid 1003 web \
+    && useradd --create-home --home-dir /app --uid 32767 --gid web dokku-herokuishuser
 
 WORKDIR /app
 
 # Keep the installation prefix unchanged: console scripts and the editable
 # backend package resolve relative to /app in both build and runtime stages.
-COPY --from=backend-build --chown=finances:finances /app/.pixi/envs/runtime /app/.pixi/envs/runtime
-COPY --from=backend-build --chown=finances:finances /app/backend /app/backend
-COPY --from=frontend-build --chown=finances:finances /app/frontend/dist /app/frontend/dist
+COPY --from=backend-build --chown=dokku-herokuishuser:web /app/.pixi/envs/runtime /app/.pixi/envs/runtime
+COPY --from=backend-build --chown=dokku-herokuishuser:web /app/backend /app/backend
+COPY --from=frontend-build --chown=dokku-herokuishuser:web /app/frontend/dist /app/frontend/dist
 
-RUN install -d --owner=finances --group=finances /data/media
+RUN install -d --owner=dokku-herokuishuser --group=web /data/media
 
 ENV PATH="/app/.pixi/envs/runtime/bin:${PATH}" \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -53,7 +53,7 @@ VOLUME ["/data"]
 
 EXPOSE 8000
 
-USER finances
+USER dokku-herokuishuser
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
     CMD ["python", "-c", "from urllib.request import urlopen; response = urlopen('http://127.0.0.1:8000/health', timeout=3); raise SystemExit(0 if response.status == 200 else 1)"]
