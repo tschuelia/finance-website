@@ -109,8 +109,8 @@
   The annotated local tag `django-baseline` resolves to
   `1299c3747c2e253d3ce60f3923859ac7c02b7fd0`. Aggregate values were captured from
   the approved local read-only snapshot; production was not accessed or changed.
-  The current schema, adoption, backup, and restore guidance is maintained in
-  `docs/production-data-migration.md`; historical runtime details remain in Git.
+  The current schema and adoption contract is encoded in the backend inspection
+  and migration tooling; historical runtime details remain in Git.
 
   ## Issue 02 — Establish backend and frontend workspaces
 
@@ -632,14 +632,14 @@
 
   Implemented coordinated development tasks, a three-stage frontend/backend
   release image, one-worker FastAPI serving, health checking, persistent `/data`
-  mounts, and stopped-application migrations. Setup, management, migration,
-  backup, restore, deployment, dependency-audit, and rehearsal runbooks are
-  documented. Recharts was updated to 3.10.1 with `bun.lock`; TypeScript remains
-  at 6.0.3 because typescript-eslint 8.67.0 does not support TypeScript 7. The
-  vulnerability audits found no published-package findings. Fresh locked Pixi
-  and Bun installs, backend lint/type checks, frontend lint/type checks, and the
-  production build passed. Container build/start verification remains pending:
-  the local Docker daemon was unavailable and no copied production
+  mounts, and stopped-application migrations. Active setup, management,
+  database, backup, restore, deployment, and dependency guidance is documented
+  in `README.md`. Recharts was updated to 3.10.1 with `bun.lock`; TypeScript
+  remains at 6.0.3 because typescript-eslint 8.67.0 does not support TypeScript
+  7. The vulnerability audits found no published-package findings. Fresh locked
+  Pixi and Bun installs, backend lint/type checks, frontend lint/type checks, and
+  the production build passed. Container build/start verification remains
+  pending: the local Docker daemon was unavailable and no copied production
   database/media was provided. The equivalent local production-mode
   FastAPI/SPA smoke passed against a newly initialized temporary database.
 
@@ -722,7 +722,7 @@
   unchecked and this cleanup does not claim that either occurred. The runnable
   Django application, environment, dependencies, and commands were removed;
   production schema inspection, baseline adoption, Alembic upgrades, preserved
-  table mappings, media compatibility, and migration runbooks remain. Existing
+  table mappings, media compatibility, and migration tooling remain. Existing
   Django PBKDF2 passwords are upgraded to Argon2id after a successful login, and
   new/reset passwords use Argon2id immediately.
 
