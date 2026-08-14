@@ -1,7 +1,7 @@
 /* cspell:words Depot Depotbestand Vermögenswert */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Pencil, Save } from 'lucide-react'
+import { ArrowLeft, Calendar, Dot, Pencil, Save, User } from 'lucide-react'
 import type { FormEvent } from 'react'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
@@ -134,6 +134,20 @@ export const DepotPage = () => {
     return <ErrorState error={depot.error} />
   }
 
+  const metadata = (
+    <span className="flex flex-wrap items-center gap-2">
+      <span className="flex items-center gap-1">
+        <User aria-hidden size={14} />
+        {depot.data.owner.username}
+      </span>
+      <Dot aria-hidden size={12} />
+      <span className="flex items-center gap-1">
+        <Calendar aria-hidden size={14} />
+        {formatDate(depot.data.last_update)}
+      </span>
+    </span>
+  )
+
   return (
     <>
       <PageHeader
@@ -145,7 +159,7 @@ export const DepotPage = () => {
             </Link>
           </Button>
         }
-        description={`Besitz von ${depot.data.owner.first_name} ${depot.data.owner.last_name}`}
+        description={metadata}
         title={depot.data.name}
       />
       <div className="grid gap-4 sm:grid-cols-2">

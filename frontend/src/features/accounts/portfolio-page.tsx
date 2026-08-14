@@ -61,6 +61,11 @@ const PortfolioCard = ({
             </span>
           </>
         )}
+        <Dot size={12} />
+        <span className="flex gap-1 items-center">
+          <TitleIcon size={12} />
+          {type == 'account' ? 'Bankkonto' : 'Depot'}
+        </span>
       </CardFooter>
     </Card>
   )
@@ -95,9 +100,9 @@ export const PortfolioPage = () => {
   return (
     <>
       <PageHeader title="Finanzübersicht" description="Deine Konten und Depots auf einen Blick." />
-      <Card className="bg-primary text-primary-foreground ring-0">
+      <Card className="bg-secondary text-primary ring-primary/50">
         <CardHeader>
-          <CardDescription className="text-primary-foreground/70">Gesamtvermögen</CardDescription>
+          <CardDescription className="text-primary">Gesamtvermögen</CardDescription>
           <CardTitle className="text-3xl">{formatDecimal(portfolio.data.total_balance)}</CardTitle>
         </CardHeader>
       </Card>

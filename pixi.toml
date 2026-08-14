@@ -40,3 +40,6 @@ alembic = "alembic -c backend/alembic.ini"
 lint = { depends-on = ["backend-lint", "frontend-lint"] }
 format-check = { depends-on = ["backend-format-check", "frontend-format-check"] }
 hooks-install = "lefthook install"
+
+[dependencies]
+pixi-pycharm = ">=0.0.12,<0.0.13"

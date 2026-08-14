@@ -1,6 +1,6 @@
 /* cspell:words Buchungsdatum Kategorien Kontotransaktionen Wertstellungsdatum */
 
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { BanknoteArrowDown, BanknoteArrowUp, ChevronLeft, ChevronRight, Euro } from 'lucide-react'
 import { Link } from 'react-router'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -45,19 +45,28 @@ export const TransactionSummaryCards = ({ summary }: TransactionSummaryCardsProp
     >
       <Card>
         <CardHeader>
-          <CardDescription>Saldo</CardDescription>
+          <CardDescription className="items-center flex gap-2">
+            <Euro size={14} />
+            Saldo
+          </CardDescription>
           <CardTitle className="text-xl">{formatDecimal(summary.total)}</CardTitle>
         </CardHeader>
       </Card>
       <Card>
         <CardHeader>
-          <CardDescription>Ausgaben</CardDescription>
+          <CardDescription className="items-center flex gap-2">
+            <BanknoteArrowDown size={14} />
+            Ausgaben
+          </CardDescription>
           <CardTitle className="text-xl text-destructive">{formatDecimal(summary.paid)}</CardTitle>
         </CardHeader>
       </Card>
       <Card>
         <CardHeader>
-          <CardDescription>Einnahmen</CardDescription>
+          <CardDescription className="items-center flex gap-2">
+            <BanknoteArrowUp size={14} />
+            Einnahmen
+          </CardDescription>
           <CardTitle className="text-xl text-emerald-700 dark:text-emerald-400">
             {formatDecimal(summary.received)}
           </CardTitle>

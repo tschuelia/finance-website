@@ -1,7 +1,18 @@
 /* cspell:words Vertragslaufzeit Vertragsinhaber Vertragsunterlagen Dateiupload Buchungsvorgang */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Download, Pencil, Plus, Save, Trash2, Upload } from 'lucide-react'
+import {
+  Activity,
+  ArrowLeft,
+  Calendar,
+  Download,
+  Euro,
+  Pencil,
+  Plus,
+  Save,
+  Trash2,
+  Upload
+} from 'lucide-react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
@@ -563,6 +574,10 @@ export const ContractDetailPage = () => {
     (transaction) => transaction.bank_account_id !== null
   )
 
+  const contractTime = contract.data.end_date
+    ? `${formatDate(contract.data.start_date)} – ${formatDate(contract.data.end_date)}`
+    : `Seit ${formatDate(contract.data.start_date)}`
+
   return (
     <>
       <PageHeader
@@ -588,21 +603,28 @@ export const ContractDetailPage = () => {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader>
-            <CardDescription>Status</CardDescription>
+            <CardDescription className="items-center flex gap-2">
+              <Activity size={14} />
+              Status
+            </CardDescription>
             <CardTitle>{contract.data.is_active ? 'Aktiv' : 'Inaktiv'}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader>
-            <CardDescription>Vertragslaufzeit</CardDescription>
-            <CardTitle className="text-base">
-              {formatDate(contract.data.start_date)} – {formatDate(contract.data.end_date)}
-            </CardTitle>
+            <CardDescription className="items-center flex gap-2">
+              <Calendar size={14} />
+              Vertragslaufzeit
+            </CardDescription>
+            <CardTitle className="text-base">{contractTime}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader>
-            <CardDescription>Buchungssaldo</CardDescription>
+            <CardDescription className="items-center flex gap-2">
+              <Euro size={14} />
+              Buchungssaldo
+            </CardDescription>
             <CardTitle>{formatDecimal(contract.data.balance)}</CardTitle>
           </CardHeader>
         </Card>
