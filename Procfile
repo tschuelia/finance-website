@@ -1,2 +1,1 @@
-release: env PYTHONPATH=/hetzner DJANGO_SETTINGS_MODULE=settings_prod python manage.py migrate
-web: env PYTHONPATH=/hetzner DJANGO_SETTINGS_MODULE=settings_prod gunicorn --log-level info --log-file - finances.wsgi:application
+web: uvicorn app.main:app --app-dir /app/backend --host 0.0.0.0 --port 8000 --workers 1 --no-proxy-headers

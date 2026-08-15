@@ -1,0 +1,322 @@
+/* cspell:words Buchungsdatum Kategorien Transaktionsfilter */
+
+import type { FormEvent } from 'react'
+import { useState } from 'react'
+import { Filter, RotateCcw, Search } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Combobox,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipsInput,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxValue,
+  useComboboxAnchor
+} from '@/components/ui/combobox'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
+import { decimalInputValue, parseDecimalInput } from '@/lib/format'
+import type { Category } from '@/types/categories'
+import type { TransactionDataFilters, TransactionType } from '@/types/transactions'
+import { defaultTransactionDataFilters } from '@/features/transactions/transaction-search'
+
+type TransactionFilterFormProps = {
+  categories: Category[]
+  categoriesError?: string
+  categoriesLoading: boolean
+  filters: TransactionDataFilters
+  onApply: (filters: TransactionDataFilters) => void
+}
+
+type TransactionFilterDraft = {
+  q: string
+  dateStart: string
+  dateEnd: string
+  amountMin: string
+  amountMax: string
+  categoryIds: number[]
+  transactionType: TransactionType
+}
+
+const draftFromFilters = (filters: TransactionDataFilters): TransactionFilterDraft => ({
+  q: filters.q ?? '',
+  dateStart: filters.date_start ?? '',
+  dateEnd: filters.date_end ?? '',
+  amountMin: filters.amount_min === undefined ? '' : decimalInputValue(filters.amount_min),
+  amountMax: filters.amount_max === undefined ? '' : decimalInputValue(filters.amount_max),
+  categoryIds: filters.category_ids,
+  transactionType: filters.transaction_type
+})
+
+const filterAmount = (value: string): number | undefined | null => {
+  if (value.trim() === '') {
+    return undefined
+  }
+
+  const parsed = parseDecimalInput(value)
+  return parsed === undefined || parsed < 0 ? null : parsed
+}
+
+const validDateRange = (start: string, end: string): boolean =>
+  start === '' || end === '' || start <= end
+
+const validAmountRange = (minimum: number | undefined, maximum: number | undefined): boolean => {
+  if (minimum === undefined || maximum === undefined) {
+    return true
+  }
+
+  return minimum <= maximum
+}
+
+export const TransactionFilterForm = ({
+  categories,
+  categoriesError,
+  categoriesLoading,
+  filters,
+  onApply
+}: TransactionFilterFormProps) => {
+  const [draft, setDraft] = useState(() => draftFromFilters(filters))
+  const [formError, setFormError] = useState<string | undefined>()
+  const categoryComboboxAnchor = useComboboxAnchor()
+  const selectedCategories = categories.filter((category) =>
+    draft.categoryIds.includes(category.id)
+  )
+  const hasActiveFilters =
+    filters.q !== undefined ||
+    filters.date_start !== undefined ||
+    filters.date_end !== undefined ||
+    filters.amount_min !== undefined ||
+    filters.amount_max !== undefined ||
+    filters.category_ids.length > 0 ||
+    filters.transaction_type !== 'all'
+
+  const change = <Key extends keyof TransactionFilterDraft>(
+    key: Key,
+    value: TransactionFilterDraft[Key]
+  ) => {
+    setDraft((current) => ({ ...current, [key]: value }))
+  }
+
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const amountMin = filterAmount(draft.amountMin)
+    const amountMax = filterAmount(draft.amountMax)
+
+    if (amountMin === null || amountMax === null) {
+      setFormError('Bitte gib für die Betragsgrenzen nur nichtnegative Beträge ein.')
+      return
+    }
+
+    if (!validDateRange(draft.dateStart, draft.dateEnd)) {
+      setFormError('Das Enddatum darf nicht vor dem Startdatum liegen.')
+      return
+    }
+
+    if (!validAmountRange(amountMin, amountMax)) {
+      setFormError('Der Höchstbetrag darf nicht kleiner als der Mindestbetrag sein.')
+      return
+    }
+
+    setFormError(undefined)
+    onApply({
+      q: draft.q.trim() || undefined,
+      date_start: draft.dateStart || undefined,
+      date_end: draft.dateEnd || undefined,
+      amount_min: amountMin,
+      amount_max: amountMax,
+      category_ids: draft.categoryIds,
+      transaction_type: draft.transactionType
+    })
+  }
+
+  const reset = () => {
+    const resetFilters = defaultTransactionDataFilters()
+    setDraft(draftFromFilters(resetFilters))
+    setFormError(undefined)
+    onApply(resetFilters)
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <span className="relative inline-flex">
+            <Filter className="size-4" aria-hidden />
+            {hasActiveFilters ? (
+              <>
+                <span
+                  aria-hidden
+                  className="absolute -top-1 -right-1 size-2 rounded-full bg-primary ring-2 ring-card"
+                />
+                <span className="sr-only">Aktive Filter</span>
+              </>
+            ) : null}
+          </span>
+          Transaktionen filtern
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form className="grid gap-5" onSubmit={submit}>
+          <div className="grid gap-4">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[2fr_1fr_1fr_1fr]">
+              <div className="grid gap-2">
+                <Label htmlFor="transaction-search">Suche</Label>
+                <Input
+                  id="transaction-search"
+                  onChange={(event) => change('q', event.target.value)}
+                  placeholder="Empfänger oder Betreff"
+                  value={draft.q}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="transaction-date-start">Von</Label>
+                <Input
+                  id="transaction-date-start"
+                  onChange={(event) => change('dateStart', event.target.value)}
+                  type="date"
+                  value={draft.dateStart}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="transaction-date-end">Bis</Label>
+                <Input
+                  id="transaction-date-end"
+                  onChange={(event) => change('dateEnd', event.target.value)}
+                  type="date"
+                  value={draft.dateEnd}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="transaction-type">Art</Label>
+                <Select
+                  onValueChange={(value) => change('transactionType', value as TransactionType)}
+                  value={draft.transactionType}
+                >
+                  <SelectTrigger id="transaction-type" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Alle</SelectItem>
+                    <SelectItem value="income">Einnahmen</SelectItem>
+                    <SelectItem value="expense">Ausgaben</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1fr_1fr_4fr]">
+              <div className="grid gap-2">
+                <Label htmlFor="transaction-amount-min">Mindestbetrag</Label>
+                <Input
+                  id="transaction-amount-min"
+                  inputMode="decimal"
+                  onChange={(event) => change('amountMin', event.target.value)}
+                  placeholder="0,00"
+                  value={draft.amountMin}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="transaction-amount-max">Höchstbetrag</Label>
+                <Input
+                  id="transaction-amount-max"
+                  inputMode="decimal"
+                  onChange={(event) => change('amountMax', event.target.value)}
+                  placeholder="0,00"
+                  value={draft.amountMax}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="transaction-categories">Kategorien</Label>
+                {categoriesLoading ? (
+                  <p className="text-sm text-muted-foreground">Kategorien werden geladen …</p>
+                ) : null}
+                {categoriesError === undefined ? null : (
+                  <p className="text-sm text-destructive" role="alert">
+                    Kategorien konnten nicht geladen werden: {categoriesError}
+                  </p>
+                )}
+                {!categoriesLoading && categoriesError === undefined && categories.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Es sind noch keine Kategorien angelegt.
+                  </p>
+                ) : null}
+                {!categoriesLoading && categoriesError === undefined && categories.length > 0 ? (
+                  <Combobox
+                    isItemEqualToValue={(item: Category, value: Category) => item.id === value.id}
+                    itemToStringLabel={(category: Category) => category.name}
+                    itemToStringValue={(category: Category) => String(category.id)}
+                    items={categories}
+                    multiple
+                    onValueChange={(value: Category[]) =>
+                      change(
+                        'categoryIds',
+                        value.map((category) => category.id)
+                      )
+                    }
+                    value={selectedCategories}
+                  >
+                    <ComboboxChips className="w-full" ref={categoryComboboxAnchor}>
+                      <ComboboxValue>
+                        {(value: Category[]) => (
+                          <>
+                            {value.map((category) => (
+                              <ComboboxChip
+                                key={category.id}
+                                removeAriaLabel={`Kategorie „${category.name}“ entfernen`}
+                              >
+                                {category.name}
+                              </ComboboxChip>
+                            ))}
+                            <ComboboxChipsInput
+                              id="transaction-categories"
+                              placeholder={
+                                value.length === 0
+                                  ? 'Kategorien auswählen'
+                                  : 'Weitere Kategorie suchen'
+                              }
+                            />
+                          </>
+                        )}
+                      </ComboboxValue>
+                    </ComboboxChips>
+                    <ComboboxContent anchor={categoryComboboxAnchor}>
+                      <ComboboxEmpty>Keine passende Kategorie gefunden.</ComboboxEmpty>
+                      <ComboboxList>
+                        {(category: Category) => (
+                          <ComboboxItem key={category.id} value={category}>
+                            {category.name}
+                          </ComboboxItem>
+                        )}
+                      </ComboboxList>
+                    </ComboboxContent>
+                  </Combobox>
+                ) : null}
+              </div>
+            </div>
+          </div>
+          {formError === undefined ? null : <p className="text-sm text-destructive">{formError}</p>}
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button onClick={reset} type="button" variant="outline">
+              <RotateCcw aria-hidden />
+              Filter zurücksetzen
+            </Button>
+            <Button type="submit">
+              <Search aria-hidden />
+              Filtern
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
+  )
+}

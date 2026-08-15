@@ -1,0 +1,8 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignoreIssues": {
+    "src/components/ui/{alert-dialog,avatar,badge,button,chart,combobox,dialog,input-group,pagination,popover,select,sheet,sidebar,table,tabs}.tsx": [
+      "exports"
+    ]
+  }
+}
