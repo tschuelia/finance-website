@@ -1,5 +1,7 @@
 /* cspell:words Verträge */
 
+import type { KeyboardEvent } from 'react'
+import { useState } from 'react'
 import {
   Combobox,
   ComboboxCollection,
@@ -20,9 +22,38 @@ type AssignmentComboboxProps = {
   className?: string
   id?: string
   noneLabel: string
-  onValueChange: (value: string | undefined) => void
+  onValueChange: (value: string) => void
   placeholder: string
   value: string | undefined
+}
+
+const useAssignmentComboboxSearch = (selectedLabel: string) => {
+  const [query, setQuery] = useState('')
+  const [searching, setSearching] = useState(false)
+
+  const start = (clearQuery = true) => {
+    if (clearQuery) {
+      setQuery('')
+    }
+    setSearching(true)
+  }
+
+  const stop = () => setSearching(false)
+
+  const replaceLabelOnType = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (!searching && event.key.length === 1 && !event.altKey && !event.ctrlKey && !event.metaKey) {
+      event.currentTarget.select()
+    }
+  }
+
+  return {
+    inputValue: searching ? query : selectedLabel,
+    replaceLabelOnType,
+    searching,
+    setQuery,
+    start,
+    stop
+  }
 }
 
 type CategoryComboboxProps = AssignmentComboboxProps & {
@@ -49,23 +80,40 @@ export const CategoryAssignmentCombobox = ({
     ...categories.map((category) => ({ label: category.name, value: String(category.id) }))
   ]
   const selectedOption = options.find((option) => option.value === value) ?? null
+  const search = useAssignmentComboboxSearch(selectedOption?.label ?? '')
 
   return (
     <Combobox
+      inputValue={search.inputValue}
       isItemEqualToValue={(item: CategoryOption, selected: CategoryOption) =>
         item.value === selected.value
       }
       itemToStringLabel={(option: CategoryOption) => option.label}
       itemToStringValue={(option: CategoryOption) => option.value}
       items={options}
-      onValueChange={(option: CategoryOption | null) => onValueChange(option?.value)}
+      onInputValueChange={search.setQuery}
+      onOpenChange={(open, { reason }) => {
+        if (open) {
+          search.start(reason !== 'input-change')
+        } else {
+          search.stop()
+        }
+      }}
+      onValueChange={(option: CategoryOption | null) => {
+        if (option !== null) {
+          onValueChange(option.value)
+        }
+      }}
       value={selectedOption}
     >
       <ComboboxInput
         aria-label={ariaLabel}
         className={className}
         id={id}
-        placeholder={placeholder}
+        onBlur={search.stop}
+        onFocus={() => search.start()}
+        onKeyDown={search.replaceLabelOnType}
+        placeholder={search.searching ? 'Kategorie suchen …' : placeholder}
       />
       <ComboboxContent>
         <ComboboxEmpty>Keine passende Kategorie gefunden.</ComboboxEmpty>
@@ -119,6 +167,7 @@ export const ContractAssignmentCombobox = ({
   const selectedOption =
     contractOptions.find((option) => option.value === value) ??
     (value === '' ? noContractOption : null)
+  const search = useAssignmentComboboxSearch(selectedOption?.label ?? '')
   const contractGroups: ContractGroup[] = [
     {
       value: 'active',
@@ -136,20 +185,36 @@ export const ContractAssignmentCombobox = ({
 
   return (
     <Combobox
+      inputValue={search.inputValue}
       isItemEqualToValue={(item: ContractOption, selected: ContractOption) =>
         item.value === selected.value
       }
       itemToStringLabel={(option: ContractOption) => option.label}
       itemToStringValue={(option: ContractOption) => option.value}
       items={groups}
-      onValueChange={(option: ContractOption | null) => onValueChange(option?.value)}
+      onInputValueChange={search.setQuery}
+      onOpenChange={(open, { reason }) => {
+        if (open) {
+          search.start(reason !== 'input-change')
+        } else {
+          search.stop()
+        }
+      }}
+      onValueChange={(option: ContractOption | null) => {
+        if (option !== null) {
+          onValueChange(option.value)
+        }
+      }}
       value={selectedOption}
     >
       <ComboboxInput
         aria-label={ariaLabel}
         className={className}
         id={id}
-        placeholder={placeholder}
+        onBlur={search.stop}
+        onFocus={() => search.start()}
+        onKeyDown={search.replaceLabelOnType}
+        placeholder={search.searching ? 'Vertrag suchen …' : placeholder}
       />
       <ComboboxContent>
         <ComboboxEmpty>Kein passender Vertrag gefunden.</ComboboxEmpty>
