@@ -1,4 +1,4 @@
-"""Password hashing with transparent support for migrated Django hashes."""
+"""Password hashing with support for existing Django hashes."""
 
 from base64 import b64encode
 from hashlib import pbkdf2_hmac

@@ -60,7 +60,7 @@ pixi run alembic -- check
 
 ## Management CLI
 
-The `finances` CLI replaces application-admin operations:
+Use the `finances` CLI to manage application data:
 
 ```sh
 pixi run finances --help
