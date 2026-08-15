@@ -60,7 +60,6 @@ class DatabaseInspection:
     journal_mode: str
     table_counts: Mapping[str, int]
     foreign_key_violations: tuple[str, ...]
-    ownership_mismatches: tuple[str, ...]
     mixed_depot_update_dates: tuple[str, ...]
     aggregates: Mapping[str, Decimal]
 
@@ -368,30 +367,6 @@ def _foreign_key_violations(connection: sqlite3.Connection) -> tuple[str, ...]:
     )
 
 
-def _ownership_mismatches(connection: sqlite3.Connection) -> tuple[str, ...]:
-    return tuple(
-        (
-            f"transaction {row[0]} links account owner {row[1]} "
-            f"to contract {row[2]} owned by {row[3]}"
-        )
-        for row in connection.execute(
-            """
-            SELECT transaction_row.id,
-                   account.owner_id,
-                   contract.id,
-                   contract.owner_id
-            FROM accounting_transaction AS transaction_row
-            JOIN accounting_bankaccount AS account
-              ON account.id = transaction_row.bank_account_id
-            JOIN accounting_contract AS contract
-              ON contract.id = transaction_row.contract_id
-            WHERE account.owner_id != contract.owner_id
-            ORDER BY transaction_row.id
-            """
-        )
-    )
-
-
 def _mixed_depot_update_dates(connection: sqlite3.Connection) -> tuple[str, ...]:
     return tuple(
         f"depot {row[0]} combines {row[1]} distinct asset update dates"
@@ -437,7 +412,6 @@ def inspect_database(database_path: Path) -> DatabaseInspection:
         schema = validate_production_schema(connection)
         counts = _table_counts(connection)
         violations = _foreign_key_violations(connection)
-        ownership_mismatches = _ownership_mismatches(connection) if schema.compatible else ()
         mixed_depot_update_dates = (
             _mixed_depot_update_dates(connection) if schema.compatible else ()
         )
@@ -447,7 +421,6 @@ def inspect_database(database_path: Path) -> DatabaseInspection:
         journal_mode=journal_mode,
         table_counts=counts,
         foreign_key_violations=violations,
-        ownership_mismatches=ownership_mismatches,
         mixed_depot_update_dates=mixed_depot_update_dates,
         aggregates=aggregates,
     )

@@ -98,13 +98,13 @@ def test_zero_negative_and_positive_amount_ranges(session: Session) -> None:
     assert {item.amount for item in income.items} == {Decimal("0"), Decimal("5")}
 
 
-def test_bulk_relationship_validation_rejects_cross_owner_contract(session: Session) -> None:
+def test_bulk_relationship_validation_rejects_inaccessible_contract(session: Session) -> None:
     owner = add_user(session, "owner")
     other_owner = add_user(session, "other")
     account = add_account(session, owner)
     contract = add_contract(session, other_owner)
 
-    with pytest.raises(ConflictError, match="derselben Person"):
+    with pytest.raises(ConflictError, match="existiert nicht mehr"):
         create_transactions(session, owner, account.id, (_values(contract_id=contract.id),))
 
 
@@ -127,7 +127,26 @@ def test_bulk_relationship_validation_accepts_existing_shared_category(session: 
     assert created[0].contract_id == contract.id
 
 
-def test_update_rejects_cross_owner_contract_even_for_superuser(session: Session) -> None:
+def test_bulk_relationship_validation_allows_shared_contract_for_superuser(
+    session: Session,
+) -> None:
+    superuser = add_user(session, "admin", is_superuser=True)
+    owner = add_user(session, "owner")
+    other_owner = add_user(session, "other")
+    account = add_account(session, owner)
+    contract = add_contract(session, other_owner)
+
+    created = create_transactions(
+        session,
+        superuser,
+        account.id,
+        (_values(contract_id=contract.id),),
+    )
+
+    assert created[0].contract_id == contract.id
+
+
+def test_update_allows_shared_contract_for_superuser(session: Session) -> None:
     superuser = add_user(session, "admin", is_superuser=True)
     owner = add_user(session, "owner")
     other_owner = add_user(session, "other")
@@ -137,11 +156,12 @@ def test_update_rejects_cross_owner_contract_even_for_superuser(session: Session
     session.add(transaction)
     session.flush()
 
-    with pytest.raises(ConflictError, match="derselben Person"):
-        update_transaction(
-            session,
-            superuser,
-            account.id,
-            transaction.id,
-            _values(contract_id=contract.id),
-        )
+    updated = update_transaction(
+        session,
+        superuser,
+        account.id,
+        transaction.id,
+        _values(contract_id=contract.id),
+    )
+
+    assert updated.contract_id == contract.id

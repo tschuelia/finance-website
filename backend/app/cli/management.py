@@ -16,10 +16,8 @@ from app.auth.sessions import (
 from app.db.models import (
     BankAccount,
     BankDepot,
-    Contract,
     DepotAsset,
     DepotAssetTransaction,
-    Transaction,
     User,
 )
 
@@ -392,19 +390,6 @@ def update_account(
     if current_amount is not None:
         account.current_amount = parse_money(current_amount, field_name="current amount")
     if owner is not None:
-        mismatched_contract = session.scalar(
-            select(Contract.id)
-            .join(Transaction, Transaction.contract_id == Contract.id)
-            .where(
-                Transaction.bank_account_id == account.id,
-                Contract.owner_id != owner.id,
-            )
-            .limit(1)
-        )
-        if mismatched_contract is not None:
-            raise ManagementCommandError(
-                "account owner cannot change while linked contracts have another owner"
-            )
         account.owner_id = owner.id
     session.flush()
     owner_username = owner.username if owner is not None else account.owner.username

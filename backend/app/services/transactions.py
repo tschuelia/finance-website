@@ -7,7 +7,7 @@ from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.sql.elements import ColumnElement
 
-from app.db.models import BankAccount, Category, Contract, Transaction, User
+from app.db.models import Category, Contract, Transaction, User
 from app.errors import ConflictError
 from app.services.access import (
     get_visible_account_transaction,
@@ -190,7 +190,7 @@ def get_transaction_page(
 
 def _validate_relationships(
     session: Session,
-    account: BankAccount,
+    current_user: User,
     rows: tuple[TransactionValues, ...],
 ) -> None:
     category_ids = {row.category_id for row in rows if row.category_id is not None}
@@ -201,16 +201,12 @@ def _validate_relationships(
         raise ConflictError("Die ausgewählte Kategorie existiert nicht mehr.")
 
     contract_ids = {row.contract_id for row in rows if row.contract_id is not None}
-    contracts = {
-        contract_id: owner_id
-        for contract_id, owner_id in session.execute(
-            select(Contract.id, Contract.owner_id).where(Contract.id.in_(contract_ids))
-        )
-    }
-    if set(contracts) != contract_ids:
+    contract_statement = select(Contract.id).where(Contract.id.in_(contract_ids))
+    if not current_user.is_superuser:
+        contract_statement = contract_statement.where(Contract.owner_id == current_user.id)
+    visible_contract_ids = set(session.scalars(contract_statement))
+    if visible_contract_ids != contract_ids:
         raise ConflictError("Der ausgewählte Vertrag existiert nicht mehr.")
-    if any(owner_id != account.owner_id for owner_id in contracts.values()):
-        raise ConflictError("Vertrag und Konto müssen derselben Person gehören.")
 
 
 def _apply_values(transaction: Transaction, values: TransactionValues) -> None:
@@ -231,7 +227,7 @@ def create_transactions(
     rows: tuple[TransactionValues, ...],
 ) -> tuple[Transaction, ...]:
     account = get_visible_bank_account(session, current_user, account_id)
-    _validate_relationships(session, account, rows)
+    _validate_relationships(session, current_user, rows)
 
     transactions: list[Transaction] = []
     for values in rows:
@@ -265,8 +261,7 @@ def update_transaction(
         account_id,
         transaction_id,
     )
-    account = get_visible_bank_account(session, current_user, account_id)
-    _validate_relationships(session, account, (values,))
+    _validate_relationships(session, current_user, (values,))
     _apply_values(transaction, values)
     session.flush()
     return transaction

@@ -9,7 +9,7 @@ from typing import BinaryIO
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.db.models import BankAccount, Contract, ContractFile, Transaction, User
+from app.db.models import Contract, ContractFile, Transaction, User
 from app.db.transaction_hooks import register_transaction_callbacks
 from app.errors import AuthorizationError, ConflictError, ResourceNotFoundError
 from app.services.access import get_visible_contract, get_visible_user, list_visible_contracts
@@ -63,18 +63,12 @@ def get_contract_financials(
     contract_id: int,
 ) -> ContractFinancials:
     contract = get_visible_contract(session, current_user, contract_id)
-    owned_transactions = (
-        Transaction.contract_id == contract.id,
-        BankAccount.owner_id == contract.owner_id,
-    )
     balance, first_transaction_date, last_transaction_date = session.execute(
         select(
             func.sum(Transaction.amount),
             func.min(Transaction.date_issue),
             func.max(Transaction.date_issue),
-        )
-        .join(BankAccount, Transaction.bank_account_id == BankAccount.id)
-        .where(*owned_transactions)
+        ).where(Transaction.contract_id == contract.id)
     ).one()
     return ContractFinancials(
         balance=_decimal(balance),
@@ -96,16 +90,11 @@ def get_contract_detail(
     if page_size < 1 or page_size > 100:
         raise ValueError("page_size must be between 1 and 100")
     contract = get_visible_contract(session, current_user, contract_id)
-    transaction_clauses = (
-        Transaction.contract_id == contract.id,
-        BankAccount.owner_id == contract.owner_id,
-    )
     transaction_total = (
         session.scalar(
             select(func.count())
             .select_from(Transaction)
-            .join(BankAccount, Transaction.bank_account_id == BankAccount.id)
-            .where(*transaction_clauses)
+            .where(Transaction.contract_id == contract.id)
         )
         or 0
     )
@@ -128,8 +117,7 @@ def get_contract_detail(
                         selectinload(Transaction.category),
                         selectinload(Transaction.contract),
                     )
-                    .join(BankAccount, Transaction.bank_account_id == BankAccount.id)
-                    .where(*transaction_clauses)
+                    .where(Transaction.contract_id == contract.id)
                     .order_by(Transaction.date_issue.desc(), Transaction.id.desc())
                     .offset((effective_page - 1) * page_size)
                     .limit(page_size)
@@ -201,20 +189,6 @@ def update_contract(
 ) -> Contract:
     contract = get_visible_contract(session, current_user, contract_id)
     owner = _validate_owner(session, current_user, owner_id)
-    if owner.id != contract.owner_id:
-        mismatched_transaction = session.scalar(
-            select(Transaction.id)
-            .join(BankAccount, Transaction.bank_account_id == BankAccount.id)
-            .where(
-                Transaction.contract_id == contract.id,
-                BankAccount.owner_id != owner.id,
-            )
-            .limit(1)
-        )
-        if mismatched_transaction is not None:
-            raise ConflictError(
-                "Der Vertrag kann wegen verknüpfter Transaktionen nicht übertragen werden."
-            )
     contract.owner_id = owner.id
     contract.name = name
     contract.description = description

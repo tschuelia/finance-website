@@ -64,10 +64,6 @@ def _print_inspection(inspection: DatabaseInspection) -> None:
     for violation in inspection.foreign_key_violations:
         typer.echo(f"  - {violation}")
 
-    typer.echo(f"Cross-owner contract links: {len(inspection.ownership_mismatches)}")
-    for mismatch in inspection.ownership_mismatches:
-        typer.echo(f"  - {mismatch}")
-
     typer.echo(f"Depots with mixed asset update dates: {len(inspection.mixed_depot_update_dates)}")
     for mismatch in inspection.mixed_depot_update_dates:
         typer.echo(f"  - {mismatch}")
@@ -88,11 +84,7 @@ def inspect_command() -> None:
         raise typer.Exit(code=2) from None
 
     _print_inspection(inspection)
-    if (
-        not inspection.schema.compatible
-        or inspection.foreign_key_violations
-        or inspection.ownership_mismatches
-    ):
+    if not inspection.schema.compatible or inspection.foreign_key_violations:
         raise typer.Exit(code=1)
 
 
