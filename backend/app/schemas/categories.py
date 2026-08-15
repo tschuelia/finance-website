@@ -7,6 +7,7 @@ class CategoryResponse(BaseModel):
     id: int
     name: str
     patterns: str
+    assigned_count: int
 
 
 class CategoryWrite(BaseModel):

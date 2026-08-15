@@ -175,6 +175,7 @@ class Contract(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(255))
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    patterns: Mapped[str] = mapped_column(Text, default="", server_default="")
     owner_id: Mapped[int] = mapped_column(Integer, production_foreign_key("auth_user.id"))
     is_active: Mapped[bool] = mapped_column(Boolean)
     end_date: Mapped[datetime.date | None] = mapped_column(Date, nullable=True)
@@ -225,6 +226,8 @@ class Transaction(Base):
     contract_id: Mapped[int | None] = mapped_column(
         BigInteger, production_foreign_key("accounting_contract.id"), nullable=True
     )
+    category_reviewed: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    contract_reviewed: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
 
     bank_account: Mapped[BankAccount | None] = relationship(back_populates="transactions")
     category: Mapped[Category | None] = relationship(back_populates="transactions")

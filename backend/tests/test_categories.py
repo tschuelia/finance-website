@@ -1,5 +1,9 @@
 from app.db.models import Category
-from app.services.categories import category_patterns, match_transaction_category
+from app.services.categories import (
+    category_patterns,
+    match_transaction_categories,
+    match_transaction_category,
+)
 
 
 def test_empty_category_patterns_never_match() -> None:
@@ -13,17 +17,25 @@ def test_empty_category_patterns_never_match() -> None:
     assert match_transaction_category("Vermieter", "Monatliche MIETE", categories) is categories[1]
 
 
-def test_pattern_matching_checks_recipient_before_subject() -> None:
+def test_pattern_matching_marks_cross_field_overlap_as_ambiguous() -> None:
     recipient_category = Category(id=1, name="Empfänger", patterns="laden")
     subject_category = Category(id=2, name="Betreff", patterns="strom")
 
+    match = match_transaction_categories(
+        "Mein Laden",
+        "Stromrechnung",
+        (subject_category, recipient_category),
+    )
+
+    assert match.status == "ambiguous"
+    assert {candidate.id for candidate in match.candidates} == {1, 2}
     assert (
         match_transaction_category(
             "Mein Laden",
             "Stromrechnung",
             (subject_category, recipient_category),
         )
-        is recipient_category
+        is None
     )
 
 

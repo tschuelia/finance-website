@@ -1,6 +1,6 @@
 /* cspell:words Abmelden Hauptnavigation Finanzverwaltung */
 
-import { BarChart3, Landmark, LogOut, ReceiptText, Tags } from 'lucide-react'
+import { BarChart3, Landmark, ListChecks, LogOut, ReceiptText, Tags } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { toast } from 'sonner'
@@ -11,7 +11,7 @@ import { useSidebar } from '@/components/ui/sidebar'
 import { ApplicationLayout } from '@/layouts/application-layout'
 import { useAuth } from '@/features/auth/use-auth'
 import { displayName } from '@/lib/format'
-import { ANALYTICS, CATEGORIES, CONTRACTS, HOME, LOGIN } from '@/routes/urls'
+import { ANALYTICS, ASSIGNMENTS, CATEGORIES, CONTRACTS, HOME, LOGIN } from '@/routes/urls'
 
 type ApplicationShellProps = {
   children: ReactNode
@@ -21,6 +21,7 @@ const navigation = [
   { label: 'Übersicht', href: HOME, icon: Landmark },
   { label: 'Verträge', href: CONTRACTS, icon: ReceiptText },
   { label: 'Kategorien', href: CATEGORIES, icon: Tags },
+  { label: 'Zuordnungen', href: ASSIGNMENTS, icon: ListChecks },
   { label: 'Auswertungen', href: ANALYTICS, icon: BarChart3 }
 ]
 
@@ -35,6 +36,10 @@ const activeNavigation = (pathname: string): string => {
 
   if (pathname.startsWith(ANALYTICS)) {
     return ANALYTICS
+  }
+
+  if (pathname.startsWith(ASSIGNMENTS)) {
+    return ASSIGNMENTS
   }
 
   return HOME

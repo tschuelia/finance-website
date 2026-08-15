@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.cli.management import update_account
 from app.db.models import Transaction
-from app.services.contracts import get_contract_detail, update_contract
+from app.services.contracts import get_contract_detail, match_transaction_contracts, update_contract
 
 
 def _transaction(
@@ -155,3 +155,24 @@ def test_account_owner_can_change_with_shared_contracts(session: Session) -> Non
     )
 
     assert updated.owner_id == new_owner.id
+
+
+def test_contract_matching_uses_terms_and_contract_period(session: Session) -> None:
+    owner = add_user(session, "owner")
+    matching = add_contract(session, owner, name="Strom")
+    matching.patterns = " Stadtwerke \n"
+    expired = add_contract(session, owner, name="Altvertrag")
+    expired.patterns = "Stadtwerke"
+    expired.end_date = date(2025, 12, 31)
+    session.flush()
+
+    result = match_transaction_contracts(
+        "Stadtwerke Berlin",
+        "Abschlag",
+        date(2026, 1, 1),
+        (expired, matching),
+    )
+
+    assert result.status == "unique"
+    assert result.candidates[0].id == matching.id
+    assert result.candidates[0].matched_patterns == ("Stadtwerke",)

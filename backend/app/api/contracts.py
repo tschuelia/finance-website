@@ -21,6 +21,7 @@ from app.schemas.contracts import (
     ContractWrite,
 )
 from app.services.contracts import (
+    count_contract_suggestions,
     create_contract,
     delete_contract_file,
     get_contract_detail,
@@ -41,7 +42,7 @@ def _settings(request: Request) -> Settings:
     return settings
 
 
-def _summary(contract: Contract) -> ContractSummaryResponse:
+def _summary(contract: Contract, *, suggestion_count: int = 0) -> ContractSummaryResponse:
     return ContractSummaryResponse(
         id=contract.id,
         name=contract.name,
@@ -53,9 +54,11 @@ def _summary(contract: Contract) -> ContractSummaryResponse:
             is_superuser=contract.owner.is_superuser,
         ),
         description=contract.description,
+        patterns=contract.patterns,
         is_active=contract.is_active,
         start_date=contract.start_date,
         end_date=contract.end_date,
+        suggestion_count=suggestion_count,
     )
 
 
@@ -76,8 +79,14 @@ def contract_list(
 ) -> ContractListResponse:
     active, inactive = grouped_contracts(session, current_user)
     return ContractListResponse(
-        active=[_summary(contract) for contract in active],
-        inactive=[_summary(contract) for contract in inactive],
+        active=[
+            _summary(contract, suggestion_count=count_contract_suggestions(session, contract))
+            for contract in active
+        ],
+        inactive=[
+            _summary(contract, suggestion_count=count_contract_suggestions(session, contract))
+            for contract in inactive
+        ],
     )
 
 
@@ -94,6 +103,7 @@ def contract_create(
             owner_id=payload.owner_id,
             name=payload.name,
             description=payload.description,
+            patterns=payload.patterns,
             is_active=payload.is_active,
             start_date=payload.start_date,
             end_date=payload.end_date,
@@ -115,7 +125,10 @@ def contract_detail(
         page=query.page,
         page_size=query.page_size,
     )
-    summary = _summary(detail.contract)
+    summary = _summary(
+        detail.contract,
+        suggestion_count=count_contract_suggestions(session, detail.contract),
+    )
     return ContractDetailResponse(
         **summary.model_dump(),
         balance=detail.financials.balance,
@@ -147,6 +160,7 @@ def contract_update(
             owner_id=payload.owner_id,
             name=payload.name,
             description=payload.description,
+            patterns=payload.patterns,
             is_active=payload.is_active,
             start_date=payload.start_date,
             end_date=payload.end_date,

@@ -110,6 +110,7 @@ def add_contract(session: Session, owner: User, *, name: str = "Vertrag") -> Con
     contract = Contract(
         name=name,
         description=None,
+        patterns="",
         owner_id=owner.id,
         is_active=True,
         start_date=None,

@@ -18,9 +18,11 @@ export const ContractSummarySchema = z
     name: z.string(),
     owner: UserSummarySchema,
     description: z.string().nullable(),
+    patterns: z.string(),
     is_active: z.boolean(),
     start_date: DateSchema.nullable(),
-    end_date: DateSchema.nullable()
+    end_date: DateSchema.nullable(),
+    suggestion_count: z.number().int().nonnegative()
   })
   .strict()
 
@@ -60,6 +62,7 @@ export const ContractWriteSchema = z
     owner_id: z.number().int().positive(),
     name: z.string().trim().min(1).max(255),
     description: z.string().nullable().optional(),
+    patterns: z.string().default(''),
     is_active: z.boolean().default(true),
     start_date: DateSchema.nullable().optional(),
     end_date: DateSchema.nullable().optional()

@@ -14,12 +14,25 @@ class CsvImportError(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class ImportedTransaction:
+    source_row: int
     recipient: str
     amount: Decimal
     subject: str
     date_issue: date
     date_booking: date | None
     full_subject_string: str
+
+
+@dataclass(frozen=True, slots=True)
+class SkippedCsvRow:
+    source_row: int
+    reason: str
+
+
+@dataclass(frozen=True, slots=True)
+class CsvParseReport:
+    transactions: tuple[ImportedTransaction, ...]
+    skipped_rows: tuple[SkippedCsvRow, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -143,7 +156,7 @@ def _normalized_rows(content: str, bank_format: BankFormat) -> list[dict[str, st
         raise CsvImportError(f"Erforderliche CSV-Spalten fehlen: {', '.join(missing)}")
 
     rows: list[dict[str, str]] = []
-    for source_row in reader:
+    for source_row_number, source_row in enumerate(reader, start=2):
         if not source_row or all(not (value or "").strip() for value in source_row.values()):
             continue
         if len(rows) >= MAX_CSV_ROWS:
@@ -151,7 +164,8 @@ def _normalized_rows(content: str, bank_format: BankFormat) -> list[dict[str, st
                 f"Die CSV-Datei darf höchstens {MAX_CSV_ROWS} Transaktionen enthalten."
             )
         rows.append(
-            {
+            {"__source_row": str(source_row_number)}
+            | {
                 target: (source_row.get(source) or "").strip()
                 for source, target in bank_format.columns.items()
             }
@@ -163,6 +177,7 @@ def _normalized_rows(content: str, bank_format: BankFormat) -> list[dict[str, st
 def _base_transaction(row: Mapping[str, str], bank_format: BankFormat) -> ImportedTransaction:
     subject = row.get("subject", "")
     return ImportedTransaction(
+        source_row=int(row["__source_row"]),
         recipient=row.get("recipient", ""),
         amount=_parse_amount(row.get("amount", ""), german=bank_format.german_amount),
         subject=subject,
@@ -207,6 +222,7 @@ def _comdirect(row: Mapping[str, str], bank_format: BankFormat) -> ImportedTrans
         recipient = recipient_part.split("empfänger:", maxsplit=1)[1].strip()
         subject = subject.strip()
     return ImportedTransaction(
+        source_row=transaction.source_row,
         recipient=recipient,
         amount=transaction.amount,
         subject=subject,
@@ -220,6 +236,7 @@ def _dkb(row: Mapping[str, str], bank_format: BankFormat) -> ImportedTransaction
     transaction = _base_transaction(row, bank_format)
     recipient_column = "Zahlungspflichtige*r" if transaction.amount >= 0 else "Zahlungsempfänger*in"
     return ImportedTransaction(
+        source_row=transaction.source_row,
         recipient=row.get(recipient_column, "") or "DKB AG",
         amount=transaction.amount,
         subject=transaction.subject,
@@ -233,6 +250,7 @@ def _holvi(row: Mapping[str, str], bank_format: BankFormat) -> ImportedTransacti
     transaction = _base_transaction(row, bank_format)
     subject = transaction.subject or row.get("Nachricht", "")
     return ImportedTransaction(
+        source_row=transaction.source_row,
         recipient=transaction.recipient,
         amount=transaction.amount,
         subject=subject,
@@ -246,6 +264,7 @@ def _n26(row: Mapping[str, str], bank_format: BankFormat) -> ImportedTransaction
     transaction = _base_transaction(row, bank_format)
     subject = transaction.subject or transaction.recipient
     return ImportedTransaction(
+        source_row=transaction.source_row,
         recipient=transaction.recipient,
         amount=transaction.amount,
         subject=subject,
@@ -255,7 +274,7 @@ def _n26(row: Mapping[str, str], bank_format: BankFormat) -> ImportedTransaction
     )
 
 
-def parse_bank_csv(bank: str, data: bytes) -> tuple[ImportedTransaction, ...]:
+def parse_bank_csv_report(bank: str, data: bytes) -> CsvParseReport:
     normalized_bank = bank.strip().casefold()
     bank_format = FORMATS.get(normalized_bank)
     if bank_format is None:
@@ -279,11 +298,34 @@ def parse_bank_csv(bank: str, data: bytes) -> tuple[ImportedTransaction, ...]:
         "holvi": _holvi,
         "n26": _n26,
     }
-    transactions = tuple(
-        transaction
-        for row in rows
-        if (transaction := converters[normalized_bank](row, bank_format)) is not None
-    )
+    transactions: list[ImportedTransaction] = []
+    skipped_rows: list[SkippedCsvRow] = []
+    for row in rows:
+        source_row = int(row["__source_row"])
+        try:
+            transaction = converters[normalized_bank](row, bank_format)
+        except CsvImportError as exc:
+            skipped_rows.append(SkippedCsvRow(source_row=source_row, reason=str(exc)))
+            continue
+        if transaction is None:
+            skipped_rows.append(
+                SkippedCsvRow(
+                    source_row=source_row,
+                    reason="Offene, noch nicht gebuchte Transaktion",
+                )
+            )
+            continue
+        transactions.append(transaction)
     if not transactions:
+        if skipped_rows:
+            first = skipped_rows[0]
+            raise CsvImportError(f"Zeile {first.source_row}: {first.reason}")
         raise CsvImportError("Die CSV-Datei enthält keine importierbaren Transaktionen.")
-    return transactions
+    return CsvParseReport(
+        transactions=tuple(transactions),
+        skipped_rows=tuple(skipped_rows),
+    )
+
+
+def parse_bank_csv(bank: str, data: bytes) -> tuple[ImportedTransaction, ...]:
+    return parse_bank_csv_report(bank, data).transactions

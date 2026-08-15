@@ -12,6 +12,8 @@ export type TransactionDraft = {
   fullSubjectString: string
   categoryId: string
   contractId: string
+  categoryReviewed: boolean
+  contractReviewed: boolean
 }
 
 type TransactionDraftResult =
@@ -35,7 +37,9 @@ export const transactionDraftFromTransaction = (transaction: Transaction): Trans
   dateBooking: transaction.date_booking ?? '',
   fullSubjectString: transaction.full_subject_string,
   categoryId: transaction.category_id === null ? '' : String(transaction.category_id),
-  contractId: transaction.contract_id === null ? '' : String(transaction.contract_id)
+  contractId: transaction.contract_id === null ? '' : String(transaction.contract_id),
+  categoryReviewed: transaction.category_reviewed,
+  contractReviewed: transaction.contract_reviewed
 })
 
 export const transactionDraftFromWrite = (transaction: TransactionWrite): TransactionDraft => ({
@@ -52,7 +56,9 @@ export const transactionDraftFromWrite = (transaction: TransactionWrite): Transa
   contractId:
     transaction.contract_id === null || transaction.contract_id === undefined
       ? ''
-      : String(transaction.contract_id)
+      : String(transaction.contract_id),
+  categoryReviewed: transaction.category_reviewed,
+  contractReviewed: transaction.contract_reviewed
 })
 
 export const transactionWriteFromDraft = (
@@ -101,7 +107,9 @@ export const transactionWriteFromDraft = (
       date_booking: draft.dateBooking || null,
       full_subject_string: draft.fullSubjectString.trim() || null,
       category_id: categoryId,
-      contract_id: contractId
+      contract_id: contractId,
+      category_reviewed: draft.categoryReviewed,
+      contract_reviewed: draft.contractReviewed
     }
   }
 }

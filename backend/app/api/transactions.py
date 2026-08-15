@@ -33,6 +33,9 @@ def transaction_response(transaction: Transaction) -> TransactionResponse:
     return TransactionResponse(
         id=transaction.id,
         bank_account_id=transaction.bank_account_id,
+        bank_account_name=(
+            transaction.bank_account.name if transaction.bank_account is not None else None
+        ),
         recipient=transaction.recipient,
         amount=transaction.amount,
         subject=transaction.subject,
@@ -43,6 +46,8 @@ def transaction_response(transaction: Transaction) -> TransactionResponse:
         category_name=transaction.category.name if transaction.category is not None else None,
         contract_id=transaction.contract_id,
         contract_name=transaction.contract.name if transaction.contract is not None else None,
+        category_reviewed=transaction.category_reviewed,
+        contract_reviewed=transaction.contract_reviewed,
     )
 
 
@@ -59,6 +64,8 @@ def transaction_values(account_id: int, payload: TransactionWrite) -> Transactio
         full_subject_string=payload.full_subject_string or payload.subject,
         category_id=payload.category_id,
         contract_id=payload.contract_id,
+        category_reviewed=payload.category_reviewed,
+        contract_reviewed=payload.contract_reviewed,
     )
 
 

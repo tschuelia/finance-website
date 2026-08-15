@@ -19,7 +19,7 @@ import {
 } from '@/features/transactions/transaction-search'
 import {
   TransactionPagination,
-  TransactionSummaryCards,
+  TransactionSummaryCard,
   TransactionTable
 } from '@/features/transactions/transaction-table'
 
@@ -115,10 +115,7 @@ const AccountDetailContent = ({ accountId }: AccountDetailContentProps) => {
   return (
     <>
       {pageHeader}
-      <TransactionSummaryCards
-        summary={transactions.data.summary}
-        total={transactions.data.total}
-      />
+      <TransactionSummaryCard summary={transactions.data.summary} total={transactions.data.total} />
       <TransactionFilterForm
         categories={categories.status === 'success' ? categories.data : []}
         categoriesError={categoryError}

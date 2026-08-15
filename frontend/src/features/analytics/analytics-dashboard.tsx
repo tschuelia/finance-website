@@ -1,6 +1,17 @@
 /* cspell:words Auswertungen Kategorienvergleich Monatsverlauf */
 
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
+import {
+  Bar,
+  CartesianGrid,
+  Cell,
+  ComposedChart,
+  Line,
+  Pie,
+  PieChart,
+  ReferenceLine,
+  XAxis,
+  YAxis
+} from 'recharts'
 import {
   Card,
   CardAction,
@@ -56,37 +67,174 @@ const MonthCountInput = ({ onChange, value }: MonthCountInputProps) => {
   )
 }
 
-const CategoryChart = ({ data }: { data: CategoryTotals }) => {
-  const chartData = data.series.map((item) => ({
-    category: item.category,
-    income: item.income,
-    expense: item.expense
-  }))
+const percentageFormatter = new Intl.NumberFormat('de-DE', {
+  style: 'percent',
+  maximumFractionDigits: 1
+})
 
-  if (chartData.length === 0) {
-    return (
-      <EmptyState description="Für diese Auswahl liegen keine kategorisierten Buchungen vor." />
-    )
+const MAX_VISIBLE_CATEGORIES = 6
+const OTHER_CATEGORY = 'Sonstige'
+const OTHER_CATEGORY_COLOR = 'var(--muted-foreground)'
+
+type ExpenseCategory = {
+  category: string
+  expense: number
+}
+
+type ExpensePieDatum = ExpenseCategory & {
+  breakdown: ExpenseCategory[]
+  fill: string
+}
+
+const categoryColor = (category: string): string => {
+  let hash = 0
+  for (const character of category) {
+    hash = (hash * 31 + (character.codePointAt(0) ?? 0)) >>> 0
+  }
+  return `oklch(0.66 0.14 ${hash % 360})`
+}
+
+const expenseOrder = (left: ExpenseCategory, right: ExpenseCategory): number =>
+  right.expense - left.expense || left.category.localeCompare(right.category, 'de')
+
+const expensePieData = (series: CategoryTotals['series']): ExpensePieDatum[] => {
+  const expenses = series
+    .filter((item) => item.expense > 0)
+    .map((item) => ({ category: item.category, expense: item.expense }))
+    .sort(expenseOrder)
+
+  if (expenses.length <= MAX_VISIBLE_CATEGORIES) {
+    return expenses.map((item) => ({
+      ...item,
+      breakdown: [],
+      fill: categoryColor(item.category)
+    }))
   }
 
+  const namedCategories = expenses.filter((item) => item.category !== OTHER_CATEGORY)
+  const visibleCategories = namedCategories.slice(0, MAX_VISIBLE_CATEGORIES)
+  const breakdown = [
+    ...namedCategories.slice(MAX_VISIBLE_CATEGORIES),
+    ...expenses.filter((item) => item.category === OTHER_CATEGORY)
+  ].sort(expenseOrder)
+
+  return [
+    ...visibleCategories.map((item) => ({
+      ...item,
+      breakdown: [],
+      fill: categoryColor(item.category)
+    })),
+    {
+      category: OTHER_CATEGORY,
+      expense: breakdown.reduce((sum, item) => sum + item.expense, 0),
+      breakdown,
+      fill: OTHER_CATEGORY_COLOR
+    }
+  ]
+}
+
+const CategoryExpensePieChart = ({ series }: { series: CategoryTotals['series'] }) => {
+  const chartData = expensePieData(series)
+  const total = chartData.reduce((sum, item) => sum + item.expense, 0)
+  const chartConfig = Object.fromEntries(
+    chartData.map((item) => [item.category, { label: item.category }])
+  )
+
   return (
-    <ChartContainer
-      className="min-h-72 w-full"
-      config={{
-        income: { label: 'Einnahmen', color: data.income_color },
-        expense: { label: 'Ausgaben', color: data.expense_color }
-      }}
-    >
-      <BarChart accessibilityLayer data={chartData} margin={{ left: 8, right: 8 }}>
-        <CartesianGrid vertical={false} />
-        <XAxis dataKey="category" tickLine={false} tickMargin={8} />
-        <YAxis tickFormatter={(value: number) => formatDecimal(value, { currency: false })} />
-        <ChartTooltip content={<ChartTooltipContent />} cursor={false} isAnimationActive={false} />
-        <ChartLegend content={<ChartLegendContent />} />
-        <Bar dataKey="income" fill="var(--color-income)" isAnimationActive={false} radius={4} />
-        <Bar dataKey="expense" fill="var(--color-expense)" isAnimationActive={false} radius={4} />
-      </BarChart>
-    </ChartContainer>
+    <div className="grid gap-3">
+      <header className="grid gap-1 text-center">
+        <p className="text-sm text-muted-foreground">Ausgaben gesamt</p>
+        <p className="text-2xl font-semibold tabular-nums">{formatDecimal(total)}</p>
+      </header>
+      {chartData.length === 0 ? (
+        <EmptyState description="Für diese Auswahl liegen keine Ausgaben vor." />
+      ) : (
+        <div className="@container">
+          <div className="grid items-center gap-4 @md:grid-cols-[minmax(0,18rem)_minmax(10rem,1fr)]">
+            <ChartContainer className="mx-auto aspect-square w-full max-w-72" config={chartConfig}>
+              <PieChart accessibilityLayer>
+                <ChartTooltip
+                  content={
+                    <ChartTooltipContent
+                      formatter={(value, name) => {
+                        const amount = Array.isArray(value) ? Number(value[0] ?? 0) : Number(value)
+                        const category = String(name)
+                        const datum = chartData.find((item) => item.category === category)
+                        return (
+                          <div className="grid min-w-52 gap-2">
+                            <div className="flex items-center justify-between gap-4">
+                              <span className="flex items-center gap-2 text-muted-foreground">
+                                <span
+                                  className="size-2.5 shrink-0 rounded-[2px]"
+                                  style={{
+                                    backgroundColor: datum?.fill ?? categoryColor(category)
+                                  }}
+                                />
+                                {category}
+                              </span>
+                              <span className="font-mono font-medium tabular-nums">
+                                {formatDecimal(amount)} ·{' '}
+                                {percentageFormatter.format(amount / total)}
+                              </span>
+                            </div>
+                            {datum === undefined || datum.breakdown.length === 0 ? null : (
+                              <div className="grid max-h-56 gap-1.5 overflow-y-auto border-t pt-2 pr-1">
+                                <p className="font-medium">Enthaltene Kategorien</p>
+                                {datum.breakdown.map((item) => (
+                                  <div
+                                    className="flex items-center justify-between gap-4"
+                                    key={item.category}
+                                  >
+                                    <span className="text-muted-foreground">{item.category}</span>
+                                    <span className="font-mono tabular-nums">
+                                      {formatDecimal(item.expense)} ·{' '}
+                                      {percentageFormatter.format(item.expense / total)}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      }}
+                      hideLabel
+                    />
+                  }
+                  isAnimationActive={false}
+                />
+                <Pie
+                  data={chartData}
+                  dataKey="expense"
+                  isAnimationActive={false}
+                  nameKey="category"
+                  stroke="var(--background)"
+                  strokeWidth={2}
+                >
+                  {chartData.map((item) => (
+                    <Cell fill={item.fill} key={item.category} />
+                  ))}
+                </Pie>
+              </PieChart>
+            </ChartContainer>
+            <ul
+              aria-label="Ausgabenkategorien"
+              className="grid grid-cols-2 content-center gap-x-4 gap-y-2 text-xs text-muted-foreground @md:grid-cols-1"
+            >
+              {chartData.map((item) => (
+                <li className="flex min-w-0 items-center gap-1.5" key={item.category}>
+                  <span
+                    aria-hidden
+                    className="size-2 shrink-0 rounded-[2px]"
+                    style={{ backgroundColor: item.fill }}
+                  />
+                  <span className="break-words">{item.category}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -120,22 +268,22 @@ export const AnalyticsDashboard = ({
       <Card>
         <CardHeader>
           <CardTitle>Kategorien</CardTitle>
-          <CardDescription>
-            Gegenüberstellung von Einnahmen und Ausgaben je Kategorie.
-          </CardDescription>
+          <CardDescription>Verteilung der Ausgaben auf die einzelnen Kategorien.</CardDescription>
         </CardHeader>
         <CardContent>
           {categories.status === 'loading' ? (
             <LoadingState title="Kategorien werden ausgewertet" />
           ) : null}
           {categories.status === 'error' ? <ErrorState error={categories.error} /> : null}
-          {categories.status === 'success' ? <CategoryChart data={categories.data} /> : null}
+          {categories.status === 'success' ? (
+            <CategoryExpensePieChart series={categories.data.series} />
+          ) : null}
         </CardContent>
       </Card>
       <Card>
         <CardHeader>
           <CardTitle>Kategorienvergleich</CardTitle>
-          <CardDescription>Die ausgewählten Zeiträume nebeneinander.</CardDescription>
+          <CardDescription>Verteilung der Ausgaben in den ausgewählten Zeiträumen.</CardDescription>
         </CardHeader>
         <CardContent>
           {comparison.status === 'error' ? <ErrorState error={comparison.error} /> : null}
@@ -163,13 +311,7 @@ export const AnalyticsDashboard = ({
                     <EmptyState description="Für diesen Vergleichszeitraum liegen keine Daten vor." />
                   ) : null}
                   {comparison.status === 'success' && item !== undefined ? (
-                    <CategoryChart
-                      data={{
-                        income_color: comparison.data.income_color,
-                        expense_color: comparison.data.expense_color,
-                        series: item.series
-                      }}
-                    />
+                    <CategoryExpensePieChart series={item.series} />
                   ) : null}
                 </section>
               )
@@ -200,21 +342,28 @@ export const AnalyticsDashboard = ({
               className="min-h-80 w-full"
               config={{
                 income: { label: 'Einnahmen', color: monthlyTotals.data.income_color },
-                expense: { label: 'Ausgaben', color: monthlyTotals.data.expense_color }
+                expense: { label: 'Ausgaben', color: monthlyTotals.data.expense_color },
+                total: { label: 'Gesamt', color: 'var(--muted-foreground)' }
               }}
             >
-              <BarChart
+              <ComposedChart
                 accessibilityLayer
                 data={monthlyTotals.data.series.map((item) => ({
                   label: item.label,
                   income: item.income,
-                  expense: item.expense
+                  expense: item.expense,
+                  total: item.income - item.expense
                 }))}
                 margin={{ left: 8, right: 8 }}
               >
                 <CartesianGrid vertical={false} />
+                <ReferenceLine y={0} />
                 <XAxis dataKey="label" tickLine={false} tickMargin={8} />
                 <YAxis
+                  domain={[
+                    (dataMin: number) => Math.min(0, dataMin),
+                    (dataMax: number) => Math.max(0, dataMax)
+                  ]}
                   tickFormatter={(value: number) => formatDecimal(value, { currency: false })}
                 />
                 <ChartTooltip
@@ -224,18 +373,26 @@ export const AnalyticsDashboard = ({
                 />
                 <ChartLegend content={<ChartLegendContent />} />
                 <Bar
+                  dataKey="total"
+                  fill="var(--color-total)"
+                  isAnimationActive={false}
+                  radius={4}
+                />
+                <Line
                   dataKey="income"
-                  fill="var(--color-income)"
+                  dot={false}
                   isAnimationActive={false}
-                  radius={4}
+                  stroke="var(--color-income)"
+                  strokeWidth={2}
                 />
-                <Bar
+                <Line
                   dataKey="expense"
-                  fill="var(--color-expense)"
+                  dot={false}
                   isAnimationActive={false}
-                  radius={4}
+                  stroke="var(--color-expense)"
+                  strokeWidth={2}
                 />
-              </BarChart>
+              </ComposedChart>
             </ChartContainer>
           ) : null}
         </CardContent>

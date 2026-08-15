@@ -11,6 +11,7 @@ import {
   ComboboxGroup,
   ComboboxInput,
   ComboboxItem,
+  ComboboxLabel,
   ComboboxList,
   ComboboxSeparator
 } from '@/components/ui/combobox'
@@ -177,7 +178,11 @@ export const TransactionDraftFields = ({
           itemToStringValue={(option: CategoryOption) => option.value}
           items={categoryOptions}
           onValueChange={(option: CategoryOption | null) =>
-            change('categoryId', option?.category === null ? '' : (option?.value ?? ''))
+            onChange({
+              ...draft,
+              categoryId: option?.category === null ? '' : (option?.value ?? ''),
+              categoryReviewed: true
+            })
           }
           value={selectedCategory}
         >
@@ -211,7 +216,11 @@ export const TransactionDraftFields = ({
           itemToStringValue={(option: ContractOption) => option.value}
           items={populatedContractGroups}
           onValueChange={(option: ContractOption | null) =>
-            change('contractId', option?.contract === null ? '' : (option?.value ?? ''))
+            onChange({
+              ...draft,
+              contractId: option?.contract === null ? '' : (option?.value ?? ''),
+              contractReviewed: true
+            })
           }
           value={selectedContract}
         >
@@ -226,6 +235,9 @@ export const TransactionDraftFields = ({
               {(group: ContractGroup, index: number) => (
                 <ComboboxGroup key={group.value} items={group.items}>
                   {index > 0 ? <ComboboxSeparator /> : null}
+                  <ComboboxLabel>
+                    {group.value === 'active' ? 'Aktive Verträge' : 'Inaktive Verträge'}
+                  </ComboboxLabel>
                   <ComboboxCollection>
                     {(option: ContractOption) => (
                       <ComboboxItem

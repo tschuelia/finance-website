@@ -1,6 +1,6 @@
-/* cspell:words Vertragslaufzeit Vertragsinhaber */
+/* cspell:words Vertragslaufzeit Vertragsinhaber Zuordnungsmuster */
 
-import { Plus } from 'lucide-react'
+import { ListChecks, Plus } from 'lucide-react'
 import { Link } from 'react-router'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -10,7 +10,7 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/shared/query-
 import { PageHeader } from '@/components/shared/page-header'
 import { formatContractPeriod } from '@/features/contracts/contract-format'
 import { useContracts } from '@/hooks/use-contracts'
-import { CONTRACT_NEW, contractUrl } from '@/routes/urls'
+import { ASSIGNMENTS, CONTRACT_NEW, contractUrl } from '@/routes/urls'
 import type { ContractSummary } from '@/types/contracts'
 
 const ContractCard = ({ contract }: { contract: ContractSummary }) => {
@@ -36,6 +36,28 @@ const ContractCard = ({ contract }: { contract: ContractSummary }) => {
               : contract.description}
           </p>
           <p className="text-xs text-muted-foreground">{formatContractPeriod(contract)}</p>
+          {contract.suggestion_count === 0 ? null : (
+            <Badge className="w-fit" variant="secondary">
+              {contract.suggestion_count === 1
+                ? '1 Zuordnungsvorschlag'
+                : `${contract.suggestion_count} Zuordnungsvorschläge`}
+            </Badge>
+          )}
+          <div className="flex min-h-6 flex-wrap gap-1">
+            {contract.patterns.trim() === '' ? (
+              <span className="text-xs text-muted-foreground">Keine Zuordnungsmuster</span>
+            ) : (
+              contract.patterns
+                .split(/\r?\n/)
+                .filter(Boolean)
+                .slice(0, 3)
+                .map((pattern) => (
+                  <Badge key={pattern} variant="outline">
+                    {pattern}
+                  </Badge>
+                ))
+            )}
+          </div>
         </CardContent>
       </Card>
     </Link>
@@ -77,12 +99,20 @@ export const ContractsPage = () => {
     <>
       <PageHeader
         actions={
-          <Button asChild>
-            <Link to={CONTRACT_NEW}>
-              <Plus aria-hidden />
-              Vertrag anlegen
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline">
+              <Link to={ASSIGNMENTS}>
+                <ListChecks aria-hidden />
+                Vorschläge prüfen
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link to={CONTRACT_NEW}>
+                <Plus aria-hidden />
+                Vertrag anlegen
+              </Link>
+            </Button>
+          </div>
         }
         description="Behalte Vertragslaufzeiten, Buchungen und Unterlagen zusammen im Blick."
         title="Verträge"

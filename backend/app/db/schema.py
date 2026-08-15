@@ -147,6 +147,7 @@ PRODUCTION_DATABASE_SCHEMA: dict[str, TableSpec] = {
             "id": ID_COLUMN,
             "name": _column(ColumnKind.STRING, length=255),
             "description": _column(ColumnKind.TEXT, nullable=True),
+            "patterns": _column(ColumnKind.TEXT),
             "owner_id": _column(ColumnKind.INTEGER),
             "is_active": _column(ColumnKind.BOOLEAN),
             "end_date": _column(ColumnKind.DATE, nullable=True),
@@ -177,6 +178,8 @@ PRODUCTION_DATABASE_SCHEMA: dict[str, TableSpec] = {
             "bank_account_id": _column(ColumnKind.INTEGER, nullable=True),
             "category_id": _column(ColumnKind.INTEGER, nullable=True),
             "contract_id": _column(ColumnKind.INTEGER, nullable=True),
+            "category_reviewed": _column(ColumnKind.BOOLEAN),
+            "contract_reviewed": _column(ColumnKind.BOOLEAN),
         },
         foreign_keys=frozenset(
             {

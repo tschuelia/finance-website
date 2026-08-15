@@ -9,7 +9,14 @@ from app.db import request_session
 from app.db.models import User
 from app.errors import InvalidImportError
 from app.imports import CsvImportError
-from app.schemas.imports import CsvCommitRequest, CsvCommitResponse, CsvPreviewResponse
+from app.schemas.imports import (
+    CsvCommitRequest,
+    CsvCommitResponse,
+    CsvPreviewResponse,
+    CsvPreviewRowResponse,
+    CsvSkippedRowResponse,
+)
+from app.schemas.matching import rule_match_response
 from app.schemas.transactions import TransactionWrite
 from app.services.imports import preview_csv_import
 from app.services.transactions import create_transactions
@@ -30,7 +37,7 @@ def csv_preview(
     session: DatabaseSession,
 ) -> CsvPreviewResponse:
     try:
-        rows = preview_csv_import(
+        preview = preview_csv_import(
             session,
             current_user,
             account_id,
@@ -43,19 +50,30 @@ def csv_preview(
         raise InvalidImportError(str(exc)) from None
     return CsvPreviewResponse(
         items=[
-            TransactionWrite(
-                bank_account_id=account_id,
-                recipient=row.transaction.recipient,
-                amount=row.transaction.amount,
-                subject=row.transaction.subject,
-                date_issue=row.transaction.date_issue,
-                date_booking=row.transaction.date_booking,
-                full_subject_string=row.transaction.full_subject_string,
-                category_id=row.category_id,
-                contract_id=None,
+            CsvPreviewRowResponse(
+                source_row=row.transaction.source_row,
+                transaction=TransactionWrite(
+                    bank_account_id=account_id,
+                    recipient=row.transaction.recipient,
+                    amount=row.transaction.amount,
+                    subject=row.transaction.subject,
+                    date_issue=row.transaction.date_issue,
+                    date_booking=row.transaction.date_booking,
+                    full_subject_string=row.transaction.full_subject_string,
+                    category_id=row.category_id,
+                    contract_id=row.contract_id,
+                    category_reviewed=row.category_id is not None,
+                    contract_reviewed=row.contract_match.status != "ambiguous",
+                ),
+                category_match=rule_match_response(row.category_match),
+                contract_match=rule_match_response(row.contract_match),
             )
-            for row in rows
-        ]
+            for row in preview.rows
+        ],
+        skipped_rows=[
+            CsvSkippedRowResponse(source_row=row.source_row, reason=row.reason)
+            for row in preview.skipped_rows
+        ],
     )
 
 

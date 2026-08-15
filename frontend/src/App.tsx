@@ -7,6 +7,7 @@ import { AccountDetailPage } from '@/features/accounts/account-detail-page'
 import { DepotPage } from '@/features/accounts/depot-page'
 import { PortfolioPage } from '@/features/accounts/portfolio-page'
 import { AnalyticsPage } from '@/features/analytics/analytics-page'
+import { AssignmentReviewPage } from '@/features/assignments/assignment-review-page'
 import { AuthProvider } from '@/features/auth/auth-provider'
 import { LoginPage } from '@/features/auth/login-page'
 import { ProtectedRoute } from '@/features/auth/protected-route'
@@ -67,13 +68,10 @@ export const App = () => {
                   <Route element={<DepotPage />} path="depots/:depotId" />
                   <Route element={<CategoriesPage />} path="kategorien" />
                   <Route element={<ContractsPage />} path="vertraege" />
-                  <Route element={<ContractFormPage mode="create" />} path="vertraege/neu" />
+                  <Route element={<ContractFormPage />} path="vertraege/neu" />
                   <Route element={<ContractDetailPage />} path="vertraege/:contractId" />
-                  <Route
-                    element={<ContractFormPage mode="edit" />}
-                    path="vertraege/:contractId/bearbeiten"
-                  />
                   <Route element={<AnalyticsPage />} path="auswertungen" />
+                  <Route element={<AssignmentReviewPage />} path="zuordnungen" />
                 </Route>
               </Route>
               <Route element={<NotFoundPage />} path="*" />

@@ -23,9 +23,11 @@ class ContractSummaryResponse(BaseModel):
     name: str
     owner: UserSummary
     description: str | None
+    patterns: str
     is_active: bool
     start_date: date | None
     end_date: date | None
+    suggestion_count: int
 
 
 class ContractListResponse(BaseModel):
@@ -66,6 +68,7 @@ class ContractWrite(BaseModel):
     owner_id: int
     name: str = Field(min_length=1, max_length=255)
     description: str | None = None
+    patterns: str = ""
     is_active: bool = True
     start_date: date | None = None
     end_date: date | None = None
