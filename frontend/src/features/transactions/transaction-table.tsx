@@ -1,9 +1,15 @@
-/* cspell:words Buchungsdatum Kategorien Kontotransaktionen Wertstellungsdatum */
+/* cspell:words Buchungsdatum Kategorien Kontostand Kontotransaktionen Wertstellungsdatum */
 
-import { BanknoteArrowDown, BanknoteArrowUp, Dot, Euro } from 'lucide-react'
+import {
+  ArrowLeftRight,
+  BanknoteArrowDown,
+  BanknoteArrowUp,
+  CalendarRange,
+  Euro
+} from 'lucide-react'
 import { Link } from 'react-router'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription } from '@/components/ui/card'
 import { DataPagination } from '@/components/shared/data-pagination'
 import { EmptyState } from '@/components/shared/query-feedback'
 import {
@@ -18,7 +24,11 @@ import { formatDate, formatDecimal } from '@/lib/format'
 import { contractUrl } from '@/routes/urls'
 import type { Transaction, TransactionPage, TransactionSummary } from '@/types/transactions'
 
-type TransactionSummaryCardsProps = {
+type AccountBalanceCardProps = {
+  balance: number
+}
+
+type TransactionSummaryInfoProps = {
   summary: TransactionSummary
   total: number
 }
@@ -33,7 +43,27 @@ type TransactionPaginationProps = {
   page: TransactionPage
 }
 
-export const TransactionSummaryCards = ({ summary, total }: TransactionSummaryCardsProps) => {
+export const AccountBalanceCard = ({ balance }: AccountBalanceCardProps) => (
+  <section aria-label="Kontostand">
+    <Card className="bg-secondary/50 ring-primary/20">
+      <CardContent className="flex items-center gap-3">
+        <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
+          <Euro aria-hidden size={20} />
+        </div>
+        <div className="grid gap-0.5">
+          <CardDescription className="font-medium text-secondary-foreground">
+            Kontostand
+          </CardDescription>
+          <span className="text-3xl font-semibold tracking-tight text-primary tabular-nums">
+            {formatDecimal(balance)}
+          </span>
+        </div>
+      </CardContent>
+    </Card>
+  </section>
+)
+
+export const TransactionSummaryInfo = ({ summary, total }: TransactionSummaryInfoProps) => {
   const period =
     summary.minimum_date === null && summary.maximum_date === null
       ? 'Keine Buchungen im gewählten Zeitraum'
@@ -41,43 +71,42 @@ export const TransactionSummaryCards = ({ summary, total }: TransactionSummaryCa
 
   return (
     <section
-      aria-label="Zusammenfassung der gefilterten Transaktionen"
-      className="grid gap-3 sm:grid-cols-3"
+      aria-label="Informationen zu den gefilterten Transaktionen"
+      className="rounded-lg border bg-muted/30 px-4 py-3"
     >
-      <Card>
-        <CardHeader>
-          <CardDescription className="items-center flex gap-2">
-            <Euro size={14} />
-            Saldo
-          </CardDescription>
-          <CardTitle className="text-xl">{formatDecimal(summary.total)}</CardTitle>
-        </CardHeader>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardDescription className="items-center flex gap-2">
-            <BanknoteArrowDown size={14} />
-            Ausgaben
-          </CardDescription>
-          <CardTitle className="text-xl text-destructive">{formatDecimal(summary.paid)}</CardTitle>
-        </CardHeader>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardDescription className="items-center flex gap-2">
-            <BanknoteArrowUp size={14} />
-            Einnahmen
-          </CardDescription>
-          <CardTitle className="text-xl text-emerald-700 ">
+      <dl className="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-1">
+          <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <BanknoteArrowUp aria-hidden size={14} />
+            Eingang
+          </dt>
+          <dd className="font-medium text-emerald-700 tabular-nums dark:text-emerald-400">
             {formatDecimal(summary.received)}
-          </CardTitle>
-        </CardHeader>
-      </Card>
-      <div className="flex flex-wrap items-center gap-1 text-sm text-muted-foreground sm:col-span-3">
-        <span>Zeitraum: {period}</span>
-        <Dot aria-hidden className="shrink-0" size={16} />
-        <span>{total === 1 ? '1 passende Transaktion' : `${total} passende Transaktionen`}</span>
-      </div>
+          </dd>
+        </div>
+        <div className="grid gap-1">
+          <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <BanknoteArrowDown aria-hidden size={14} />
+            Ausgang
+          </dt>
+          <dd className="font-medium text-destructive tabular-nums">
+            {formatDecimal(summary.paid)}
+          </dd>
+        </div>
+        <div className="grid gap-1">
+          <dt className="text-xs text-muted-foreground">Transaktionen</dt>
+          <dd className="font-medium">
+            {total === 1 ? '1 passende Transaktion' : `${total} passende Transaktionen`}
+          </dd>
+        </div>
+        <div className="grid gap-1">
+          <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <CalendarRange aria-hidden size={14} />
+            Zeitraum
+          </dt>
+          <dd className="font-medium">{period}</dd>
+        </div>
+      </dl>
     </section>
   )
 }
@@ -126,7 +155,16 @@ export const TransactionTable = ({ items, onSelect }: TransactionTableProps) => 
           >
             <TableCell>{formatDate(transaction.date_issue)}</TableCell>
             <TableCell>{formatDate(transaction.date_booking)}</TableCell>
-            <TableCell className="max-w-48 truncate font-medium">{transaction.recipient}</TableCell>
+            <TableCell className="max-w-48">
+              <span className="flex min-w-0 items-center gap-2">
+                <span className="truncate font-medium">{transaction.recipient}</span>
+                {transaction.internal_transfer_id === null ? null : (
+                  <Badge className="shrink-0" variant="secondary">
+                    <ArrowLeftRight aria-hidden /> Umbuchung
+                  </Badge>
+                )}
+              </span>
+            </TableCell>
             <TableCell
               className={`text-right font-medium ${
                 transaction.amount < 0 ? 'text-destructive' : 'text-emerald-700'

@@ -1,5 +1,6 @@
 from collections.abc import Generator, Iterator
 from contextlib import contextmanager
+from sqlite3 import Connection
 
 from fastapi import Request
 from sqlalchemy import Engine, create_engine, event
@@ -12,14 +13,31 @@ from app.db.transaction_hooks import (
     run_after_rollback_callbacks,
     run_before_commit_callbacks,
 )
+from app.patterns import matches_pattern_text
 
 SQLITE_BUSY_TIMEOUT_MS = 5_000
 
 SessionFactory = sessionmaker[Session]
 
 
-def _configure_sqlite_connection(dbapi_connection: object, _connection_record: object) -> None:
-    cursor = dbapi_connection.cursor()  # type: ignore[attr-defined]
+def _sqlite_patterns_match(recipient: object, subject: object, patterns: object) -> int:
+    return int(
+        matches_pattern_text(
+            recipient if isinstance(recipient, str) else None,
+            subject if isinstance(subject, str) else None,
+            patterns if isinstance(patterns, str) else "",
+        )
+    )
+
+
+def _configure_sqlite_connection(dbapi_connection: Connection, _connection_record: object) -> None:
+    dbapi_connection.create_function(
+        "finances_patterns_match",
+        3,
+        _sqlite_patterns_match,
+        deterministic=True,
+    )
+    cursor = dbapi_connection.cursor()
     try:
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.execute("PRAGMA journal_mode=WAL")

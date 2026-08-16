@@ -3,10 +3,10 @@ from decimal import Decimal
 from typing import Any
 
 from conftest import add_account, add_user
-from sqlalchemy import Engine, event
+from sqlalchemy import Engine, event, select
 from sqlalchemy.orm import Session
 
-from app.db.models import BankDepot, DepotAsset
+from app.db.models import BankDepot, DepotAsset, Transaction
 from app.services.accounts import get_portfolio_overview
 
 
@@ -50,3 +50,55 @@ def test_portfolio_query_count_is_constant_as_lists_grow(session: Session) -> No
     session.rollback()
     large_count = _portfolio_query_count(session, "large", 20)
     assert small_count == large_count == 3
+
+
+def _transaction_transfer_id_query_count(
+    session: Session,
+    username: str,
+    item_count: int,
+) -> int:
+    user = add_user(session, username)
+    account = add_account(session, user)
+    for index in range(item_count):
+        session.add(
+            Transaction(
+                bank_account_id=account.id,
+                recipient="Empfänger",
+                amount=Decimal("1.00"),
+                subject=f"Buchung {index}",
+                date_issue=date(2026, 1, 1),
+                date_booking=None,
+                full_subject_string=f"Buchung {index}",
+                category_id=None,
+                contract_id=None,
+            )
+        )
+    session.flush()
+    account_id = account.id
+    session.expire_all()
+
+    query_count = 0
+
+    def count_query(*_args: Any, **_kwargs: Any) -> None:
+        nonlocal query_count
+        query_count += 1
+
+    engine = session.get_bind()
+    assert isinstance(engine, Engine)
+    event.listen(engine, "before_cursor_execute", count_query)
+    try:
+        transactions = tuple(
+            session.scalars(select(Transaction).where(Transaction.bank_account_id == account_id))
+        )
+        assert len(transactions) == item_count
+        assert all(transaction.internal_transfer_id is None for transaction in transactions)
+    finally:
+        event.remove(engine, "before_cursor_execute", count_query)
+    return query_count
+
+
+def test_internal_transfer_id_query_count_is_constant(session: Session) -> None:
+    small_count = _transaction_transfer_id_query_count(session, "transfer-small", 1)
+    session.rollback()
+    large_count = _transaction_transfer_id_query_count(session, "transfer-large", 20)
+    assert small_count == large_count == 1

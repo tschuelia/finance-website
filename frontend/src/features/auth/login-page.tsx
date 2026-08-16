@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { Landmark, LogIn } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAuth } from '@/features/auth/use-auth'
@@ -64,9 +64,6 @@ export const LoginPage = () => {
           </div>
           <div>
             <CardTitle className="text-xl">Bei Finanzen anmelden</CardTitle>
-            <CardDescription className="mt-1">
-              Verwalte Deine Konten, Verträge und Auswertungen an einem Ort.
-            </CardDescription>
           </div>
         </CardHeader>
         <CardContent>

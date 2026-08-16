@@ -2,11 +2,27 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from conftest import add_account, add_contract, add_user
+from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.cli.management import update_account
-from app.db.models import Transaction
-from app.services.contracts import get_contract_detail, update_contract
+from app.config import Settings
+from app.db.models import Contract, Transaction
+from app.services.contracts import (
+    delete_contract,
+    get_contract_detail,
+    match_transaction_contracts,
+    update_contract,
+)
+
+
+def _login(client: TestClient, username: str) -> str:
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"username": username, "password": "test-password"},
+    )
+    assert response.status_code == 200
+    return str(response.json()["csrf_token"])
 
 
 def _transaction(
@@ -155,3 +171,202 @@ def test_account_owner_can_change_with_shared_contracts(session: Session) -> Non
     )
 
     assert updated.owner_id == new_owner.id
+
+
+def test_delete_contract_unlinks_and_reviews_all_linked_transactions(
+    session: Session,
+    settings: Settings,
+) -> None:
+    owner = add_user(session, "owner")
+    other = add_user(session, "other")
+    account = add_account(session, owner)
+    other_account = add_account(session, other)
+    contract = add_contract(session, owner)
+    unrelated_contract = add_contract(session, owner, name="Unrelated")
+    linked = (
+        _transaction(
+            account.id,
+            contract.id,
+            amount="1.00",
+            issue_date=date(2026, 1, 1),
+        ),
+        _transaction(
+            other_account.id,
+            contract.id,
+            amount="2.00",
+            issue_date=date(2026, 1, 2),
+        ),
+        _transaction(
+            None,
+            contract.id,
+            amount="3.00",
+            issue_date=date(2026, 1, 3),
+        ),
+    )
+    unrelated = _transaction(
+        account.id,
+        unrelated_contract.id,
+        amount="4.00",
+        issue_date=date(2026, 1, 4),
+    )
+    session.add_all((*linked, unrelated))
+    session.flush()
+
+    delete_contract(session, owner, contract.id, settings.media_root)
+
+    assert session.get(Contract, contract.id) is None
+    assert all(transaction.contract_id is None for transaction in linked)
+    assert all(transaction.contract_reviewed for transaction in linked)
+    assert unrelated.contract_id == unrelated_contract.id
+    assert not unrelated.contract_reviewed
+
+
+def test_contract_delete_endpoint_requires_csrf(
+    app_client: TestClient,
+    session: Session,
+) -> None:
+    owner = add_user(session, "owner")
+    contract = add_contract(session, owner)
+    contract_id = contract.id
+    session.commit()
+    _login(app_client, owner.username)
+
+    response = app_client.delete(f"/api/v1/contracts/{contract_id}")
+
+    assert response.status_code == 403
+    session.expire_all()
+    assert session.get(Contract, contract_id) is not None
+
+
+def test_contract_delete_endpoint_enforces_visibility_and_deletes(
+    app_client: TestClient,
+    session: Session,
+) -> None:
+    owner = add_user(session, "owner")
+    other = add_user(session, "other")
+    contract = add_contract(session, owner)
+    other_contract = add_contract(session, other)
+    contract_id = contract.id
+    other_contract_id = other_contract.id
+    session.commit()
+    csrf_token = _login(app_client, owner.username)
+    headers = {"X-CSRF-Token": csrf_token}
+
+    forbidden = app_client.delete(
+        f"/api/v1/contracts/{other_contract_id}",
+        headers=headers,
+    )
+    missing = app_client.delete("/api/v1/contracts/999999", headers=headers)
+    deleted = app_client.delete(f"/api/v1/contracts/{contract_id}", headers=headers)
+
+    assert forbidden.status_code == 403
+    assert missing.status_code == 404
+    assert deleted.status_code == 204
+    session.expire_all()
+    assert session.get(Contract, contract_id) is None
+    assert session.get(Contract, other_contract_id) is not None
+
+
+def test_contract_matching_uses_terms_and_contract_period(session: Session) -> None:
+    owner = add_user(session, "owner")
+    matching = add_contract(session, owner, name="Strom")
+    matching.patterns = " Stadtwerke \n"
+    expired = add_contract(session, owner, name="Altvertrag")
+    expired.patterns = "Stadtwerke"
+    expired.end_date = date(2025, 12, 31)
+    session.flush()
+
+    result = match_transaction_contracts(
+        "Stadtwerke Berlin",
+        "Abschlag",
+        date(2026, 1, 1),
+        (expired, matching),
+    )
+
+    assert result.status == "unique"
+    assert result.candidates[0].id == matching.id
+    assert result.candidates[0].matched_patterns == ("Stadtwerke",)
+
+
+def test_contract_metadata_change_preserves_reviews(session: Session) -> None:
+    owner = add_user(session, "owner")
+    account = add_account(session, owner)
+    contract = add_contract(session, owner, name="Internet")
+    contract.patterns = "provider"
+    transaction = Transaction(
+        bank_account_id=account.id,
+        recipient="Provider",
+        amount=Decimal("-10.00"),
+        subject="Betreff",
+        date_issue=date(2026, 1, 1),
+        date_booking=None,
+        full_subject_string="Betreff",
+        category_id=None,
+        contract_id=None,
+        contract_reviewed=True,
+    )
+    session.add(transaction)
+    session.flush()
+
+    update_contract(
+        session,
+        owner,
+        contract.id,
+        owner_id=owner.id,
+        name="Neuer Name",
+        description="Neue Beschreibung",
+        patterns=None,
+        is_active=False,
+        start_date=None,
+        end_date=None,
+    )
+
+    session.refresh(transaction)
+    assert transaction.contract_reviewed
+
+
+def test_contract_rule_change_invalidates_only_affected_reviews(session: Session) -> None:
+    owner = add_user(session, "owner")
+    account = add_account(session, owner)
+    contract = add_contract(session, owner, name="Internet")
+    contract.patterns = "provider"
+
+    def reviewed_transaction(recipient: str) -> Transaction:
+        transaction = Transaction(
+            bank_account_id=account.id,
+            recipient=recipient,
+            amount=Decimal("-10.00"),
+            subject="Betreff",
+            date_issue=date(2026, 1, 1),
+            date_booking=None,
+            full_subject_string="Betreff",
+            category_id=None,
+            contract_id=None,
+            contract_reviewed=True,
+        )
+        session.add(transaction)
+        return transaction
+
+    old_match = reviewed_transaction("Provider")
+    new_match = reviewed_transaction("Stadtwerke")
+    unrelated = reviewed_transaction("Kino")
+    session.flush()
+
+    update_contract(
+        session,
+        owner,
+        contract.id,
+        owner_id=owner.id,
+        name=contract.name,
+        description=contract.description,
+        patterns="stadtwerke",
+        is_active=contract.is_active,
+        start_date=None,
+        end_date=None,
+    )
+
+    for transaction in (old_match, new_match, unrelated):
+        session.refresh(transaction)
+    assert not old_match.contract_reviewed
+    assert not new_match.contract_reviewed
+    assert unrelated.contract_reviewed

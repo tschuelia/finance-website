@@ -1,26 +1,50 @@
 /* cspell:words Finanzverwaltung */
 
+import { lazy, Suspense } from 'react'
+import type { ReactNode } from 'react'
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router'
 import { ApplicationProviders } from '@/components/providers/application-providers'
 import { LoadingState } from '@/components/shared/query-feedback'
-import { AccountDetailPage } from '@/features/accounts/account-detail-page'
-import { DepotPage } from '@/features/accounts/depot-page'
 import { PortfolioPage } from '@/features/accounts/portfolio-page'
-import { AnalyticsPage } from '@/features/analytics/analytics-page'
 import { AuthProvider } from '@/features/auth/auth-provider'
 import { LoginPage } from '@/features/auth/login-page'
 import { ProtectedRoute } from '@/features/auth/protected-route'
 import { useAuth } from '@/features/auth/use-auth'
-import { CategoriesPage } from '@/features/categories/categories-page'
-import {
-  ContractDetailPage,
-  ContractFormPage,
-  ContractsPage
-} from '@/features/contracts/contract-pages'
 import { AppErrorBoundary, FatalErrorPage, NotFoundPage } from '@/features/errors/error-pages'
-import { TransactionImportPage } from '@/features/transactions'
 import { ApplicationShell } from '@/layouts/application-shell'
 import { HOME, LOGIN } from '@/routes/urls'
+
+const AnalyticsPage = lazy(async () => ({
+  default: (await import('@/features/analytics/analytics-page')).AnalyticsPage
+}))
+const AccountDetailPage = lazy(async () => ({
+  default: (await import('@/features/accounts/account-detail-page')).AccountDetailPage
+}))
+const DepotPage = lazy(async () => ({
+  default: (await import('@/features/accounts/depot-page')).DepotPage
+}))
+const CategoriesPage = lazy(async () => ({
+  default: (await import('@/features/categories/categories-page')).CategoriesPage
+}))
+const ContractsPage = lazy(async () => ({
+  default: (await import('@/features/contracts/contract-pages')).ContractsPage
+}))
+const ContractFormPage = lazy(async () => ({
+  default: (await import('@/features/contracts/contract-pages')).ContractFormPage
+}))
+const ContractDetailPage = lazy(async () => ({
+  default: (await import('@/features/contracts/contract-pages')).ContractDetailPage
+}))
+const AssignmentReviewPage = lazy(async () => ({
+  default: (await import('@/features/assignments/assignment-review-page')).AssignmentReviewPage
+}))
+const TransactionImportPage = lazy(async () => ({
+  default: (await import('@/features/transactions/transaction-import-page')).TransactionImportPage
+}))
+
+const deferredPage = (page: ReactNode) => (
+  <Suspense fallback={<LoadingState title="Seite wird geladen" />}>{page}</Suspense>
+)
 
 const AuthenticatedLayout = () => {
   return (
@@ -59,21 +83,21 @@ export const App = () => {
               <Route element={<ProtectedRoute />}>
                 <Route element={<AuthenticatedLayout />}>
                   <Route element={<PortfolioPage />} index />
-                  <Route element={<AccountDetailPage />} path="konten/:accountId" />
+                  <Route element={deferredPage(<AccountDetailPage />)} path="konten/:accountId" />
                   <Route
-                    element={<TransactionImportPage />}
+                    element={deferredPage(<TransactionImportPage />)}
                     path="konten/:accountId/transaktionen/importieren"
                   />
-                  <Route element={<DepotPage />} path="depots/:depotId" />
-                  <Route element={<CategoriesPage />} path="kategorien" />
-                  <Route element={<ContractsPage />} path="vertraege" />
-                  <Route element={<ContractFormPage mode="create" />} path="vertraege/neu" />
-                  <Route element={<ContractDetailPage />} path="vertraege/:contractId" />
+                  <Route element={deferredPage(<DepotPage />)} path="depots/:depotId" />
+                  <Route element={deferredPage(<CategoriesPage />)} path="kategorien" />
+                  <Route element={deferredPage(<ContractsPage />)} path="vertraege" />
+                  <Route element={deferredPage(<ContractFormPage />)} path="vertraege/neu" />
                   <Route
-                    element={<ContractFormPage mode="edit" />}
-                    path="vertraege/:contractId/bearbeiten"
+                    element={deferredPage(<ContractDetailPage />)}
+                    path="vertraege/:contractId"
                   />
-                  <Route element={<AnalyticsPage />} path="auswertungen" />
+                  <Route element={deferredPage(<AnalyticsPage />)} path="auswertungen" />
+                  <Route element={deferredPage(<AssignmentReviewPage />)} path="zuordnungen" />
                 </Route>
               </Route>
               <Route element={<NotFoundPage />} path="*" />

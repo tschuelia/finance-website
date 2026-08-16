@@ -6,6 +6,7 @@ from decimal import Decimal
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    CheckConstraint,
     Date,
     DateTime,
     ForeignKey,
@@ -14,8 +15,11 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    or_,
+    select,
+    text,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, column_property, mapped_column, relationship
 
 from app.db.base import Base
 
@@ -50,6 +54,9 @@ class User(Base):
     )
     sessions: Mapped[list[ServerSession]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
+    )
+    transfer_reviews: Mapped[list[InternalTransferReview]] = relationship(
+        back_populates="reviewed_by"
     )
 
 
@@ -175,6 +182,7 @@ class Contract(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(255))
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    patterns: Mapped[str] = mapped_column(Text, default="", server_default="")
     owner_id: Mapped[int] = mapped_column(Integer, production_foreign_key("auth_user.id"))
     is_active: Mapped[bool] = mapped_column(Boolean)
     end_date: Mapped[datetime.date | None] = mapped_column(Date, nullable=True)
@@ -201,6 +209,71 @@ class ContractFile(Base):
     contract: Mapped[Contract] = relationship(back_populates="files")
 
 
+class InternalTransferReview(Base):
+    __tablename__ = "finances_internal_transfer_review"
+    __table_args__ = (
+        CheckConstraint(
+            "outgoing_transaction_id <> incoming_transaction_id",
+            name="different_transactions",
+        ),
+        CheckConstraint(
+            "status IN ('confirmed', 'rejected')",
+            name="valid_status",
+        ),
+        Index(
+            "finances_internal_transfer_review_pair_idx",
+            "outgoing_transaction_id",
+            "incoming_transaction_id",
+            unique=True,
+        ),
+        Index(
+            "finances_internal_transfer_review_confirmed_outgoing_idx",
+            "outgoing_transaction_id",
+            unique=True,
+            sqlite_where=text("status = 'confirmed'"),
+        ),
+        Index(
+            "finances_internal_transfer_review_confirmed_incoming_idx",
+            "incoming_transaction_id",
+            unique=True,
+            sqlite_where=text("status = 'confirmed'"),
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    outgoing_transaction_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey(
+            "accounting_transaction.id",
+            deferrable=True,
+            initially="DEFERRED",
+            ondelete="CASCADE",
+        ),
+    )
+    incoming_transaction_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey(
+            "accounting_transaction.id",
+            deferrable=True,
+            initially="DEFERRED",
+            ondelete="CASCADE",
+        ),
+    )
+    status: Mapped[str] = mapped_column(String(16))
+    reviewed_by_id: Mapped[int] = mapped_column(Integer, production_foreign_key("auth_user.id"))
+    reviewed_at: Mapped[datetime.datetime] = mapped_column(DateTime)
+
+    outgoing_transaction: Mapped[Transaction] = relationship(
+        back_populates="outgoing_transfer_reviews",
+        foreign_keys=[outgoing_transaction_id],
+    )
+    incoming_transaction: Mapped[Transaction] = relationship(
+        back_populates="incoming_transfer_reviews",
+        foreign_keys=[incoming_transaction_id],
+    )
+    reviewed_by: Mapped[User] = relationship(back_populates="transfer_reviews")
+
+
 class Transaction(Base):
     __tablename__ = "accounting_transaction"
     __table_args__ = (
@@ -225,10 +298,35 @@ class Transaction(Base):
     contract_id: Mapped[int | None] = mapped_column(
         BigInteger, production_foreign_key("accounting_contract.id"), nullable=True
     )
+    category_reviewed: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    contract_reviewed: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    internal_transfer_id: Mapped[int | None] = column_property(
+        select(InternalTransferReview.id)
+        .where(
+            InternalTransferReview.status == "confirmed",
+            or_(
+                InternalTransferReview.outgoing_transaction_id == id,
+                InternalTransferReview.incoming_transaction_id == id,
+            ),
+        )
+        .correlate_except(InternalTransferReview)
+        .limit(1)
+        .scalar_subquery()
+    )
 
     bank_account: Mapped[BankAccount | None] = relationship(back_populates="transactions")
     category: Mapped[Category | None] = relationship(back_populates="transactions")
     contract: Mapped[Contract | None] = relationship(back_populates="transactions")
+    outgoing_transfer_reviews: Mapped[list[InternalTransferReview]] = relationship(
+        back_populates="outgoing_transaction",
+        foreign_keys="InternalTransferReview.outgoing_transaction_id",
+        cascade="all, delete-orphan",
+    )
+    incoming_transfer_reviews: Mapped[list[InternalTransferReview]] = relationship(
+        back_populates="incoming_transaction",
+        foreign_keys="InternalTransferReview.incoming_transaction_id",
+        cascade="all, delete-orphan",
+    )
 
 
 class ServerSession(Base):
@@ -267,4 +365,5 @@ MANAGED_TABLE_NAMES = PRODUCTION_COMPATIBLE_TABLE_NAMES | {
     DepotAssetBalanceSnapshot.__tablename__,
     DepotBalanceSnapshot.__tablename__,
     ServerSession.__tablename__,
+    InternalTransferReview.__tablename__,
 }

@@ -18,8 +18,9 @@ import {
   transactionFiltersToSearch
 } from '@/features/transactions/transaction-search'
 import {
+  AccountBalanceCard,
   TransactionPagination,
-  TransactionSummaryCards,
+  TransactionSummaryInfo,
   TransactionTable
 } from '@/features/transactions/transaction-table'
 
@@ -115,10 +116,7 @@ const AccountDetailContent = ({ accountId }: AccountDetailContentProps) => {
   return (
     <>
       {pageHeader}
-      <TransactionSummaryCards
-        summary={transactions.data.summary}
-        total={transactions.data.total}
-      />
+      <AccountBalanceCard balance={account.data.balance} />
       <TransactionFilterForm
         categories={categories.status === 'success' ? categories.data : []}
         categoriesError={categoryError}
@@ -127,6 +125,7 @@ const AccountDetailContent = ({ accountId }: AccountDetailContentProps) => {
         key={location.search}
         onApply={applyDataFilters}
       />
+      <TransactionSummaryInfo summary={transactions.data.summary} total={transactions.data.total} />
       <TransactionTable items={transactions.data.items} onSelect={setSelectedTransaction} />
       <TransactionPagination
         onPageChange={(page) => applyFilters(transactionFiltersForPage(filters, page))}

@@ -13,6 +13,7 @@ from app.services.access import (
     get_visible_account_transaction,
     get_visible_bank_account,
 )
+from app.services.transfers import invalidate_transfer_reviews
 
 DEFAULT_TRANSACTION_PAGE_SIZE = 100
 ZERO = Decimal("0")
@@ -64,6 +65,8 @@ class TransactionValues:
     full_subject_string: str
     category_id: int | None = None
     contract_id: int | None = None
+    category_reviewed: bool = False
+    contract_reviewed: bool = False
 
 
 def _decimal(value: object | None) -> Decimal:
@@ -160,6 +163,9 @@ def get_transaction_page(
             .options(
                 selectinload(Transaction.category),
                 selectinload(Transaction.contract),
+                selectinload(Transaction.bank_account),
+                selectinload(Transaction.outgoing_transfer_reviews),
+                selectinload(Transaction.incoming_transfer_reviews),
             )
             .where(*clauses)
             .order_by(
@@ -192,6 +198,9 @@ def _validate_relationships(
     session: Session,
     current_user: User,
     rows: tuple[TransactionValues, ...],
+    *,
+    account_owner_id: int,
+    allowed_existing_contract_ids: frozenset[int] = frozenset(),
 ) -> None:
     category_ids = {row.category_id for row in rows if row.category_id is not None}
     existing_category_ids = set(
@@ -201,12 +210,18 @@ def _validate_relationships(
         raise ConflictError("Die ausgewählte Kategorie existiert nicht mehr.")
 
     contract_ids = {row.contract_id for row in rows if row.contract_id is not None}
-    contract_statement = select(Contract.id).where(Contract.id.in_(contract_ids))
+    contract_statement = select(Contract).where(Contract.id.in_(contract_ids))
     if not current_user.is_superuser:
         contract_statement = contract_statement.where(Contract.owner_id == current_user.id)
-    visible_contract_ids = set(session.scalars(contract_statement))
+    visible_contracts = {contract.id: contract for contract in session.scalars(contract_statement)}
+    visible_contract_ids = set(visible_contracts)
     if visible_contract_ids != contract_ids:
         raise ConflictError("Der ausgewählte Vertrag existiert nicht mehr.")
+    if any(
+        contract.owner_id != account_owner_id and contract.id not in allowed_existing_contract_ids
+        for contract in visible_contracts.values()
+    ):
+        raise ConflictError("Der ausgewählte Vertrag gehört nicht zum Konto.")
 
 
 def _apply_values(transaction: Transaction, values: TransactionValues) -> None:
@@ -218,6 +233,8 @@ def _apply_values(transaction: Transaction, values: TransactionValues) -> None:
     transaction.full_subject_string = values.full_subject_string
     transaction.category_id = values.category_id
     transaction.contract_id = values.contract_id
+    transaction.category_reviewed = values.category_reviewed
+    transaction.contract_reviewed = values.contract_reviewed
 
 
 def create_transactions(
@@ -227,7 +244,12 @@ def create_transactions(
     rows: tuple[TransactionValues, ...],
 ) -> tuple[Transaction, ...]:
     account = get_visible_bank_account(session, current_user, account_id)
-    _validate_relationships(session, current_user, rows)
+    _validate_relationships(
+        session,
+        current_user,
+        rows,
+        account_owner_id=account.owner_id,
+    )
 
     transactions: list[Transaction] = []
     for values in rows:
@@ -241,6 +263,8 @@ def create_transactions(
             full_subject_string=values.full_subject_string,
             category_id=values.category_id,
             contract_id=values.contract_id,
+            category_reviewed=values.category_reviewed,
+            contract_reviewed=values.contract_reviewed,
         )
         session.add(transaction)
         transactions.append(transaction)
@@ -255,13 +279,26 @@ def update_transaction(
     transaction_id: int,
     values: TransactionValues,
 ) -> Transaction:
+    account = get_visible_bank_account(session, current_user, account_id)
     transaction = get_visible_account_transaction(
         session,
         current_user,
         account_id,
         transaction_id,
     )
-    _validate_relationships(session, current_user, (values,))
+    _validate_relationships(
+        session,
+        current_user,
+        (values,),
+        account_owner_id=account.owner_id,
+        allowed_existing_contract_ids=(
+            frozenset({transaction.contract_id})
+            if transaction.contract_id is not None
+            else frozenset()
+        ),
+    )
+    if transaction.amount != values.amount or transaction.date_issue != values.date_issue:
+        invalidate_transfer_reviews(session, transaction.id)
     _apply_values(transaction, values)
     session.flush()
     return transaction

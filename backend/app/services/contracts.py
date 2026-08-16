@@ -9,10 +9,21 @@ from typing import BinaryIO
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.db.models import Contract, ContractFile, Transaction, User
+from app.db.models import BankAccount, Contract, ContractFile, Transaction, User
 from app.db.transaction_hooks import register_transaction_callbacks
 from app.errors import AuthorizationError, ConflictError, ResourceNotFoundError
+from app.patterns import match_patterns, normalized_patterns
 from app.services.access import get_visible_contract, get_visible_user, list_visible_contracts
+from app.services.matching import (
+    MatchCandidate,
+    RuleMatch,
+    patterns_match_clause,
+    rule_match,
+)
+from app.services.review_invalidation import (
+    ContractReviewRule,
+    invalidate_contract_reviews,
+)
 from app.uploads import iter_limited_upload
 
 ZERO = Decimal("0")
@@ -116,6 +127,7 @@ def get_contract_detail(
                     .options(
                         selectinload(Transaction.category),
                         selectinload(Transaction.contract),
+                        selectinload(Transaction.bank_account),
                     )
                     .where(Transaction.contract_id == contract.id)
                     .order_by(Transaction.date_issue.desc(), Transaction.id.desc())
@@ -143,6 +155,55 @@ def grouped_contracts(
     )
 
 
+def contract_patterns(contract: Contract) -> tuple[str, ...]:
+    return normalized_patterns(contract.patterns)
+
+
+def match_transaction_contracts(
+    recipient: str | None,
+    subject: str | None,
+    issue_date: date,
+    contracts: tuple[Contract, ...],
+) -> RuleMatch:
+    candidates = tuple(
+        MatchCandidate(id=contract.id, name=contract.name, matched_patterns=matched)
+        for contract in sorted(contracts, key=lambda item: (item.name.casefold(), item.id))
+        if (contract.start_date is None or contract.start_date <= issue_date)
+        and (contract.end_date is None or contract.end_date >= issue_date)
+        and (matched := match_patterns(recipient, subject, contract_patterns(contract)))
+    )
+    return rule_match(candidates)
+
+
+def count_contract_suggestions(session: Session, contract: Contract) -> int:
+    patterns = contract_patterns(contract)
+    if not patterns:
+        return 0
+    clauses = [
+        BankAccount.owner_id == contract.owner_id,
+        Transaction.contract_id.is_(None),
+        ~Transaction.contract_reviewed,
+        patterns_match_clause(
+            Transaction.recipient,
+            Transaction.subject,
+            "\n".join(patterns),
+        ),
+    ]
+    if contract.start_date is not None:
+        clauses.append(Transaction.date_issue >= contract.start_date)
+    if contract.end_date is not None:
+        clauses.append(Transaction.date_issue <= contract.end_date)
+    return int(
+        session.scalar(
+            select(func.count())
+            .select_from(Transaction)
+            .join(BankAccount, Transaction.bank_account_id == BankAccount.id)
+            .where(*clauses)
+        )
+        or 0
+    )
+
+
 def _validate_owner(session: Session, current_user: User, owner_id: int) -> User:
     owner = get_visible_user(session, current_user, owner_id)
     if not current_user.is_superuser and owner.id != current_user.id:
@@ -157,21 +218,33 @@ def create_contract(
     owner_id: int,
     name: str,
     description: str | None,
+    patterns: str = "",
     is_active: bool,
     start_date: date | None,
     end_date: date | None,
 ) -> Contract:
     owner = _validate_owner(session, current_user, owner_id)
+    normalized = "\n".join(normalized_patterns(patterns))
     contract = Contract(
         owner_id=owner.id,
         name=name,
         description=description,
+        patterns=normalized,
         is_active=is_active,
         start_date=start_date,
         end_date=end_date,
     )
     session.add(contract)
     session.flush()
+    invalidate_contract_reviews(
+        session,
+        ContractReviewRule(
+            owner_id=owner.id,
+            patterns=normalized,
+            start_date=start_date,
+            end_date=end_date,
+        ),
+    )
     return contract
 
 
@@ -183,20 +256,73 @@ def update_contract(
     owner_id: int,
     name: str,
     description: str | None,
+    patterns: str | None = None,
     is_active: bool,
     start_date: date | None,
     end_date: date | None,
 ) -> Contract:
     contract = get_visible_contract(session, current_user, contract_id)
     owner = _validate_owner(session, current_user, owner_id)
+    previous_rule = ContractReviewRule(
+        owner_id=contract.owner_id,
+        patterns=contract.patterns,
+        start_date=contract.start_date,
+        end_date=contract.end_date,
+    )
+    next_patterns = (
+        contract.patterns if patterns is None else "\n".join(normalized_patterns(patterns))
+    )
+    next_rule = ContractReviewRule(
+        owner_id=owner.id,
+        patterns=next_patterns,
+        start_date=start_date,
+        end_date=end_date,
+    )
     contract.owner_id = owner.id
     contract.name = name
     contract.description = description
+    contract.patterns = next_patterns
     contract.is_active = is_active
     contract.start_date = start_date
     contract.end_date = end_date
     session.flush()
+    if previous_rule != next_rule:
+        invalidate_contract_reviews(session, previous_rule, next_rule)
     return contract
+
+
+def delete_contract(
+    session: Session,
+    current_user: User,
+    contract_id: int,
+    media_root: Path,
+) -> None:
+    contract = get_visible_contract(session, current_user, contract_id)
+    file_ids = tuple(
+        session.scalars(
+            select(ContractFile.id)
+            .where(ContractFile.contract_id == contract.id)
+            .order_by(ContractFile.id)
+        )
+    )
+    for file_id in file_ids:
+        delete_contract_file(
+            session,
+            current_user,
+            contract.id,
+            file_id,
+            media_root,
+        )
+
+    session.query(Transaction).filter(Transaction.contract_id == contract.id).update(
+        {
+            Transaction.contract_id: None,
+            Transaction.contract_reviewed: True,
+        },
+        synchronize_session="fetch",
+    )
+    session.delete(contract)
+    session.flush()
 
 
 def _media_path(media_root: Path, stored_name: str) -> Path:

@@ -9,6 +9,7 @@ export const TransactionSchema = z
   .object({
     id: z.number().int().positive(),
     bank_account_id: z.number().int().positive().nullable(),
+    bank_account_name: z.string().nullable(),
     recipient: z.string(),
     amount: DecimalSchema,
     subject: z.string(),
@@ -18,7 +19,10 @@ export const TransactionSchema = z
     category_id: z.number().int().positive().nullable(),
     category_name: z.string().nullable(),
     contract_id: z.number().int().positive().nullable(),
-    contract_name: z.string().nullable()
+    contract_name: z.string().nullable(),
+    category_reviewed: z.boolean(),
+    contract_reviewed: z.boolean(),
+    internal_transfer_id: z.number().int().positive().nullable()
   })
   .strict()
 
@@ -59,7 +63,9 @@ export const TransactionWriteSchema = z
     date_booking: DateSchema.nullable().optional(),
     full_subject_string: z.string().nullable().optional(),
     category_id: z.number().int().positive().nullable().optional(),
-    contract_id: z.number().int().positive().nullable().optional()
+    contract_id: z.number().int().positive().nullable().optional(),
+    category_reviewed: z.boolean().default(false),
+    contract_reviewed: z.boolean().default(false)
   })
   .strict()
 

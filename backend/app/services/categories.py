@@ -6,26 +6,34 @@ from sqlalchemy.orm import Session
 
 from app.db.models import Category
 from app.errors import ConflictError, ResourceNotFoundError
+from app.patterns import match_patterns, normalized_patterns
+from app.services.matching import (
+    MatchCandidate,
+    RuleMatch,
+    rule_match,
+)
+from app.services.review_invalidation import invalidate_category_reviews
 
 
 def category_patterns(category: Category) -> tuple[str, ...]:
-    return tuple(
-        normalized for pattern in category.patterns.splitlines() if (normalized := pattern.strip())
+    return normalized_patterns(category.patterns)
+
+
+def match_transaction_categories(
+    recipient: str | None,
+    subject: str | None,
+    categories: Iterable[Category],
+) -> RuleMatch:
+    candidates = tuple(
+        MatchCandidate(
+            id=category.id,
+            name=category.name,
+            matched_patterns=matched,
+        )
+        for category in sorted(categories, key=lambda item: (item.name.casefold(), item.id))
+        if (matched := match_patterns(recipient, subject, category_patterns(category)))
     )
-
-
-def matches_any_pattern(value: str | None, patterns: Iterable[str]) -> bool:
-    normalized_value = (value or "").casefold()
-    return any(pattern and pattern.casefold() in normalized_value for pattern in patterns)
-
-
-def _matching_category(
-    value: str | None, categories: tuple[tuple[Category, tuple[str, ...]], ...]
-) -> Category | None:
-    for category, patterns in categories:
-        if matches_any_pattern(value, patterns):
-            return category
-    return None
+    return rule_match(candidates)
 
 
 def match_transaction_category(
@@ -33,13 +41,11 @@ def match_transaction_category(
     subject: str | None,
     categories: Iterable[Category],
 ) -> Category | None:
-    category_patterns_by_id = tuple(
-        (category, category_patterns(category))
-        for category in sorted(categories, key=lambda c: c.id)
-    )
-    return _matching_category(recipient, category_patterns_by_id) or _matching_category(
-        subject, category_patterns_by_id
-    )
+    categories_by_id = {category.id: category for category in categories}
+    result = match_transaction_categories(recipient, subject, categories_by_id.values())
+    if len(result.candidates) != 1:
+        return None
+    return categories_by_id[result.candidates[0].id]
 
 
 def list_categories(session: Session) -> tuple[Category, ...]:
@@ -47,12 +53,14 @@ def list_categories(session: Session) -> tuple[Category, ...]:
 
 
 def create_category(session: Session, *, name: str, patterns: str) -> Category:
-    category = Category(name=name, patterns=patterns)
+    normalized = "\n".join(normalized_patterns(patterns))
+    category = Category(name=name, patterns=normalized)
     session.add(category)
     try:
         session.flush()
     except IntegrityError:
         raise ConflictError("Eine Kategorie mit diesem Namen existiert bereits.") from None
+    invalidate_category_reviews(session, normalized)
     return category
 
 
@@ -66,10 +74,14 @@ def update_category(
     category = session.get(Category, category_id)
     if category is None:
         raise ResourceNotFoundError()
+    previous_patterns = category.patterns
+    next_patterns = "\n".join(normalized_patterns(patterns))
     category.name = name
-    category.patterns = patterns
+    category.patterns = next_patterns
     try:
         session.flush()
     except IntegrityError:
         raise ConflictError("Eine Kategorie mit diesem Namen existiert bereits.") from None
+    if previous_patterns != next_patterns:
+        invalidate_category_reviews(session, previous_patterns, next_patterns)
     return category

@@ -4,24 +4,15 @@ import { CalendarDays, ChevronDown, FileText, Landmark, Tag, UserRound } from 'l
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import {
-  Combobox,
-  ComboboxCollection,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxGroup,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxList,
-  ComboboxSeparator
-} from '@/components/ui/combobox'
+  CategoryAssignmentCombobox,
+  ContractAssignmentCombobox
+} from '@/features/assignments/assignment-comboboxes'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import type { Category } from '@/types/categories'
 import type { ContractSummary } from '@/types/contracts'
 import type { TransactionDraft } from '@/features/transactions/transaction-draft'
-
-const noSelection = '__none__'
 
 type TransactionDraftFieldsProps = {
   accountId: number
@@ -32,35 +23,6 @@ type TransactionDraftFieldsProps = {
   onChange: (draft: TransactionDraft) => void
 }
 
-type CategoryOption = {
-  category: Category | null
-  label: string
-  value: string
-}
-
-type ContractOption = {
-  contract: ContractSummary | null
-  label: string
-  value: string
-}
-
-type ContractGroup = {
-  items: ContractOption[]
-  value: 'active' | 'inactive'
-}
-
-const noCategoryOption: CategoryOption = {
-  category: null,
-  label: 'Keine Kategorie',
-  value: noSelection
-}
-
-const noContractOption: ContractOption = {
-  contract: null,
-  label: 'Kein Vertrag',
-  value: noSelection
-}
-
 export const TransactionDraftFields = ({
   accountId,
   categories,
@@ -69,38 +31,6 @@ export const TransactionDraftFields = ({
   idPrefix,
   onChange
 }: TransactionDraftFieldsProps) => {
-  const categoryOptions: CategoryOption[] = [
-    noCategoryOption,
-    ...categories.map((category) => ({
-      category,
-      label: category.name,
-      value: String(category.id)
-    }))
-  ]
-  const contractOptions: ContractOption[] = contracts.map((contract) => ({
-    contract,
-    label: contract.name,
-    value: String(contract.id)
-  }))
-  const selectedCategory =
-    categoryOptions.find((option) => option.value === draft.categoryId) ?? noCategoryOption
-  const selectedContract =
-    contractOptions.find((option) => option.value === draft.contractId) ?? noContractOption
-  const contractGroups = [
-    {
-      value: 'active',
-      items: [
-        noContractOption,
-        ...contractOptions.filter((option) => option.contract?.is_active === true)
-      ]
-    },
-    {
-      value: 'inactive',
-      items: contractOptions.filter((option) => option.contract?.is_active === false)
-    }
-  ] satisfies ContractGroup[]
-  const populatedContractGroups = contractGroups.filter((group) => group.items.length > 0)
-
   const change = <Key extends keyof TransactionDraft>(key: Key, value: TransactionDraft[Key]) => {
     onChange({ ...draft, [key]: value })
   }
@@ -169,79 +99,44 @@ export const TransactionDraftFields = ({
           <Tag className="size-3.5" aria-hidden />
           Kategorie
         </Label>
-        <Combobox
-          isItemEqualToValue={(item: CategoryOption, value: CategoryOption) =>
-            item.value === value.value
+        <CategoryAssignmentCombobox
+          ariaLabel="Kategorie"
+          categories={categories}
+          className="w-full"
+          id={`${idPrefix}-category`}
+          noneLabel="Keine Kategorie"
+          onValueChange={(value) =>
+            onChange({
+              ...draft,
+              categoryId: value,
+              categoryReviewed: true
+            })
           }
-          itemToStringLabel={(option: CategoryOption) => option.label}
-          itemToStringValue={(option: CategoryOption) => option.value}
-          items={categoryOptions}
-          onValueChange={(option: CategoryOption | null) =>
-            change('categoryId', option?.category === null ? '' : (option?.value ?? ''))
-          }
-          value={selectedCategory}
-        >
-          <ComboboxInput
-            className="w-full"
-            id={`${idPrefix}-category`}
-            placeholder="Keine Kategorie"
-          />
-          <ComboboxContent>
-            <ComboboxEmpty>Keine passende Kategorie gefunden.</ComboboxEmpty>
-            <ComboboxList>
-              {(option: CategoryOption) => (
-                <ComboboxItem key={option.value} value={option}>
-                  {option.label}
-                </ComboboxItem>
-              )}
-            </ComboboxList>
-          </ComboboxContent>
-        </Combobox>
+          placeholder="Keine Kategorie"
+          value={draft.categoryId}
+        />
       </div>
       <div className="grid gap-2">
         <Label htmlFor={`${idPrefix}-contract`}>
           <Landmark className="size-3.5" aria-hidden />
           Vertrag
         </Label>
-        <Combobox
-          isItemEqualToValue={(item: ContractOption, value: ContractOption) =>
-            item.value === value.value
+        <ContractAssignmentCombobox
+          ariaLabel="Vertrag"
+          className="w-full"
+          contracts={contracts}
+          id={`${idPrefix}-contract`}
+          noneLabel="Kein Vertrag"
+          onValueChange={(value) =>
+            onChange({
+              ...draft,
+              contractId: value,
+              contractReviewed: true
+            })
           }
-          itemToStringLabel={(option: ContractOption) => option.label}
-          itemToStringValue={(option: ContractOption) => option.value}
-          items={populatedContractGroups}
-          onValueChange={(option: ContractOption | null) =>
-            change('contractId', option?.contract === null ? '' : (option?.value ?? ''))
-          }
-          value={selectedContract}
-        >
-          <ComboboxInput
-            className="w-full"
-            id={`${idPrefix}-contract`}
-            placeholder="Kein Vertrag"
-          />
-          <ComboboxContent>
-            <ComboboxEmpty>Kein passender Vertrag gefunden.</ComboboxEmpty>
-            <ComboboxList>
-              {(group: ContractGroup, index: number) => (
-                <ComboboxGroup key={group.value} items={group.items}>
-                  {index > 0 ? <ComboboxSeparator /> : null}
-                  <ComboboxCollection>
-                    {(option: ContractOption) => (
-                      <ComboboxItem
-                        className={group.value === 'inactive' ? 'text-muted-foreground' : undefined}
-                        key={option.value}
-                        value={option}
-                      >
-                        {option.label}
-                      </ComboboxItem>
-                    )}
-                  </ComboboxCollection>
-                </ComboboxGroup>
-              )}
-            </ComboboxList>
-          </ComboboxContent>
-        </Combobox>
+          placeholder="Kein Vertrag"
+          value={draft.contractId}
+        />
       </div>
       <Collapsible className="group md:col-span-2 xl:col-span-4">
         <CollapsibleTrigger asChild>

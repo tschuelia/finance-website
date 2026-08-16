@@ -39,6 +39,10 @@ export const updateContract = async (
   return parseApiResponse(ContractSummarySchema, response.data)
 }
 
+export const deleteContract = async (contractId: number): Promise<void> => {
+  await apiClient.delete(`/contracts/${contractId}`)
+}
+
 export const uploadContractFile = async (contractId: number, file: File): Promise<ContractFile> => {
   const formData = new FormData()
   formData.append('upload', file)

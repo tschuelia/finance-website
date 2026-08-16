@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from datetime import date
 from decimal import Decimal
 
@@ -7,6 +8,12 @@ from sqlalchemy.orm import Session
 
 from app.db.models import Category, Transaction
 from app.errors import ConflictError
+from app.services.reviews import (
+    ReviewIssue,
+    bulk_update_assignments,
+    get_assignment_review_page,
+    preview_patterns,
+)
 from app.services.transactions import (
     TransactionFilters,
     TransactionType,
@@ -127,7 +134,7 @@ def test_bulk_relationship_validation_accepts_existing_shared_category(session: 
     assert created[0].contract_id == contract.id
 
 
-def test_bulk_relationship_validation_allows_shared_contract_for_superuser(
+def test_bulk_relationship_validation_rejects_cross_owner_contract_for_superuser(
     session: Session,
 ) -> None:
     superuser = add_user(session, "admin", is_superuser=True)
@@ -136,17 +143,16 @@ def test_bulk_relationship_validation_allows_shared_contract_for_superuser(
     account = add_account(session, owner)
     contract = add_contract(session, other_owner)
 
-    created = create_transactions(
-        session,
-        superuser,
-        account.id,
-        (_values(contract_id=contract.id),),
-    )
+    with pytest.raises(ConflictError, match="gehört nicht zum Konto"):
+        create_transactions(
+            session,
+            superuser,
+            account.id,
+            (_values(contract_id=contract.id),),
+        )
 
-    assert created[0].contract_id == contract.id
 
-
-def test_update_allows_shared_contract_for_superuser(session: Session) -> None:
+def test_update_rejects_new_cross_owner_contract_for_superuser(session: Session) -> None:
     superuser = add_user(session, "admin", is_superuser=True)
     owner = add_user(session, "owner")
     other_owner = add_user(session, "other")
@@ -156,12 +162,141 @@ def test_update_allows_shared_contract_for_superuser(session: Session) -> None:
     session.add(transaction)
     session.flush()
 
-    updated = update_transaction(
+    with pytest.raises(ConflictError, match="gehört nicht zum Konto"):
+        update_transaction(
+            session,
+            superuser,
+            account.id,
+            transaction.id,
+            _values(contract_id=contract.id),
+        )
+
+
+def test_assignment_review_returns_only_actionable_contract_suggestions(
+    session: Session,
+) -> None:
+    owner = add_user(session, "owner")
+    account = add_account(session, owner)
+    contract = add_contract(session, owner, name="Internet")
+    contract.patterns = "Provider"
+    category = Category(name="Kommunikation", patterns="provider")
+    suggested = _transaction(account.id)
+    suggested.recipient = "Mein Provider"
+    unrelated = _transaction(account.id)
+    unrelated.recipient = "Supermarkt"
+    session.add_all((category, suggested, unrelated))
+    session.flush()
+
+    contract_page = get_assignment_review_page(session, owner, issue=ReviewIssue.CONTRACT)
+    all_page = get_assignment_review_page(session, owner)
+
+    assert [item.transaction.id for item in contract_page.items] == [suggested.id]
+    suggested_item = next(item for item in all_page.items if item.transaction.id == suggested.id)
+    assert set(suggested_item.issues) == {"category", "contract"}
+    assert suggested_item.category_match.status == "unique"
+    assert suggested_item.contract_match.status == "unique"
+
+
+def test_bulk_assignment_can_confirm_an_intentionally_empty_value(session: Session) -> None:
+    owner = add_user(session, "owner")
+    account = add_account(session, owner)
+    transaction = _transaction(account.id)
+    session.add(transaction)
+    session.flush()
+
+    updated = bulk_update_assignments(
         session,
-        superuser,
-        account.id,
-        transaction.id,
-        _values(contract_id=contract.id),
+        owner,
+        (transaction.id,),
+        set_category=True,
+        category_id=None,
+        set_contract=True,
+        contract_id=None,
     )
 
-    assert updated.contract_id == contract.id
+    assert len(updated) == 1
+    assert transaction.category_id is None
+    assert transaction.contract_id is None
+    assert transaction.category_reviewed
+    assert transaction.contract_reviewed
+
+
+def test_pattern_preview_is_scoped_by_owner_and_date(session: Session) -> None:
+    admin = add_user(session, "admin", is_superuser=True)
+    owner = add_user(session, "owner")
+    other = add_user(session, "other")
+    account = add_account(session, owner)
+    other_account = add_account(session, other)
+    matching = _transaction(account.id)
+    matching.recipient = "Stadtwerke"
+    matching.date_issue = date(2026, 2, 1)
+    outside_owner = _transaction(other_account.id)
+    outside_owner.recipient = "Stadtwerke"
+    session.add_all((matching, outside_owner))
+    session.flush()
+
+    result = preview_patterns(
+        session,
+        admin,
+        " stadtwerke ",
+        owner_id=owner.id,
+        start_date=date(2026, 1, 1),
+        end_date=date(2026, 12, 31),
+    )
+
+    assert result.total == 1
+    assert result.examples[0][0].id == matching.id
+
+
+def test_contract_review_sql_matching_uses_unicode_case_folding(session: Session) -> None:
+    owner = add_user(session, "owner")
+    account = add_account(session, owner)
+    contract = add_contract(session, owner, name="Straße")
+    contract.patterns = "STRASSE"
+    matching = _transaction(account.id)
+    matching.recipient = "Straße"
+    session.add(matching)
+    session.flush()
+
+    page = get_assignment_review_page(
+        session,
+        owner,
+        issue=ReviewIssue.CONTRACT,
+    )
+
+    assert page.total == 1
+    assert page.items[0].transaction.id == matching.id
+    assert page.items[0].contract_match.candidates[0].id == contract.id
+
+
+def test_assignment_review_matches_only_the_requested_page(
+    session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    owner = add_user(session, "owner")
+    account = add_account(session, owner)
+    for index in range(12):
+        transaction = _transaction(account.id)
+        transaction.date_issue = date(2026, 1, index + 1)
+        session.add(transaction)
+    session.flush()
+
+    from app.services import reviews
+
+    original_match = reviews.match_transaction_categories
+    matched_ids: list[str | None] = []
+
+    def track_match(
+        recipient: str | None,
+        subject: str | None,
+        categories: Iterable[Category],
+    ):
+        matched_ids.append(subject)
+        return original_match(recipient, subject, categories)
+
+    monkeypatch.setattr(reviews, "match_transaction_categories", track_match)
+    page = get_assignment_review_page(session, owner, page=2, page_size=5)
+
+    assert page.total == 12
+    assert len(page.items) == 5
+    assert len(matched_ids) == 5

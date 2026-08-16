@@ -4,7 +4,10 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.schemas.accounts import UserSummary
+from app.schemas.matching import RuleMatchResponse
 from app.schemas.types import ApiDecimal
+from app.services.reviews import ReviewIssue
 from app.services.transactions import TransactionType
 
 
@@ -13,6 +16,7 @@ class TransactionResponse(BaseModel):
 
     id: int
     bank_account_id: int | None
+    bank_account_name: str | None
     recipient: str
     amount: ApiDecimal
     subject: str
@@ -23,6 +27,9 @@ class TransactionResponse(BaseModel):
     category_name: str | None
     contract_id: int | None
     contract_name: str | None
+    category_reviewed: bool
+    contract_reviewed: bool
+    internal_transfer_id: int | None
 
 
 class TransactionSummaryResponse(BaseModel):
@@ -58,6 +65,8 @@ class TransactionWrite(BaseModel):
     full_subject_string: str | None = None
     category_id: int | None = None
     contract_id: int | None = None
+    category_reviewed: bool = False
+    contract_reviewed: bool = False
 
     @model_validator(mode="after")
     def normalize_optional_text(self) -> Self:
@@ -99,3 +108,94 @@ class TransactionDataFilterQuery(BaseModel):
 class TransactionFilterQuery(TransactionDataFilterQuery):
     page: int = Field(default=1, ge=1)
     page_size: int = Field(default=100, ge=1, le=500)
+
+
+class AssignmentReviewQuery(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    issue: ReviewIssue = ReviewIssue.ALL
+    owner_id: int | None = None
+    account_id: int | None = None
+    contract_id: int | None = None
+    q: str | None = None
+    page: int = Field(default=1, ge=1)
+    page_size: int = Field(default=50, ge=1, le=100)
+
+
+class AssignmentReviewRowResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    transaction: TransactionResponse
+    account_name: str
+    owner: UserSummary
+    category_match: RuleMatchResponse
+    contract_match: RuleMatchResponse
+    issues: list[ReviewIssue]
+
+
+class AssignmentReviewPageResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    items: list[AssignmentReviewRowResponse]
+    page: int
+    page_size: int
+    total: int
+    total_pages: int
+
+
+class AssignmentBulkUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    transaction_ids: list[int] = Field(min_length=1, max_length=500)
+    set_category: bool = False
+    category_id: int | None = None
+    set_contract: bool = False
+    contract_id: int | None = None
+
+    @model_validator(mode="after")
+    def require_assignment(self) -> Self:
+        if not self.set_category and not self.set_contract:
+            raise ValueError("at least one assignment must be set")
+        return self
+
+
+class AssignmentBulkUpdateResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    updated: int
+
+
+class PatternPreviewRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    patterns: str
+    owner_id: int | None = None
+    start_date: date | None = None
+    end_date: date | None = None
+
+    @model_validator(mode="after")
+    def validate_period(self) -> Self:
+        if (
+            self.start_date is not None
+            and self.end_date is not None
+            and self.start_date > self.end_date
+        ):
+            raise ValueError("start_date must not be after end_date")
+        return self
+
+
+class PatternPreviewExampleResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: int
+    recipient: str
+    subject: str
+    date_issue: date
+    account_name: str
+
+
+class PatternPreviewResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    total: int
+    examples: list[PatternPreviewExampleResponse]

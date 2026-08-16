@@ -4,7 +4,8 @@ export const CategorySchema = z
   .object({
     id: z.number().int().positive(),
     name: z.string(),
-    patterns: z.string()
+    patterns: z.string(),
+    assigned_count: z.number().int().nonnegative()
   })
   .strict()
 

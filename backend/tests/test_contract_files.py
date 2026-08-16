@@ -8,9 +8,10 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import Settings
 from app.db.engine import session_scope
-from app.db.models import ContractFile, User
+from app.db.models import Contract, ContractFile, User
 from app.errors import ConflictError, PayloadTooLargeError
 from app.services.contracts import (
+    delete_contract,
     delete_contract_file,
     reconcile_contract_files,
     resolve_contract_file,
@@ -131,6 +132,47 @@ def test_failed_delete_transaction_restores_file_and_row(
 
     assert final_path.read_bytes() == b"contents"
     with session_scope(session_factory) as session:
+        assert session.scalar(select(func.count()).select_from(ContractFile)) == 1
+
+
+def test_contract_delete_removes_file_after_commit(
+    session_factory: sessionmaker[Session],
+    settings: Settings,
+) -> None:
+    user_id, contract_id, final_path = _create_file(session_factory, settings)
+
+    with session_scope(session_factory) as session:
+        user = session.get_one(User, user_id)
+        delete_contract(session, user, contract_id, settings.media_root)
+        assert final_path.is_file()
+
+    assert not final_path.exists()
+    with session_factory() as session:
+        assert session.get(Contract, contract_id) is None
+        assert session.scalar(select(func.count()).select_from(ContractFile)) == 0
+
+
+def test_failed_contract_delete_commit_restores_file_and_rows(
+    session_factory: sessionmaker[Session],
+    settings: Settings,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user_id, contract_id, final_path = _create_file(session_factory, settings)
+
+    def fail_commit(_session: Session) -> None:
+        raise RuntimeError("commit failed")
+
+    monkeypatch.setattr(Session, "commit", fail_commit)
+    with (
+        pytest.raises(RuntimeError, match="commit failed"),
+        session_scope(session_factory) as session,
+    ):
+        user = session.get_one(User, user_id)
+        delete_contract(session, user, contract_id, settings.media_root)
+
+    assert final_path.read_bytes() == b"contents"
+    with session_factory() as session:
+        assert session.get(Contract, contract_id) is not None
         assert session.scalar(select(func.count()).select_from(ContractFile)) == 1
 
 
