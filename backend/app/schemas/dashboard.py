@@ -123,9 +123,16 @@ class ContractExpenseResponse(DashboardModel):
     contract_id: int
     contract_name: str
     owner_name: str
+    is_active: bool
     expense: ApiDecimal
     monthly_average: ApiDecimal
     share: ApiDecimal
+
+
+class ContractMonthResponse(DashboardModel):
+    period: str
+    contract_id: int
+    expense: ApiDecimal
 
 
 class SpendingAnomalyResponse(DashboardModel):
@@ -159,6 +166,7 @@ class CashFlowDashboardResponse(DashboardModel):
     categories: list[CategoryCashFlowResponse]
     category_monthly: list[CategoryMonthResponse]
     contracts: list[ContractExpenseResponse]
+    contract_monthly: list[ContractMonthResponse]
     contract_expense_share: ApiDecimal
     anomalies: list[SpendingAnomalyResponse]
     increases: list[CategoryChangeResponse]

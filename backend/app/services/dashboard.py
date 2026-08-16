@@ -107,9 +107,17 @@ class ContractExpense:
     contract_id: int
     contract_name: str
     owner_name: str
+    is_active: bool
     expense: Decimal
     monthly_average: Decimal
     share: Decimal
+
+
+@dataclass(frozen=True, slots=True)
+class ContractMonth:
+    period: str
+    contract_id: int
+    expense: Decimal
 
 
 @dataclass(frozen=True, slots=True)
@@ -146,6 +154,7 @@ class CashFlowDashboard:
     categories: tuple[CategoryCashFlow, ...]
     category_monthly: tuple[CategoryMonth, ...]
     contracts: tuple[ContractExpense, ...]
+    contract_monthly: tuple[ContractMonth, ...]
     contract_expense_share: Decimal
     anomalies: tuple[SpendingAnomaly, ...]
     increases: tuple[CategoryChange, ...]
@@ -525,6 +534,8 @@ def get_cash_flow_dashboard(
             Contract.id,
             Contract.name,
             User.username,
+            Contract.is_active,
+            period_column,
             func.sum(-Transaction.amount),
         )
         .join(Transaction, Transaction.contract_id == Contract.id)
@@ -535,23 +546,44 @@ def get_cash_flow_dashboard(
             Transaction.amount < ZERO,
             Transaction.id.not_in(select(confirmed_ids.c.outgoing_transaction_id)),
         )
-        .group_by(Contract.id, Contract.name, User.username)
+        .group_by(
+            Contract.id,
+            Contract.name,
+            User.username,
+            Contract.is_active,
+            period_column,
+        )
     )
+    contract_metadata: dict[int, tuple[str, str, bool]] = {}
+    contract_totals: dict[int, Decimal] = {}
+    contract_month_values: dict[tuple[str, int], Decimal] = {}
+    for contract_id, name, owner, is_active, month, amount in contract_rows:
+        identifier = int(contract_id)
+        value = _decimal(amount)
+        contract_metadata[identifier] = (str(name), str(owner), bool(is_active))
+        contract_totals[identifier] = contract_totals.get(identifier, ZERO) + value
+        contract_month_values[(str(month), identifier)] = value
+
     contracts = tuple(
         sorted(
             (
                 ContractExpense(
-                    contract_id=int(contract_id),
-                    contract_name=str(name),
-                    owner_name=str(owner),
-                    expense=_decimal(amount),
-                    monthly_average=_decimal(amount) / Decimal(period.month_count),
-                    share=_decimal(amount) / expense if expense > ZERO else ZERO,
+                    contract_id=contract_id,
+                    contract_name=contract_metadata[contract_id][0],
+                    owner_name=contract_metadata[contract_id][1],
+                    is_active=contract_metadata[contract_id][2],
+                    expense=amount,
+                    monthly_average=amount / Decimal(period.month_count),
+                    share=amount / expense if expense > ZERO else ZERO,
                 )
-                for contract_id, name, owner, amount in contract_rows
+                for contract_id, amount in contract_totals.items()
             ),
-            key=lambda item: (-item.expense, item.contract_name.casefold()),
+            key=lambda item: (-item.expense, item.contract_name.casefold(), item.contract_id),
         )
+    )
+    contract_monthly = tuple(
+        ContractMonth(period=month, contract_id=contract_id, expense=amount)
+        for (month, contract_id), amount in sorted(contract_month_values.items())
     )
     contract_total = sum((item.expense for item in contracts), start=ZERO)
 
@@ -663,6 +695,7 @@ def get_cash_flow_dashboard(
         categories=categories,
         category_monthly=category_monthly,
         contracts=contracts,
+        contract_monthly=contract_monthly,
         contract_expense_share=contract_total / expense if expense > ZERO else ZERO,
         anomalies=tuple(anomalies[:5]),
         increases=increases,

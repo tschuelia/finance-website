@@ -77,9 +77,18 @@ const ContractExpenseSchema = z
     contract_id: z.number().int().positive(),
     contract_name: z.string(),
     owner_name: z.string(),
+    is_active: z.boolean(),
     expense: DecimalSchema,
     monthly_average: DecimalSchema,
     share: DecimalSchema
+  })
+  .strict()
+
+const ContractMonthSchema = z
+  .object({
+    period: MonthSchema,
+    contract_id: z.number().int().positive(),
+    expense: DecimalSchema
   })
   .strict()
 
@@ -119,6 +128,7 @@ export const CashFlowDashboardSchema = z
     categories: z.array(CategoryCashFlowSchema),
     category_monthly: z.array(CategoryMonthSchema),
     contracts: z.array(ContractExpenseSchema),
+    contract_monthly: z.array(ContractMonthSchema),
     contract_expense_share: DecimalSchema,
     anomalies: z.array(SpendingAnomalySchema),
     increases: z.array(CategoryChangeSchema),

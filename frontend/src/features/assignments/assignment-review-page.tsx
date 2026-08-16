@@ -180,13 +180,10 @@ const AssignmentReviewContent = () => {
   }))
 
   return (
-    <>
+    <div className="grid gap-6">
       <Card>
         <CardHeader>
           <CardTitle>Offene Buchungen filtern</CardTitle>
-          <CardDescription>
-            Zeige nur die Zuordnungen, die Du gerade bearbeiten möchtest.
-          </CardDescription>
         </CardHeader>
         <CardContent>
           <form
@@ -287,7 +284,7 @@ const AssignmentReviewContent = () => {
             <CardHeader>
               <CardTitle>{selectedIds.size} Buchungen ausgewählt</CardTitle>
               <CardDescription>
-                Wende eine Kategorie oder einen Vertrag gemeinsam auf die Auswahl an.
+                Wende eine Kategorie oder einen Vertrag auf die Auswahl an.
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-wrap items-end gap-3">
@@ -448,7 +445,7 @@ const AssignmentReviewContent = () => {
           owner={selectedOwner}
         />
       ) : null}
-    </>
+    </div>
   )
 }
 

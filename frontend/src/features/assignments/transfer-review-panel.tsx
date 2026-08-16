@@ -95,7 +95,8 @@ export const TransferReviewPanel = () => {
           <CardTitle>Umbuchungen prüfen</CardTitle>
           <CardDescription>
             Gegenbuchungen mit identischem Betrag auf unterschiedlichen Konten und höchstens drei
-            Tagen Abstand werden vorgeschlagen. Erst Deine Bestätigung beeinflusst Auswertungen.
+            Tagen Abstand werden vorgeschlagen. Nur bestätigte Umbuchungen werden in der Auswertung
+            berücksichtigt.
           </CardDescription>
         </CardHeader>
         <CardContent>

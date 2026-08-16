@@ -1,4 +1,4 @@
-/* cspell:words Ausreißer Cashflow Datenabdeckung Depotwerte Kategorienvergleich Sparquote Vertragsgebundene Vermögensaufteilung Vermögensverlauf Vormonate */
+/* cspell:words Ausreißer Cashflow Datenabdeckung Depotwerte Kategorienvergleich Kostenvergleich Monatsdurchschnitt Sparquote Vertragsgebundene Vermögensaufteilung Vermögensverlauf Vormonate */
 
 import { AlertTriangle, ArrowDownRight, ArrowUpRight, Landmark, PiggyBank } from 'lucide-react'
 import {
@@ -338,49 +338,205 @@ const CategoryTrendChart = ({ data }: { data: CashFlowData }) => {
   )
 }
 
-const ContractChart = ({ data }: { data: CashFlowData }) => {
+type ContractComparisonRow = {
+  active?: number
+  contract_name: string
+  inactive?: number
+}
+
+const ContractComparisonChart = ({ data }: { data: CashFlowData }) => {
   const visible = data.contracts.slice(0, 8)
   const remaining = data.contracts.slice(8)
-  const rows = [
-    ...visible,
+  const rows: ContractComparisonRow[] = [
+    ...visible.map((contract) => ({
+      contract_name: contract.contract_name,
+      ...(contract.is_active ? { active: contract.expense } : { inactive: contract.expense })
+    })),
     ...(remaining.length === 0
       ? []
       : [
           {
-            contract_id: -1,
             contract_name: 'Sonstige',
-            owner_name: '',
-            expense: remaining.reduce((sum, item) => sum + item.expense, 0),
-            monthly_average: remaining.reduce((sum, item) => sum + item.monthly_average, 0),
-            share: remaining.reduce((sum, item) => sum + item.share, 0)
+            active: remaining
+              .filter((contract) => contract.is_active)
+              .reduce((sum, contract) => sum + contract.expense, 0),
+            inactive: remaining
+              .filter((contract) => !contract.is_active)
+              .reduce((sum, contract) => sum + contract.expense, 0)
           }
         ])
   ]
   return (
-    <ChartContainer
-      className="h-80 w-full"
-      config={{ monthly_average: { label: 'Monatsdurchschnitt', color: 'var(--chart-4)' } }}
-    >
-      <BarChart accessibilityLayer data={rows} layout="vertical" margin={{ left: 16 }}>
-        <CartesianGrid horizontal={false} />
-        <XAxis
-          type="number"
-          tickFormatter={(value: number) => formatDecimal(value, { currency: false })}
-        />
-        <YAxis dataKey="contract_name" type="category" tickLine={false} width={112} />
-        <ChartTooltip
-          content={<ChartTooltipContent formatter={moneyTooltip} />}
-          cursor={false}
-          isAnimationActive={false}
-        />
-        <Bar
-          dataKey="monthly_average"
-          fill="var(--color-monthly_average)"
-          isAnimationActive={false}
-          radius={3}
-        />
-      </BarChart>
-    </ChartContainer>
+    <div className="grid gap-2">
+      <ChartContainer
+        className="h-[min(32rem,calc(7rem+3rem*var(--contract-count)))] w-full"
+        config={{
+          active: { label: 'Aktiv', color: 'var(--chart-2)' },
+          inactive: { label: 'Inaktiv', color: 'var(--muted-foreground)' }
+        }}
+        style={{ '--contract-count': rows.length } as React.CSSProperties}
+      >
+        <BarChart accessibilityLayer data={rows} layout="vertical" margin={{ left: 16 }}>
+          <CartesianGrid horizontal={false} />
+          <XAxis
+            type="number"
+            tickFormatter={(value: number) => formatDecimal(value, { currency: false })}
+          />
+          <YAxis dataKey="contract_name" type="category" tickLine={false} width={128} />
+          <ChartTooltip
+            content={<ChartTooltipContent formatter={moneyTooltip} />}
+            cursor={false}
+            isAnimationActive={false}
+          />
+          <ChartLegend content={<ChartLegendContent />} />
+          <Bar
+            dataKey="active"
+            fill="var(--color-active)"
+            isAnimationActive={false}
+            name="Aktiv"
+            radius={3}
+            stackId="status"
+          />
+          <Bar
+            dataKey="inactive"
+            fill="var(--color-inactive)"
+            isAnimationActive={false}
+            name="Inaktiv"
+            radius={3}
+            stackId="status"
+          />
+        </BarChart>
+      </ChartContainer>
+      {remaining.length > 0 ? (
+        <p className="text-xs text-muted-foreground">
+          „Sonstige“ enthält: {remaining.map((contract) => contract.contract_name).join(', ')}.
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
+const ActiveContractHistoryChart = ({ data }: { data: CashFlowData }) => {
+  const activeContracts = data.contracts.filter((contract) => contract.is_active)
+  const visible = activeContracts.slice(0, 8)
+  const remaining = activeContracts.slice(8)
+  const visibleKeys = new Map(
+    visible.map((contract) => [contract.contract_id, `contract_${contract.contract_id}`])
+  )
+  const activeIds = new Set(activeContracts.map((contract) => contract.contract_id))
+  const monthlyAverage =
+    activeContracts.reduce((sum, contract) => sum + contract.expense, 0) / data.period.month_count
+  const rows = data.monthly.map((month) => {
+    const row: Record<string, number | string> = {
+      period: month.period,
+      label: month.label,
+      monthly_average: monthlyAverage
+    }
+    for (const item of data.contract_monthly.filter((item) => item.period === month.period)) {
+      if (!activeIds.has(item.contract_id)) {
+        continue
+      }
+      const key = visibleKeys.get(item.contract_id) ?? 'other'
+      row[key] = Number(row[key] ?? 0) + item.expense
+    }
+    return row
+  })
+  const keys = [
+    ...visible.map((contract) => ({
+      key: `contract_${contract.contract_id}`,
+      label: contract.contract_name
+    })),
+    ...(remaining.length > 0 ? [{ key: 'other', label: 'Sonstige' }] : [])
+  ]
+  const config = {
+    ...Object.fromEntries(
+      keys.map((item, index) => [
+        item.key,
+        {
+          label: item.label,
+          color: item.key === 'other' ? 'var(--muted-foreground)' : categoryColor(index)
+        }
+      ])
+    ),
+    monthly_average: { label: 'Monatsdurchschnitt', color: 'var(--foreground)' }
+  }
+
+  return (
+    <div className="grid gap-2">
+      <ChartContainer className="h-96 w-full" config={config}>
+        <ComposedChart accessibilityLayer data={rows} margin={{ left: 8, right: 8 }}>
+          <CartesianGrid vertical={false} />
+          <XAxis dataKey="label" minTickGap={24} tickLine={false} tickMargin={8} />
+          <YAxis
+            tickFormatter={(value: number) => formatDecimal(value, { currency: false })}
+            width={64}
+          />
+          <ChartTooltip
+            content={<ChartTooltipContent formatter={moneyTooltip} />}
+            cursor={false}
+            isAnimationActive={false}
+          />
+          <ChartLegend content={<ChartLegendContent className="flex-wrap" />} />
+          {keys.map((item) => (
+            <Bar
+              dataKey={item.key}
+              fill={`var(--color-${item.key})`}
+              isAnimationActive={false}
+              key={item.key}
+              name={item.label}
+              stackId="contracts"
+            />
+          ))}
+          <Line
+            dataKey="monthly_average"
+            dot={false}
+            isAnimationActive={false}
+            name="Monatsdurchschnitt"
+            stroke="var(--color-monthly_average)"
+            strokeDasharray="6 4"
+            strokeWidth={2}
+          />
+        </ComposedChart>
+      </ChartContainer>
+      {remaining.length > 0 ? (
+        <p className="text-xs text-muted-foreground">
+          „Sonstige“ enthält: {remaining.map((contract) => contract.contract_name).join(', ')}.
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
+const ContractAnalytics = ({ data }: { data: CashFlowData }) => {
+  const activeContracts = data.contracts.filter((contract) => contract.is_active)
+  const activeMonthlyAverage =
+    activeContracts.reduce((sum, contract) => sum + contract.expense, 0) / data.period.month_count
+  return (
+    <Tabs defaultValue="compare">
+      <TabsList>
+        <TabsTrigger value="compare">Kostenvergleich</TabsTrigger>
+        <TabsTrigger value="history">Verlauf aktiver Verträge</TabsTrigger>
+      </TabsList>
+      <TabsContent className="grid gap-3" value="compare">
+        <p className="text-sm text-muted-foreground">
+          Gesamtausgaben je Vertrag im ausgewählten Zeitraum.
+        </p>
+        <ContractComparisonChart data={data} />
+      </TabsContent>
+      <TabsContent className="grid gap-3" value="history">
+        {activeContracts.length > 0 ? (
+          <>
+            <p className="text-sm text-muted-foreground">
+              Monatliche Ausgaben aktiver Verträge · Durchschnitt:{' '}
+              {formatDecimal(activeMonthlyAverage)}.
+            </p>
+            <ActiveContractHistoryChart data={data} />
+          </>
+        ) : (
+          <EmptyState description="Für aktive Verträge liegen im Zeitraum keine Ausgaben vor." />
+        )}
+      </TabsContent>
+    </Tabs>
   )
 }
 
@@ -391,9 +547,6 @@ const CashFlowInsights = ({ data }: { data: CashFlowData }) => {
     <Card>
       <CardHeader>
         <CardTitle>Auffälligkeiten</CardTitle>
-        <CardDescription>
-          Robuste Monatsausreißer und die größten Veränderungen im Periodenvergleich.
-        </CardDescription>
       </CardHeader>
       <CardContent>
         {!hasInsights ? (
@@ -501,7 +654,6 @@ const CashFlowDashboardView = ({ data }: { data: CashFlowData }) => (
       <Card>
         <CardHeader>
           <CardTitle>Cashflow nach Konto</CardTitle>
-          <CardDescription>Welche Konten den gemeinsamen Cashflow prägen.</CardDescription>
         </CardHeader>
         <CardContent>
           <AccountComparisonChart data={data} />
@@ -535,14 +687,15 @@ const CashFlowDashboardView = ({ data }: { data: CashFlowData }) => (
       <CardHeader>
         <CardTitle>Vertragsgebundene Ausgaben</CardTitle>
         <CardDescription>
-          {formatPercentage(data.contract_expense_share)} der Ausgaben sind Verträgen zugeordnet.
+          {formatPercentage(data.contract_expense_share)} der Ausgaben sind Verträgen zugeordnet ·{' '}
+          {data.period.label}.
         </CardDescription>
       </CardHeader>
       <CardContent>
         {data.contracts.length === 0 ? (
           <EmptyState description="Im Zeitraum sind keine Ausgaben mit Verträgen verknüpft." />
         ) : (
-          <ContractChart data={data} />
+          <ContractAnalytics data={data} />
         )}
       </CardContent>
     </Card>
@@ -701,9 +854,6 @@ const WealthDashboardView = ({ data }: { data: WealthData }) => {
       <Card>
         <CardHeader>
           <CardTitle>Vermögensaufteilung heute</CardTitle>
-          <CardDescription>
-            Bankkonten und Depots direkt nach ihrem aktuellen Wert verglichen.
-          </CardDescription>
         </CardHeader>
         <CardContent>
           <WealthAllocationChart data={data} />
