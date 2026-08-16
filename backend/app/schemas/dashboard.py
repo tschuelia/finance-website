@@ -1,5 +1,5 @@
 from datetime import date
-from typing import Literal, Self
+from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -50,18 +50,20 @@ class CashFlowQuery(MonthRangeQuery):
 
 
 class WealthQuery(MonthRangeQuery):
-    sources: list[str] = Field(min_length=1, max_length=200)
+    account_ids: list[Annotated[int, Field(gt=0)]] = Field(default_factory=list)
+    depot_ids: list[Annotated[int, Field(gt=0)]] = Field(default_factory=list)
 
-    @field_validator("sources")
+    @field_validator("account_ids", "depot_ids")
     @classmethod
-    def validate_sources(cls, values: list[str]) -> list[str]:
-        for value in values:
-            kind, separator, identifier = value.partition(":")
-            if separator != ":" or kind not in {"account", "depot"}:
-                raise ValueError("sources must use account:<id> or depot:<id>")
-            if not identifier.isdigit() or int(identifier) < 1:
-                raise ValueError("source id must be positive")
+    def deduplicate_sources(cls, values: list[int]) -> list[int]:
         return list(dict.fromkeys(values))
+
+    @model_validator(mode="after")
+    def validate_sources(self) -> Self:
+        count = len(self.account_ids) + len(self.depot_ids)
+        if count < 1 or count > 200:
+            raise ValueError("wealth query must contain between 1 and 200 sources")
+        return self
 
 
 class DashboardPeriodResponse(DashboardModel):

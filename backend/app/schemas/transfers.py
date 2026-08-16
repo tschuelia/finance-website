@@ -1,4 +1,6 @@
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Self
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.schemas.accounts import UserSummary
 from app.schemas.transactions import TransactionResponse
@@ -53,6 +55,15 @@ class TransferReviewUpdateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     items: list[TransferReviewUpdate] = Field(min_length=1, max_length=500)
+
+    @model_validator(mode="after")
+    def validate_unique_pairs(self) -> Self:
+        pairs = [
+            (item.outgoing_transaction_id, item.incoming_transaction_id) for item in self.items
+        ]
+        if len(set(pairs)) != len(pairs):
+            raise ValueError("a transfer pair may only be changed once per request")
+        return self
 
 
 class TransferReviewUpdateResponse(BaseModel):

@@ -4,24 +4,19 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.db.models import Category, Transaction
+from app.db.models import Category
 from app.errors import ConflictError, ResourceNotFoundError
+from app.patterns import match_patterns, normalized_patterns
 from app.services.matching import (
     MatchCandidate,
     RuleMatch,
-    match_patterns,
-    normalized_patterns,
     rule_match,
 )
+from app.services.review_invalidation import invalidate_category_reviews
 
 
 def category_patterns(category: Category) -> tuple[str, ...]:
     return normalized_patterns(category.patterns)
-
-
-def matches_any_pattern(value: str | None, patterns: Iterable[str]) -> bool:
-    normalized_value = (value or "").casefold()
-    return any(pattern and pattern.casefold() in normalized_value for pattern in patterns)
 
 
 def match_transaction_categories(
@@ -58,15 +53,14 @@ def list_categories(session: Session) -> tuple[Category, ...]:
 
 
 def create_category(session: Session, *, name: str, patterns: str) -> Category:
-    category = Category(name=name, patterns="\n".join(normalized_patterns(patterns)))
+    normalized = "\n".join(normalized_patterns(patterns))
+    category = Category(name=name, patterns=normalized)
     session.add(category)
     try:
         session.flush()
     except IntegrityError:
         raise ConflictError("Eine Kategorie mit diesem Namen existiert bereits.") from None
-    session.query(Transaction).filter(Transaction.category_id.is_(None)).update(
-        {Transaction.category_reviewed: False}
-    )
+    invalidate_category_reviews(session, normalized)
     return category
 
 
@@ -80,13 +74,14 @@ def update_category(
     category = session.get(Category, category_id)
     if category is None:
         raise ResourceNotFoundError()
+    previous_patterns = category.patterns
+    next_patterns = "\n".join(normalized_patterns(patterns))
     category.name = name
-    category.patterns = "\n".join(normalized_patterns(patterns))
+    category.patterns = next_patterns
     try:
         session.flush()
     except IntegrityError:
         raise ConflictError("Eine Kategorie mit diesem Namen existiert bereits.") from None
-    session.query(Transaction).filter(Transaction.category_id.is_(None)).update(
-        {Transaction.category_reviewed: False}
-    )
+    if previous_patterns != next_patterns:
+        invalidate_category_reviews(session, previous_patterns, next_patterns)
     return category

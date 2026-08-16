@@ -41,19 +41,11 @@ def analytics_wealth(
     session: DatabaseSession,
     query: Annotated[WealthQuery, Query()],
 ) -> WealthDashboardResponse:
-    account_ids: list[int] = []
-    depot_ids: list[int] = []
-    for source in query.sources:
-        kind, _, identifier = source.partition(":")
-        if kind == "account":
-            account_ids.append(int(identifier))
-        else:
-            depot_ids.append(int(identifier))
     result = get_wealth_dashboard(
         session,
         current_user,
-        tuple(account_ids),
-        tuple(depot_ids),
+        tuple(query.account_ids),
+        tuple(query.depot_ids),
         start_month=query.start_month,
         end_month=query.end_month,
     )

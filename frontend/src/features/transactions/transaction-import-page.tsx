@@ -1,15 +1,14 @@
 /* cspell:words Buchungsdetails Kontoexport Kontoinhaber Zuordnungsvorschläge */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, CheckCheck, FileUp, Plus, Save, Tags, Upload } from 'lucide-react'
-import type { ChangeEvent, DragEvent } from 'react'
-import { useRef, useState } from 'react'
+import { CheckCheck, Plus, Save, Tags } from 'lucide-react'
+import { useReducer, useRef } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { commitCsvImport, previewCsvImport } from '@/api/imports'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
@@ -38,23 +37,26 @@ import {
 } from '@/features/transactions/transaction-draft'
 import { TransactionDraftFields } from '@/features/transactions/transaction-form'
 import { invalidateAccountTransactionData } from '@/features/transactions/transaction-query'
+import {
+  ImportProgress,
+  ImportFilterBar,
+  ImportSkippedRows,
+  ImportSummary,
+  ImportUpload
+} from '@/features/transactions/transaction-import-layout'
+import {
+  initialTransactionImportState,
+  transactionImportReducer
+} from '@/features/transactions/transaction-import-state'
 import { useTransactionFormOptions } from '@/features/transactions/use-transaction-form-options'
 import { useAccount } from '@/hooks/use-accounts'
 import { parseDecimalInput, parsePositiveId } from '@/lib/format'
 import { HOME, accountUrl } from '@/routes/urls'
 import type { Category } from '@/types/categories'
 import type { ContractSummary } from '@/types/contracts'
-import type { CsvPreviewRow } from '@/types/imports'
 import type { TransactionDraft } from '@/features/transactions/transaction-draft'
+import type { ImportRow } from '@/features/transactions/transaction-import-state'
 import type { TransactionWrite } from '@/types/transactions'
-
-type ImportStage = 'upload' | 'preview'
-type ImportFilter = 'all' | 'attention' | 'category' | 'contract'
-
-type ImportRow = {
-  draft: TransactionDraft
-  preview: CsvPreviewRow
-}
 
 type TransactionImportContentProps = {
   accountId: number
@@ -77,37 +79,49 @@ const TransactionImportContent = ({ accountId }: TransactionImportContentProps) 
   const { state: authState } = useAuth()
   const account = useAccount(accountId)
   const options = useTransactionFormOptions()
-  const [stage, setStage] = useState<ImportStage>('upload')
-  const [fileName, setFileName] = useState<string | undefined>()
-  const [fileInputKey, setFileInputKey] = useState(0)
-  const [rows, setRows] = useState<ImportRow[]>([])
-  const [skippedRows, setSkippedRows] = useState<{ source_row: number; reason: string }[]>([])
-  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set())
-  const [filter, setFilter] = useState<ImportFilter>('all')
-  const [bulkCategory, setBulkCategory] = useState<string>()
-  const [bulkContract, setBulkContract] = useState<string>()
-  const [editingKey, setEditingKey] = useState<string | undefined>()
-  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false)
-  const [contractDialogOpen, setContractDialogOpen] = useState(false)
-  const [formError, setFormError] = useState<string | undefined>()
+  const [importState, dispatch] = useReducer(
+    transactionImportReducer,
+    undefined,
+    initialTransactionImportState
+  )
+  const {
+    bulkCategory,
+    bulkContract,
+    categoryDialogOpen,
+    contractDialogOpen,
+    editingKey,
+    fileInputKey,
+    fileName,
+    filter,
+    formError,
+    rows,
+    selectedKeys,
+    skippedRows,
+    stage
+  } = importState
+  const patchState = (patch: Partial<typeof importState>) => dispatch({ type: 'patch', patch })
+  const updateRows = (update: (current: ImportRow[]) => ImportRow[]) =>
+    dispatch({ type: 'update-rows', update })
+  const updateSelection = (update: (current: Set<string>) => Set<string>) =>
+    dispatch({ type: 'update-selection', update })
   const preview = useMutation({
     mutationFn: async (selectedFile: File) => await previewCsvImport(accountId, selectedFile),
     onSuccess: (result, selectedFile) => {
-      setRows(
-        result.items.map((item) => ({
+      patchState({
+        rows: result.items.map((item) => ({
           preview: item,
           draft: transactionDraftFromWrite(item.transaction)
-        }))
-      )
-      setSkippedRows(result.skipped_rows)
-      setFileName(selectedFile.name)
-      setStage('preview')
-      setSelectedKeys(new Set())
-      setFormError(undefined)
+        })),
+        skippedRows: result.skipped_rows,
+        fileName: selectedFile.name,
+        stage: 'preview',
+        selectedKeys: new Set(),
+        formError: undefined
+      })
     },
     onError: (error) => {
       const message = mutationErrorMessage(error)
-      setFormError(message)
+      patchState({ formError: message })
       toast.error('Die CSV-Datei konnte nicht geprüft werden.', {
         description: message,
         id: `csv-preview-error-${accountId}-${message.slice(0, 100)}`
@@ -130,7 +144,7 @@ const TransactionImportContent = ({ accountId }: TransactionImportContentProps) 
     },
     onError: (error) => {
       const message = mutationErrorMessage(error)
-      setFormError(message)
+      patchState({ formError: message })
       toast.error('Der CSV-Import konnte nicht gespeichert werden.', {
         description: message,
         id: `csv-commit-error-${accountId}-${message.slice(0, 100)}`
@@ -139,7 +153,7 @@ const TransactionImportContent = ({ accountId }: TransactionImportContentProps) 
   })
 
   const updateRow = (key: string, update: (draft: TransactionDraft) => TransactionDraft) => {
-    setRows((current) =>
+    updateRows((current) =>
       current.map((row) => (rowKey(row) === key ? { ...row, draft: update(row.draft) } : row))
     )
   }
@@ -148,25 +162,23 @@ const TransactionImportContent = ({ accountId }: TransactionImportContentProps) 
     if (file === undefined) {
       return
     }
-    setFormError(undefined)
+    patchState({ formError: undefined })
     preview.mutate(file)
-  }
-
-  const selectFile = (event: ChangeEvent<HTMLInputElement>) => {
-    previewFile(event.currentTarget.files?.[0])
   }
 
   const changeFile = () => {
     if (rows.length > 0 && !window.confirm('Möchtest Du die bearbeitete Vorschau verwerfen?')) {
       return
     }
-    setStage('upload')
-    setFileName(undefined)
-    setRows([])
-    setSkippedRows([])
-    setSelectedKeys(new Set())
-    setFormError(undefined)
-    setFileInputKey((value) => value + 1)
+    patchState({
+      stage: 'upload',
+      fileName: undefined,
+      rows: [],
+      skippedRows: [],
+      selectedKeys: new Set(),
+      formError: undefined,
+      fileInputKey: fileInputKey + 1
+    })
   }
 
   const commitPreview = () => {
@@ -174,16 +186,16 @@ const TransactionImportContent = ({ accountId }: TransactionImportContentProps) 
     for (const row of rows) {
       const parsed = transactionWriteFromDraft(accountId, row.draft)
       if (parsed.status === 'invalid') {
-        setFormError(`CSV-Zeile ${row.preview.source_row}: ${parsed.message}`)
+        patchState({ formError: `CSV-Zeile ${row.preview.source_row}: ${parsed.message}` })
         return
       }
       items.push(parsed.value)
     }
     if (items.length === 0) {
-      setFormError('Es ist keine Transaktion mehr zum Übernehmen vorhanden.')
+      patchState({ formError: 'Es ist keine Transaktion mehr zum Übernehmen vorhanden.' })
       return
     }
-    setFormError(undefined)
+    patchState({ formError: undefined })
     commit.mutate(items)
   }
 
@@ -227,7 +239,7 @@ const TransactionImportContent = ({ accountId }: TransactionImportContentProps) 
   const applyCategory = (category?: Category) => {
     const value = category === undefined ? bulkCategory : String(category.id)
     if (value === undefined) return
-    setRows((current) =>
+    updateRows((current) =>
       current.map((row) =>
         selectedKeys.has(rowKey(row))
           ? {
@@ -246,7 +258,7 @@ const TransactionImportContent = ({ accountId }: TransactionImportContentProps) 
   const applyContract = (contract?: ContractSummary) => {
     const value = contract === undefined ? bulkContract : String(contract.id)
     if (value === undefined) return
-    setRows((current) =>
+    updateRows((current) =>
       current.map((row) =>
         selectedKeys.has(rowKey(row))
           ? {
@@ -273,73 +285,17 @@ const TransactionImportContent = ({ accountId }: TransactionImportContentProps) 
         description="Importiere den Kontoexport und prüfe nur Zuordnungen, die Aufmerksamkeit benötigen."
         title="CSV-Import"
       />
-      <ol className="grid gap-3 sm:grid-cols-3" aria-label="Importschritte">
-        {[
-          ['1', 'Datei auswählen', stage === 'upload'],
-          ['2', 'Zuordnungen prüfen', stage === 'preview' && !commit.isPending],
-          ['3', 'Importieren', commit.isPending]
-        ].map(([number, label, active]) => (
-          <li
-            className={`flex items-center gap-3 rounded-xl border p-3 text-sm ${
-              active ? 'border-primary bg-primary/5 font-medium' : 'text-muted-foreground'
-            }`}
-            key={number as string}
-          >
-            <span className="flex size-7 items-center justify-center rounded-full bg-muted font-medium">
-              {number}
-            </span>
-            {label}
-          </li>
-        ))}
-      </ol>
+      <ImportProgress committing={commit.isPending} stage={stage} />
       {stage === 'upload' ? (
-        <Card className="max-w-3xl">
-          <CardHeader>
-            <CardTitle>Kontoexport hochladen</CardTitle>
-            <CardDescription>
-              Konto: {account.data.name} · Bank: {account.data.bank}. Unterstützt werden CSV-Exporte
-              von Comdirect, DKB, Holvi und N26.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <button
-              className="grid min-h-48 cursor-pointer place-items-center gap-3 rounded-xl border-2 border-dashed border-input p-8 text-center transition-colors hover:border-primary hover:bg-primary/5"
-              disabled={preview.isPending}
-              onClick={() => fileInputRef.current?.click()}
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={(event: DragEvent<HTMLButtonElement>) => {
-                event.preventDefault()
-                previewFile(event.dataTransfer.files[0])
-              }}
-              type="button"
-            >
-              {preview.isPending ? (
-                <FileUp className="size-10 animate-pulse text-primary" aria-hidden />
-              ) : (
-                <Upload className="size-10 text-primary" aria-hidden />
-              )}
-              <span className="grid gap-1">
-                <span className="font-medium">
-                  {preview.isPending ? 'CSV-Datei wird geprüft …' : 'CSV-Datei hier ablegen'}
-                </span>
-                <span className="text-sm text-muted-foreground">
-                  oder klicken, um eine Datei auszuwählen
-                </span>
-              </span>
-            </button>
-            <input
-              accept=".csv,text/csv"
-              className="sr-only"
-              key={fileInputKey}
-              onChange={selectFile}
-              ref={fileInputRef}
-              type="file"
-            />
-            {formError === undefined ? null : (
-              <p className="text-sm text-destructive">{formError}</p>
-            )}
-          </CardContent>
-        </Card>
+        <ImportUpload
+          accountBank={account.data.bank}
+          accountName={account.data.name}
+          fileInputKey={fileInputKey}
+          fileInputRef={fileInputRef}
+          formError={formError}
+          onFile={previewFile}
+          pending={preview.isPending}
+        />
       ) : rows.length === 0 ? (
         <EmptyState
           action={<Button onClick={changeFile}>Andere Datei wählen</Button>}
@@ -348,78 +304,29 @@ const TransactionImportContent = ({ accountId }: TransactionImportContentProps) 
         />
       ) : (
         <section className="grid gap-4" aria-label="Vorschau des CSV-Imports">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Card>
-              <CardHeader>
-                <CardDescription>Importbereit</CardDescription>
-                <CardTitle>{rows.length}</CardTitle>
-              </CardHeader>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardDescription>Kategorien prüfen</CardDescription>
-                <CardTitle>{categoryAttention}</CardTitle>
-              </CardHeader>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardDescription>Verträge prüfen</CardDescription>
-                <CardTitle>{contractAttention}</CardTitle>
-              </CardHeader>
-            </Card>
-          </div>
-          <Card>
-            <CardContent className="flex flex-wrap items-center gap-2 pt-4">
-              <span className="mr-auto text-sm text-muted-foreground">
-                {fileName} · {rows.length} importierbare Zeilen
-              </span>
-              {(['all', 'attention', 'category', 'contract'] as const).map((value) => (
-                <Button
-                  key={value}
-                  onClick={() => setFilter(value)}
-                  size="sm"
-                  variant={filter === value ? 'default' : 'outline'}
-                >
-                  {value === 'all'
-                    ? 'Alle'
-                    : value === 'attention'
-                      ? 'Nur offene'
-                      : value === 'category'
-                        ? 'Kategorien'
-                        : 'Verträge'}
-                </Button>
-              ))}
-              <Button onClick={changeFile} size="sm" variant="outline">
-                Andere Datei
-              </Button>
-            </CardContent>
-          </Card>
-          {skippedRows.length === 0 ? null : (
-            <Card className="border-amber-300 bg-amber-50/50">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <AlertTriangle className="size-4" aria-hidden />
-                  {skippedRows.length} Zeilen werden nicht importiert
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-1 text-sm">
-                {skippedRows.map((row) => (
-                  <p key={`${row.source_row}-${row.reason}`}>
-                    CSV-Zeile {row.source_row}: {row.reason}
-                  </p>
-                ))}
-              </CardContent>
-            </Card>
-          )}
+          <ImportSummary
+            categoryAttention={categoryAttention}
+            contractAttention={contractAttention}
+            rowCount={rows.length}
+          />
+          <ImportFilterBar
+            fileName={fileName}
+            filter={filter}
+            onChangeFile={changeFile}
+            onFilter={(value) => patchState({ filter: value })}
+            rowCount={rows.length}
+          />
+          <ImportSkippedRows rows={skippedRows} />
           <Card>
             <CardContent className="flex flex-wrap items-end gap-3 pt-4">
               <Button
                 onClick={() =>
-                  setSelectedKeys(
-                    visibleSelectedCount === filteredRows.length
-                      ? new Set([...selectedKeys].filter((key) => !visibleKeys.has(key)))
-                      : new Set([...selectedKeys, ...visibleKeys])
-                  )
+                  patchState({
+                    selectedKeys:
+                      visibleSelectedCount === filteredRows.length
+                        ? new Set([...selectedKeys].filter((key) => !visibleKeys.has(key)))
+                        : new Set([...selectedKeys, ...visibleKeys])
+                  })
                 }
                 variant="outline"
               >
@@ -433,7 +340,7 @@ const TransactionImportContent = ({ accountId }: TransactionImportContentProps) 
                 categories={options.categories}
                 className="w-56 max-w-full"
                 noneLabel="Bewusst ohne Kategorie"
-                onValueChange={setBulkCategory}
+                onValueChange={(value) => patchState({ bulkCategory: value })}
                 placeholder="Kategorie auswählen"
                 value={bulkCategory}
               />
@@ -448,7 +355,7 @@ const TransactionImportContent = ({ accountId }: TransactionImportContentProps) 
               {canManageCategories ? (
                 <Button
                   disabled={selectedKeys.size === 0}
-                  onClick={() => setCategoryDialogOpen(true)}
+                  onClick={() => patchState({ categoryDialogOpen: true })}
                   variant="outline"
                 >
                   <Plus aria-hidden />
@@ -462,7 +369,7 @@ const TransactionImportContent = ({ accountId }: TransactionImportContentProps) 
                   (contract) => contract.owner.id === account.data.owner.id
                 )}
                 noneLabel="Bewusst ohne Vertrag"
-                onValueChange={setBulkContract}
+                onValueChange={(value) => patchState({ bulkContract: value })}
                 placeholder="Vertrag auswählen"
                 value={bulkContract}
               />
@@ -475,7 +382,7 @@ const TransactionImportContent = ({ accountId }: TransactionImportContentProps) 
               </Button>
               <Button
                 disabled={selectedKeys.size === 0}
-                onClick={() => setContractDialogOpen(true)}
+                onClick={() => patchState({ contractDialogOpen: true })}
                 variant="outline"
               >
                 <Plus aria-hidden />
@@ -499,17 +406,17 @@ const TransactionImportContent = ({ accountId }: TransactionImportContentProps) 
                     : { ...draft, contractId: value, contractReviewed: true }
                 )
               }
-              onEdit={setEditingKey}
+              onEdit={(key) => patchState({ editingKey: key })}
               onRemove={(key) => {
-                setRows((current) => current.filter((row) => rowKey(row) !== key))
-                setSelectedKeys((current) => {
+                updateRows((current) => current.filter((row) => rowKey(row) !== key))
+                updateSelection((current) => {
                   const next = new Set(current)
                   next.delete(key)
                   return next
                 })
               }}
               onSelectionChange={(key, selected) =>
-                setSelectedKeys((current) => {
+                updateSelection((current) => {
                   const next = new Set(current)
                   if (selected) next.add(key)
                   else next.delete(key)
@@ -544,7 +451,7 @@ const TransactionImportContent = ({ accountId }: TransactionImportContentProps) 
         </section>
       )}
       {editingRow === undefined ? null : (
-        <Dialog onOpenChange={(open) => !open && setEditingKey(undefined)} open>
+        <Dialog onOpenChange={(open) => !open && patchState({ editingKey: undefined })} open>
           <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto sm:max-w-4xl">
             <DialogHeader>
               <DialogTitle>Buchungsdetails bearbeiten</DialogTitle>
@@ -564,12 +471,16 @@ const TransactionImportContent = ({ accountId }: TransactionImportContentProps) 
         </Dialog>
       )}
       {categoryDialogOpen ? (
-        <QuickCategoryDialog onCreated={applyCategory} onOpenChange={setCategoryDialogOpen} open />
+        <QuickCategoryDialog
+          onCreated={applyCategory}
+          onOpenChange={(open) => patchState({ categoryDialogOpen: open })}
+          open
+        />
       ) : null}
       {contractDialogOpen ? (
         <QuickContractDialog
           onCreated={applyContract}
-          onOpenChange={setContractDialogOpen}
+          onOpenChange={(open) => patchState({ contractDialogOpen: open })}
           open
           owner={account.data.owner}
         />

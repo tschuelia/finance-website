@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from datetime import date
 from decimal import Decimal
 
@@ -7,16 +8,18 @@ from sqlalchemy.orm import Session
 
 from app.db.models import Category, Transaction
 from app.errors import ConflictError
-from app.services.transactions import (
+from app.services.reviews import (
     ReviewIssue,
+    bulk_update_assignments,
+    get_assignment_review_page,
+    preview_patterns,
+)
+from app.services.transactions import (
     TransactionFilters,
     TransactionType,
     TransactionValues,
-    bulk_update_assignments,
     create_transactions,
-    get_assignment_review_page,
     get_transaction_page,
-    preview_patterns,
     update_transaction,
 )
 
@@ -243,3 +246,57 @@ def test_pattern_preview_is_scoped_by_owner_and_date(session: Session) -> None:
 
     assert result.total == 1
     assert result.examples[0][0].id == matching.id
+
+
+def test_contract_review_sql_matching_uses_unicode_case_folding(session: Session) -> None:
+    owner = add_user(session, "owner")
+    account = add_account(session, owner)
+    contract = add_contract(session, owner, name="Straße")
+    contract.patterns = "STRASSE"
+    matching = _transaction(account.id)
+    matching.recipient = "Straße"
+    session.add(matching)
+    session.flush()
+
+    page = get_assignment_review_page(
+        session,
+        owner,
+        issue=ReviewIssue.CONTRACT,
+    )
+
+    assert page.total == 1
+    assert page.items[0].transaction.id == matching.id
+    assert page.items[0].contract_match.candidates[0].id == contract.id
+
+
+def test_assignment_review_matches_only_the_requested_page(
+    session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    owner = add_user(session, "owner")
+    account = add_account(session, owner)
+    for index in range(12):
+        transaction = _transaction(account.id)
+        transaction.date_issue = date(2026, 1, index + 1)
+        session.add(transaction)
+    session.flush()
+
+    from app.services import reviews
+
+    original_match = reviews.match_transaction_categories
+    matched_ids: list[str | None] = []
+
+    def track_match(
+        recipient: str | None,
+        subject: str | None,
+        categories: Iterable[Category],
+    ):
+        matched_ids.append(subject)
+        return original_match(recipient, subject, categories)
+
+    monkeypatch.setattr(reviews, "match_transaction_categories", track_match)
+    page = get_assignment_review_page(session, owner, page=2, page_size=5)
+
+    assert page.total == 12
+    assert len(page.items) == 5
+    assert len(matched_ids) == 5

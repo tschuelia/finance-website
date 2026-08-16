@@ -7,7 +7,8 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from app.schemas.accounts import UserSummary
 from app.schemas.matching import RuleMatchResponse
 from app.schemas.types import ApiDecimal
-from app.services.transactions import ReviewIssue, TransactionType
+from app.services.reviews import ReviewIssue
+from app.services.transactions import TransactionType
 
 
 class TransactionResponse(BaseModel):

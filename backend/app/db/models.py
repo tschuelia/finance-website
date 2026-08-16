@@ -15,9 +15,11 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    or_,
+    select,
     text,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, column_property, mapped_column, relationship
 
 from app.db.base import Base
 
@@ -207,60 +209,6 @@ class ContractFile(Base):
     contract: Mapped[Contract] = relationship(back_populates="files")
 
 
-class Transaction(Base):
-    __tablename__ = "accounting_transaction"
-    __table_args__ = (
-        Index("accounting_transaction_bank_account_id_903676bb", "bank_account_id"),
-        Index("accounting_transaction_category_id_3bec2add", "category_id"),
-        Index("accounting_transaction_contract_id_be87a27f", "contract_id"),
-    )
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    recipient: Mapped[str] = mapped_column(String(255))
-    amount: Mapped[Decimal] = mapped_column(Numeric(10, 2))
-    subject: Mapped[str] = mapped_column(String(1024))
-    date_issue: Mapped[datetime.date] = mapped_column(Date)
-    date_booking: Mapped[datetime.date | None] = mapped_column(Date, nullable=True)
-    full_subject_string: Mapped[str] = mapped_column(Text)
-    bank_account_id: Mapped[int | None] = mapped_column(
-        BigInteger, production_foreign_key("accounting_bankaccount.id"), nullable=True
-    )
-    category_id: Mapped[int | None] = mapped_column(
-        BigInteger, production_foreign_key("accounting_category.id"), nullable=True
-    )
-    contract_id: Mapped[int | None] = mapped_column(
-        BigInteger, production_foreign_key("accounting_contract.id"), nullable=True
-    )
-    category_reviewed: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
-    contract_reviewed: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
-
-    bank_account: Mapped[BankAccount | None] = relationship(back_populates="transactions")
-    category: Mapped[Category | None] = relationship(back_populates="transactions")
-    contract: Mapped[Contract | None] = relationship(back_populates="transactions")
-    outgoing_transfer_reviews: Mapped[list[InternalTransferReview]] = relationship(
-        back_populates="outgoing_transaction",
-        foreign_keys="InternalTransferReview.outgoing_transaction_id",
-        cascade="all, delete-orphan",
-    )
-    incoming_transfer_reviews: Mapped[list[InternalTransferReview]] = relationship(
-        back_populates="incoming_transaction",
-        foreign_keys="InternalTransferReview.incoming_transaction_id",
-        cascade="all, delete-orphan",
-    )
-
-    @property
-    def internal_transfer_id(self) -> int | None:
-        review = next(
-            (
-                candidate
-                for candidate in (*self.outgoing_transfer_reviews, *self.incoming_transfer_reviews)
-                if candidate.status == "confirmed"
-            ),
-            None,
-        )
-        return review.id if review is not None else None
-
-
 class InternalTransferReview(Base):
     __tablename__ = "finances_internal_transfer_review"
     __table_args__ = (
@@ -324,6 +272,61 @@ class InternalTransferReview(Base):
         foreign_keys=[incoming_transaction_id],
     )
     reviewed_by: Mapped[User] = relationship(back_populates="transfer_reviews")
+
+
+class Transaction(Base):
+    __tablename__ = "accounting_transaction"
+    __table_args__ = (
+        Index("accounting_transaction_bank_account_id_903676bb", "bank_account_id"),
+        Index("accounting_transaction_category_id_3bec2add", "category_id"),
+        Index("accounting_transaction_contract_id_be87a27f", "contract_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    recipient: Mapped[str] = mapped_column(String(255))
+    amount: Mapped[Decimal] = mapped_column(Numeric(10, 2))
+    subject: Mapped[str] = mapped_column(String(1024))
+    date_issue: Mapped[datetime.date] = mapped_column(Date)
+    date_booking: Mapped[datetime.date | None] = mapped_column(Date, nullable=True)
+    full_subject_string: Mapped[str] = mapped_column(Text)
+    bank_account_id: Mapped[int | None] = mapped_column(
+        BigInteger, production_foreign_key("accounting_bankaccount.id"), nullable=True
+    )
+    category_id: Mapped[int | None] = mapped_column(
+        BigInteger, production_foreign_key("accounting_category.id"), nullable=True
+    )
+    contract_id: Mapped[int | None] = mapped_column(
+        BigInteger, production_foreign_key("accounting_contract.id"), nullable=True
+    )
+    category_reviewed: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    contract_reviewed: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    internal_transfer_id: Mapped[int | None] = column_property(
+        select(InternalTransferReview.id)
+        .where(
+            InternalTransferReview.status == "confirmed",
+            or_(
+                InternalTransferReview.outgoing_transaction_id == id,
+                InternalTransferReview.incoming_transaction_id == id,
+            ),
+        )
+        .correlate_except(InternalTransferReview)
+        .limit(1)
+        .scalar_subquery()
+    )
+
+    bank_account: Mapped[BankAccount | None] = relationship(back_populates="transactions")
+    category: Mapped[Category | None] = relationship(back_populates="transactions")
+    contract: Mapped[Contract | None] = relationship(back_populates="transactions")
+    outgoing_transfer_reviews: Mapped[list[InternalTransferReview]] = relationship(
+        back_populates="outgoing_transaction",
+        foreign_keys="InternalTransferReview.outgoing_transaction_id",
+        cascade="all, delete-orphan",
+    )
+    incoming_transfer_reviews: Mapped[list[InternalTransferReview]] = relationship(
+        back_populates="incoming_transaction",
+        foreign_keys="InternalTransferReview.incoming_transaction_id",
+        cascade="all, delete-orphan",
+    )
 
 
 class ServerSession(Base):

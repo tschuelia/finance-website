@@ -286,3 +286,87 @@ def test_contract_matching_uses_terms_and_contract_period(session: Session) -> N
     assert result.status == "unique"
     assert result.candidates[0].id == matching.id
     assert result.candidates[0].matched_patterns == ("Stadtwerke",)
+
+
+def test_contract_metadata_change_preserves_reviews(session: Session) -> None:
+    owner = add_user(session, "owner")
+    account = add_account(session, owner)
+    contract = add_contract(session, owner, name="Internet")
+    contract.patterns = "provider"
+    transaction = Transaction(
+        bank_account_id=account.id,
+        recipient="Provider",
+        amount=Decimal("-10.00"),
+        subject="Betreff",
+        date_issue=date(2026, 1, 1),
+        date_booking=None,
+        full_subject_string="Betreff",
+        category_id=None,
+        contract_id=None,
+        contract_reviewed=True,
+    )
+    session.add(transaction)
+    session.flush()
+
+    update_contract(
+        session,
+        owner,
+        contract.id,
+        owner_id=owner.id,
+        name="Neuer Name",
+        description="Neue Beschreibung",
+        patterns=None,
+        is_active=False,
+        start_date=None,
+        end_date=None,
+    )
+
+    session.refresh(transaction)
+    assert transaction.contract_reviewed
+
+
+def test_contract_rule_change_invalidates_only_affected_reviews(session: Session) -> None:
+    owner = add_user(session, "owner")
+    account = add_account(session, owner)
+    contract = add_contract(session, owner, name="Internet")
+    contract.patterns = "provider"
+
+    def reviewed_transaction(recipient: str) -> Transaction:
+        transaction = Transaction(
+            bank_account_id=account.id,
+            recipient=recipient,
+            amount=Decimal("-10.00"),
+            subject="Betreff",
+            date_issue=date(2026, 1, 1),
+            date_booking=None,
+            full_subject_string="Betreff",
+            category_id=None,
+            contract_id=None,
+            contract_reviewed=True,
+        )
+        session.add(transaction)
+        return transaction
+
+    old_match = reviewed_transaction("Provider")
+    new_match = reviewed_transaction("Stadtwerke")
+    unrelated = reviewed_transaction("Kino")
+    session.flush()
+
+    update_contract(
+        session,
+        owner,
+        contract.id,
+        owner_id=owner.id,
+        name=contract.name,
+        description=contract.description,
+        patterns="stadtwerke",
+        is_active=contract.is_active,
+        start_date=None,
+        end_date=None,
+    )
+
+    for transaction in (old_match, new_match, unrelated):
+        session.refresh(transaction)
+    assert not old_match.contract_reviewed
+    assert not new_match.contract_reviewed
+    assert unrelated.contract_reviewed

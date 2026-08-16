@@ -30,7 +30,8 @@ export const useWealthDashboard = (
   const query = useQuery({
     queryKey: ['analytics', userId, 'wealth', queryInput],
     queryFn: async () => await getWealthDashboard(queryInput),
-    enabled: enabled && userId !== null && queryInput.sources.length > 0
+    enabled:
+      enabled && userId !== null && queryInput.account_ids.length + queryInput.depot_ids.length > 0
   })
   return resolveQuery(query)
 }

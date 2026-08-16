@@ -190,10 +190,18 @@ export type CashFlowQuery = z.infer<typeof CashFlowQuerySchema>
 
 export const WealthQuerySchema = z
   .object({
-    sources: z.array(z.string()).min(1),
+    account_ids: z.array(z.number().int().positive()),
+    depot_ids: z.array(z.number().int().positive()),
     start_month: MonthSchema.optional(),
     end_month: MonthSchema.optional()
   })
   .strict()
+  .refine(
+    ({ account_ids, depot_ids }) => {
+      const sourceCount = account_ids.length + depot_ids.length
+      return sourceCount >= 1 && sourceCount <= 200
+    },
+    { message: 'Es müssen zwischen 1 und 200 Vermögensquellen ausgewählt sein.' }
+  )
 
 export type WealthQuery = z.infer<typeof WealthQuerySchema>

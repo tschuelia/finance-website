@@ -12,13 +12,17 @@ from sqlalchemy.orm import Session, selectinload
 from app.db.models import BankAccount, Contract, ContractFile, Transaction, User
 from app.db.transaction_hooks import register_transaction_callbacks
 from app.errors import AuthorizationError, ConflictError, ResourceNotFoundError
+from app.patterns import match_patterns, normalized_patterns
 from app.services.access import get_visible_contract, get_visible_user, list_visible_contracts
 from app.services.matching import (
     MatchCandidate,
     RuleMatch,
-    match_patterns,
-    normalized_patterns,
+    patterns_match_clause,
     rule_match,
+)
+from app.services.review_invalidation import (
+    ContractReviewRule,
+    invalidate_contract_reviews,
 )
 from app.uploads import iter_limited_upload
 
@@ -175,21 +179,28 @@ def count_contract_suggestions(session: Session, contract: Contract) -> int:
     patterns = contract_patterns(contract)
     if not patterns:
         return 0
-    transactions = session.scalars(
-        select(Transaction)
-        .join(BankAccount, Transaction.bank_account_id == BankAccount.id)
-        .where(
-            BankAccount.owner_id == contract.owner_id,
-            Transaction.contract_id.is_(None),
-            ~Transaction.contract_reviewed,
+    clauses = [
+        BankAccount.owner_id == contract.owner_id,
+        Transaction.contract_id.is_(None),
+        ~Transaction.contract_reviewed,
+        patterns_match_clause(
+            Transaction.recipient,
+            Transaction.subject,
+            "\n".join(patterns),
+        ),
+    ]
+    if contract.start_date is not None:
+        clauses.append(Transaction.date_issue >= contract.start_date)
+    if contract.end_date is not None:
+        clauses.append(Transaction.date_issue <= contract.end_date)
+    return int(
+        session.scalar(
+            select(func.count())
+            .select_from(Transaction)
+            .join(BankAccount, Transaction.bank_account_id == BankAccount.id)
+            .where(*clauses)
         )
-    )
-    return sum(
-        1
-        for transaction in transactions
-        if (contract.start_date is None or contract.start_date <= transaction.date_issue)
-        and (contract.end_date is None or contract.end_date >= transaction.date_issue)
-        and match_patterns(transaction.recipient, transaction.subject, patterns)
+        or 0
     )
 
 
@@ -213,21 +224,27 @@ def create_contract(
     end_date: date | None,
 ) -> Contract:
     owner = _validate_owner(session, current_user, owner_id)
+    normalized = "\n".join(normalized_patterns(patterns))
     contract = Contract(
         owner_id=owner.id,
         name=name,
         description=description,
-        patterns="\n".join(normalized_patterns(patterns)),
+        patterns=normalized,
         is_active=is_active,
         start_date=start_date,
         end_date=end_date,
     )
     session.add(contract)
     session.flush()
-    session.query(Transaction).filter(
-        Transaction.contract_id.is_(None),
-        Transaction.bank_account.has(owner_id=owner.id),
-    ).update({Transaction.contract_reviewed: False}, synchronize_session=False)
+    invalidate_contract_reviews(
+        session,
+        ContractReviewRule(
+            owner_id=owner.id,
+            patterns=normalized,
+            start_date=start_date,
+            end_date=end_date,
+        ),
+    )
     return contract
 
 
@@ -246,19 +263,31 @@ def update_contract(
 ) -> Contract:
     contract = get_visible_contract(session, current_user, contract_id)
     owner = _validate_owner(session, current_user, owner_id)
+    previous_rule = ContractReviewRule(
+        owner_id=contract.owner_id,
+        patterns=contract.patterns,
+        start_date=contract.start_date,
+        end_date=contract.end_date,
+    )
+    next_patterns = (
+        contract.patterns if patterns is None else "\n".join(normalized_patterns(patterns))
+    )
+    next_rule = ContractReviewRule(
+        owner_id=owner.id,
+        patterns=next_patterns,
+        start_date=start_date,
+        end_date=end_date,
+    )
     contract.owner_id = owner.id
     contract.name = name
     contract.description = description
-    if patterns is not None:
-        contract.patterns = "\n".join(normalized_patterns(patterns))
+    contract.patterns = next_patterns
     contract.is_active = is_active
     contract.start_date = start_date
     contract.end_date = end_date
     session.flush()
-    session.query(Transaction).filter(
-        Transaction.contract_id.is_(None),
-        Transaction.bank_account.has(owner_id=owner.id),
-    ).update({Transaction.contract_reviewed: False}, synchronize_session=False)
+    if previous_rule != next_rule:
+        invalidate_contract_reviews(session, previous_rule, next_rule)
     return contract
 
 

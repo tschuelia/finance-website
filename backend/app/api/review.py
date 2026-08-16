@@ -26,7 +26,7 @@ from app.schemas.transfers import (
     TransferReviewUpdateRequest,
     TransferReviewUpdateResponse,
 )
-from app.services.transactions import (
+from app.services.reviews import (
     bulk_update_assignments,
     get_assignment_review_page,
     preview_patterns,

@@ -300,7 +300,9 @@ export const AnalyticsPage = () => {
   const updateRepeated = (key: string, values: string[], allValues: string[]) => {
     const next = new URLSearchParams(searchParams)
     next.delete(key)
-    if (values.length !== allValues.length) {
+    const isDefaultSelection =
+      values.length === allValues.length && allValues.every((value) => values.includes(value))
+    if (!isDefaultSelection) {
       for (const value of values) {
         next.append(key, value)
       }
@@ -314,7 +316,12 @@ export const AnalyticsPage = () => {
     end_month: endMonth
   }
   const wealthQuery: WealthQuery = {
-    sources: selectedWealth,
+    account_ids: accounts
+      .filter((account) => selectedWealth.includes(account.source))
+      .map((account) => account.id),
+    depot_ids: depots
+      .filter((depot) => selectedWealth.includes(depot.source))
+      .map((depot) => depot.id),
     start_month: startMonth,
     end_month: endMonth
   }

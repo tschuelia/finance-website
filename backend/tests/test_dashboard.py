@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import (
     BankDepot,
+    Category,
     DepotAsset,
     DepotBalanceSnapshot,
     InternalTransferReview,
@@ -243,11 +244,61 @@ def test_combined_dashboard_api_accepts_repeated_sources(
     wealth = app_client.get(
         "/api/v1/analytics/wealth",
         params=[
-            ("sources", f"account:{first.id}"),
-            ("sources", f"account:{second.id}"),
+            ("account_ids", str(first.id)),
+            ("account_ids", str(second.id)),
             ("start_month", "2026-01"),
             ("end_month", "2026-01"),
         ],
     )
     assert wealth.status_code == 200
     assert wealth.json()["current_total"] == 100.0
+
+
+def test_spending_anomaly_uses_only_available_history_months(session: Session) -> None:
+    user = add_user(session, "owner")
+    account = add_account(session, user)
+    category = Category(name="Lebensmittel", patterns="")
+    session.add(category)
+    session.flush()
+    for issue_date, amount in (
+        (date(2025, 12, 5), "-100.00"),
+        (date(2026, 1, 5), "-100.00"),
+        (date(2026, 2, 5), "-100.00"),
+        (date(2026, 3, 5), "-200.00"),
+    ):
+        transaction = _transaction(session, account.id, amount, issue_date)
+        transaction.category_id = category.id
+    session.flush()
+
+    dashboard = get_cash_flow_dashboard(
+        session,
+        user,
+        (account.id,),
+        start_month="2026-03",
+        end_month="2026-03",
+        today=date(2026, 4, 15),
+    )
+
+    assert len(dashboard.anomalies) == 1
+    assert dashboard.anomalies[0].baseline_median == Decimal("100")
+
+
+def test_wealth_api_rejects_legacy_encoded_sources(
+    app_client: TestClient,
+    session: Session,
+) -> None:
+    user = add_user(session, "owner")
+    account = add_account(session, user)
+    session.commit()
+    login = app_client.post(
+        "/api/v1/auth/login",
+        json={"username": user.username, "password": "test-password"},
+    )
+    assert login.status_code == 200
+
+    response = app_client.get(
+        "/api/v1/analytics/wealth",
+        params={"sources": f"account:{account.id}"},
+    )
+
+    assert response.status_code == 422

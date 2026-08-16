@@ -1,6 +1,9 @@
 from dataclasses import dataclass
 from enum import StrEnum
 
+from sqlalchemy import ColumnElement, func
+from sqlalchemy.orm import InstrumentedAttribute
+
 
 class MatchStatus(StrEnum):
     NONE = "none"
@@ -21,28 +24,12 @@ class RuleMatch:
     candidates: tuple[MatchCandidate, ...]
 
 
-def normalized_patterns(patterns: str) -> tuple[str, ...]:
-    seen: set[str] = set()
-    normalized: list[str] = []
-    for raw_pattern in patterns.splitlines():
-        pattern = raw_pattern.strip()
-        key = pattern.casefold()
-        if not pattern or key in seen:
-            continue
-        seen.add(key)
-        normalized.append(pattern)
-    return tuple(normalized)
-
-
-def match_patterns(
-    recipient: str | None,
-    subject: str | None,
-    patterns: tuple[str, ...],
-) -> tuple[str, ...]:
-    values = ((recipient or "").casefold(), (subject or "").casefold())
-    return tuple(
-        pattern for pattern in patterns if any(pattern.casefold() in value for value in values)
-    )
+def patterns_match_clause(
+    recipient: ColumnElement[str] | InstrumentedAttribute[str],
+    subject: ColumnElement[str] | InstrumentedAttribute[str],
+    patterns: ColumnElement[str] | InstrumentedAttribute[str] | str,
+) -> ColumnElement[bool]:
+    return func.finances_patterns_match(recipient, subject, patterns) == 1
 
 
 def rule_match(candidates: tuple[MatchCandidate, ...]) -> RuleMatch:
