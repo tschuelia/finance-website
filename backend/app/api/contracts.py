@@ -23,6 +23,7 @@ from app.schemas.contracts import (
 from app.services.contracts import (
     count_contract_suggestions,
     create_contract,
+    delete_contract,
     delete_contract_file,
     get_contract_detail,
     grouped_contracts,
@@ -166,6 +167,22 @@ def contract_update(
             end_date=payload.end_date,
         )
     )
+
+
+@router.delete("/{contract_id}", status_code=status.HTTP_204_NO_CONTENT)
+def contract_delete(
+    request: Request,
+    contract_id: int,
+    current_user: CsrfUser,
+    session: DatabaseSession,
+) -> Response:
+    delete_contract(
+        session,
+        current_user,
+        contract_id,
+        _settings(request).media_root,
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post(

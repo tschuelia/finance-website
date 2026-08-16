@@ -262,6 +262,40 @@ def update_contract(
     return contract
 
 
+def delete_contract(
+    session: Session,
+    current_user: User,
+    contract_id: int,
+    media_root: Path,
+) -> None:
+    contract = get_visible_contract(session, current_user, contract_id)
+    file_ids = tuple(
+        session.scalars(
+            select(ContractFile.id)
+            .where(ContractFile.contract_id == contract.id)
+            .order_by(ContractFile.id)
+        )
+    )
+    for file_id in file_ids:
+        delete_contract_file(
+            session,
+            current_user,
+            contract.id,
+            file_id,
+            media_root,
+        )
+
+    session.query(Transaction).filter(Transaction.contract_id == contract.id).update(
+        {
+            Transaction.contract_id: None,
+            Transaction.contract_reviewed: True,
+        },
+        synchronize_session="fetch",
+    )
+    session.delete(contract)
+    session.flush()
+
+
 def _media_path(media_root: Path, stored_name: str) -> Path:
     root = media_root.resolve()
     candidate = Path(stored_name.replace("\\", "/"))

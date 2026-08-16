@@ -1,7 +1,7 @@
 /* cspell:words Vertragslaufzeit Vertragsinhaber Buchungsvorgang Zuordnungsmuster */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Activity, Calendar, Euro, Link2, Pencil } from 'lucide-react'
+import { Activity, Calendar, Euro, Link2, Pencil, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { DataPagination } from '@/components/shared/data-pagination'
 import { EmptyState, ErrorState, LoadingState } from '@/components/shared/query-feedback'
 import { PageHeader } from '@/components/shared/page-header'
+import { ContractDeleteDialog } from '@/features/contracts/contract-delete-dialog'
 import { ContractEditorDialog } from '@/features/contracts/contract-editor-dialog'
 import { ContractFiles } from '@/features/contracts/contract-files'
 import { formatContractPeriod } from '@/features/contracts/contract-format'
@@ -28,6 +29,7 @@ export const ContractDetailPage = () => {
   const transactionPage = parsePositiveId(searchParams.get('page') ?? undefined) ?? 1
   const contract = useContract(contractId ?? Number.NaN, transactionPage)
   const queryClient = useQueryClient()
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const [editorOpen, setEditorOpen] = useState(false)
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | undefined>()
   const unlinkMutation = useMutation({
@@ -98,6 +100,10 @@ export const ContractDetailPage = () => {
             <Button onClick={() => setEditorOpen(true)}>
               <Pencil aria-hidden />
               Bearbeiten
+            </Button>
+            <Button onClick={() => setDeleteOpen(true)} variant="destructive">
+              <Trash2 aria-hidden />
+              Löschen
             </Button>
           </div>
         }
@@ -261,6 +267,9 @@ export const ContractDetailPage = () => {
       </Card>
       {editorOpen ? (
         <ContractEditorDialog contract={contract.data} onOpenChange={setEditorOpen} open />
+      ) : null}
+      {deleteOpen ? (
+        <ContractDeleteDialog contract={contract.data} onOpenChange={setDeleteOpen} open />
       ) : null}
       {selectedTransaction === undefined || selectedTransaction.bank_account_id === null ? null : (
         <TransactionEditorDialog
