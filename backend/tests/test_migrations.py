@@ -16,7 +16,7 @@ def test_fresh_database_upgrades_to_head(settings: Settings, tmp_path: Path) -> 
 
     status = database_status(migration_settings)
     inspection = inspect_database(migration_settings.database_path)
-    assert status.current_revision == "0006_assignment_review"
+    assert status.current_revision == "0007_internal_transfer_reviews"
     assert status.current_revision == status.head_revision
     assert inspection.schema.compatible
     assert inspection.foreign_key_violations == ()

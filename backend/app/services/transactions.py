@@ -17,6 +17,7 @@ from app.services.access import (
 from app.services.categories import match_transaction_categories
 from app.services.contracts import match_transaction_contracts
 from app.services.matching import RuleMatch, match_patterns, normalized_patterns
+from app.services.transfers import invalidate_transfer_reviews
 
 DEFAULT_TRANSACTION_PAGE_SIZE = 100
 ZERO = Decimal("0")
@@ -197,6 +198,8 @@ def get_transaction_page(
                 selectinload(Transaction.category),
                 selectinload(Transaction.contract),
                 selectinload(Transaction.bank_account),
+                selectinload(Transaction.outgoing_transfer_reviews),
+                selectinload(Transaction.incoming_transfer_reviews),
             )
             .where(*clauses)
             .order_by(
@@ -328,6 +331,8 @@ def update_transaction(
             else frozenset()
         ),
     )
+    if transaction.amount != values.amount or transaction.date_issue != values.date_issue:
+        invalidate_transfer_reviews(session, transaction.id)
     _apply_values(transaction, values)
     session.flush()
     return transaction

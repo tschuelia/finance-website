@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { DataPagination } from '@/components/shared/data-pagination'
 import { EmptyState, ErrorState, LoadingState } from '@/components/shared/query-feedback'
 import {
@@ -21,6 +22,7 @@ import {
   QuickCategoryDialog,
   QuickContractDialog
 } from '@/features/assignments/inline-assignment-editors'
+import { TransferReviewPanel } from '@/features/assignments/transfer-review-panel'
 import { useAuth } from '@/features/auth/use-auth'
 import { assignmentReviewQueryKey, useAssignmentReview } from '@/hooks/use-assignment-review'
 import { usePortfolioOverview } from '@/hooks/use-accounts'
@@ -41,7 +43,7 @@ const defaultFilters = (): AssignmentReviewFilters => ({
   page_size: 50
 })
 
-export const AssignmentReviewPage = () => {
+const AssignmentReviewContent = () => {
   const [searchParams] = useSearchParams()
   const initialContractId = parsePositiveId(searchParams.get('contract_id') ?? undefined)
   const queryClient = useQueryClient()
@@ -89,7 +91,6 @@ export const AssignmentReviewPage = () => {
 
   const contractItems =
     contracts.status === 'success' ? [...contracts.data.active, ...contracts.data.inactive] : []
-  const focusedContract = contractItems.find((contract) => contract.id === filters.contract_id)
   const categoryItems = categories.status === 'success' ? categories.data : []
   const selectedRows =
     review.status === 'success'
@@ -180,14 +181,6 @@ export const AssignmentReviewPage = () => {
 
   return (
     <>
-      <PageHeader
-        description={
-          focusedContract === undefined
-            ? 'Prüfe offene Kategorien und Vertragsvorschläge gesammelt über alle Konten hinweg.'
-            : `Prüfe passende Buchungen für „${focusedContract.name}“.`
-        }
-        title="Zuordnungen"
-      />
       <Card>
         <CardHeader>
           <CardTitle>Offene Buchungen filtern</CardTitle>
@@ -455,6 +448,43 @@ export const AssignmentReviewPage = () => {
           owner={selectedOwner}
         />
       ) : null}
+    </>
+  )
+}
+
+export const AssignmentReviewPage = () => {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const activeView = searchParams.get('view') === 'transfers' ? 'transfers' : 'assignments'
+
+  return (
+    <>
+      <PageHeader
+        description="Prüfe Kategorien, Verträge und interne Umbuchungen gesammelt über alle sichtbaren Konten hinweg."
+        title="Zuordnungen"
+      />
+      <Tabs
+        onValueChange={(value) => {
+          const next = new URLSearchParams(searchParams)
+          if (value === 'transfers') {
+            next.set('view', 'transfers')
+          } else {
+            next.delete('view')
+          }
+          setSearchParams(next)
+        }}
+        value={activeView}
+      >
+        <TabsList>
+          <TabsTrigger value="assignments">Kategorien & Verträge</TabsTrigger>
+          <TabsTrigger value="transfers">Umbuchungen</TabsTrigger>
+        </TabsList>
+        <TabsContent value="assignments">
+          <AssignmentReviewContent />
+        </TabsContent>
+        <TabsContent value="transfers">
+          <TransferReviewPanel />
+        </TabsContent>
+      </Tabs>
     </>
   )
 }

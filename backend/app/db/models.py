@@ -6,6 +6,7 @@ from decimal import Decimal
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    CheckConstraint,
     Date,
     DateTime,
     ForeignKey,
@@ -14,6 +15,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -50,6 +52,9 @@ class User(Base):
     )
     sessions: Mapped[list[ServerSession]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
+    )
+    transfer_reviews: Mapped[list[InternalTransferReview]] = relationship(
+        back_populates="reviewed_by"
     )
 
 
@@ -232,6 +237,93 @@ class Transaction(Base):
     bank_account: Mapped[BankAccount | None] = relationship(back_populates="transactions")
     category: Mapped[Category | None] = relationship(back_populates="transactions")
     contract: Mapped[Contract | None] = relationship(back_populates="transactions")
+    outgoing_transfer_reviews: Mapped[list[InternalTransferReview]] = relationship(
+        back_populates="outgoing_transaction",
+        foreign_keys="InternalTransferReview.outgoing_transaction_id",
+        cascade="all, delete-orphan",
+    )
+    incoming_transfer_reviews: Mapped[list[InternalTransferReview]] = relationship(
+        back_populates="incoming_transaction",
+        foreign_keys="InternalTransferReview.incoming_transaction_id",
+        cascade="all, delete-orphan",
+    )
+
+    @property
+    def internal_transfer_id(self) -> int | None:
+        review = next(
+            (
+                candidate
+                for candidate in (*self.outgoing_transfer_reviews, *self.incoming_transfer_reviews)
+                if candidate.status == "confirmed"
+            ),
+            None,
+        )
+        return review.id if review is not None else None
+
+
+class InternalTransferReview(Base):
+    __tablename__ = "finances_internal_transfer_review"
+    __table_args__ = (
+        CheckConstraint(
+            "outgoing_transaction_id <> incoming_transaction_id",
+            name="different_transactions",
+        ),
+        CheckConstraint(
+            "status IN ('confirmed', 'rejected')",
+            name="valid_status",
+        ),
+        Index(
+            "finances_internal_transfer_review_pair_idx",
+            "outgoing_transaction_id",
+            "incoming_transaction_id",
+            unique=True,
+        ),
+        Index(
+            "finances_internal_transfer_review_confirmed_outgoing_idx",
+            "outgoing_transaction_id",
+            unique=True,
+            sqlite_where=text("status = 'confirmed'"),
+        ),
+        Index(
+            "finances_internal_transfer_review_confirmed_incoming_idx",
+            "incoming_transaction_id",
+            unique=True,
+            sqlite_where=text("status = 'confirmed'"),
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    outgoing_transaction_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey(
+            "accounting_transaction.id",
+            deferrable=True,
+            initially="DEFERRED",
+            ondelete="CASCADE",
+        ),
+    )
+    incoming_transaction_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey(
+            "accounting_transaction.id",
+            deferrable=True,
+            initially="DEFERRED",
+            ondelete="CASCADE",
+        ),
+    )
+    status: Mapped[str] = mapped_column(String(16))
+    reviewed_by_id: Mapped[int] = mapped_column(Integer, production_foreign_key("auth_user.id"))
+    reviewed_at: Mapped[datetime.datetime] = mapped_column(DateTime)
+
+    outgoing_transaction: Mapped[Transaction] = relationship(
+        back_populates="outgoing_transfer_reviews",
+        foreign_keys=[outgoing_transaction_id],
+    )
+    incoming_transaction: Mapped[Transaction] = relationship(
+        back_populates="incoming_transfer_reviews",
+        foreign_keys=[incoming_transaction_id],
+    )
+    reviewed_by: Mapped[User] = relationship(back_populates="transfer_reviews")
 
 
 class ServerSession(Base):
@@ -270,4 +362,5 @@ MANAGED_TABLE_NAMES = PRODUCTION_COMPATIBLE_TABLE_NAMES | {
     DepotAssetBalanceSnapshot.__tablename__,
     DepotBalanceSnapshot.__tablename__,
     ServerSession.__tablename__,
+    InternalTransferReview.__tablename__,
 }

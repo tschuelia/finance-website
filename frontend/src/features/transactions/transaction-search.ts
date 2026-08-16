@@ -49,7 +49,7 @@ const validCategoryIds = (values: string[]): number[] => {
   return [...new Set(ids)]
 }
 
-export const transactionDataFiltersFromSearch = (search: string): TransactionDataFilters => {
+const transactionDataFiltersFromSearch = (search: string): TransactionDataFilters => {
   const params = new URLSearchParams(search)
   const dateStart = validDate(params.get('date_start'))
   const dateEnd = validDate(params.get('date_end'))
@@ -87,9 +87,7 @@ export const transactionFiltersFromSearch = (search: string): TransactionFilters
   })
 }
 
-export const transactionDataFiltersToSearchParams = (
-  filters: TransactionDataFilters
-): URLSearchParams => {
+const transactionDataFiltersToSearchParams = (filters: TransactionDataFilters): URLSearchParams => {
   const params = new URLSearchParams()
 
   if (filters.q !== undefined && filters.q !== '') {

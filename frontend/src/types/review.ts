@@ -88,3 +88,61 @@ export const PatternPreviewResponseSchema = z
   .strict()
 
 export type PatternPreview = z.infer<typeof PatternPreviewResponseSchema>
+
+const TransferReviewStatusSchema = z.enum(['suggested', 'confirmed', 'rejected'])
+export type TransferReviewStatus = z.infer<typeof TransferReviewStatusSchema>
+
+export const TransferReviewFiltersSchema = z
+  .object({
+    status: TransferReviewStatusSchema.default('suggested'),
+    owner_id: z.number().int().positive().optional(),
+    account_id: z.number().int().positive().optional(),
+    q: z.string().optional(),
+    page: z.number().int().positive().default(1),
+    page_size: z.number().int().positive().max(100).default(50)
+  })
+  .strict()
+
+export type TransferReviewFilters = z.infer<typeof TransferReviewFiltersSchema>
+
+const TransferPairSchema = z
+  .object({
+    outgoing: TransactionSchema,
+    outgoing_owner: UserSummarySchema,
+    incoming: TransactionSchema,
+    incoming_owner: UserSummarySchema,
+    day_gap: z.number().int().nonnegative(),
+    match_status: z.enum(['unique', 'ambiguous'])
+  })
+  .strict()
+
+export const TransferReviewPageSchema = z
+  .object({
+    items: z.array(TransferPairSchema),
+    page: z.number().int().positive(),
+    page_size: z.number().int().positive(),
+    total: z.number().int().nonnegative(),
+    total_pages: z.number().int().positive()
+  })
+  .strict()
+
+export type TransferReviewPage = z.infer<typeof TransferReviewPageSchema>
+export type TransferPair = z.infer<typeof TransferPairSchema>
+
+const TransferReviewUpdateSchema = z
+  .object({
+    outgoing_transaction_id: z.number().int().positive(),
+    incoming_transaction_id: z.number().int().positive(),
+    action: z.enum(['confirm', 'reject', 'reset'])
+  })
+  .strict()
+
+export const TransferReviewUpdateRequestSchema = z
+  .object({ items: z.array(TransferReviewUpdateSchema).min(1).max(500) })
+  .strict()
+
+export type TransferReviewUpdateRequest = z.infer<typeof TransferReviewUpdateRequestSchema>
+
+export const TransferReviewUpdateResponseSchema = z
+  .object({ updated: z.number().int().nonnegative() })
+  .strict()

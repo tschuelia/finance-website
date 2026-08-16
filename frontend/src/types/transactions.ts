@@ -21,7 +21,8 @@ export const TransactionSchema = z
     contract_id: z.number().int().positive().nullable(),
     contract_name: z.string().nullable(),
     category_reviewed: z.boolean(),
-    contract_reviewed: z.boolean()
+    contract_reviewed: z.boolean(),
+    internal_transfer_id: z.number().int().positive().nullable()
   })
   .strict()
 

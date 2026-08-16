@@ -19,16 +19,95 @@ from app.schemas.transactions import (
     PatternPreviewRequest,
     PatternPreviewResponse,
 )
+from app.schemas.transfers import (
+    TransferPairResponse,
+    TransferReviewPageResponse,
+    TransferReviewQuery,
+    TransferReviewUpdateRequest,
+    TransferReviewUpdateResponse,
+)
 from app.services.transactions import (
     bulk_update_assignments,
     get_assignment_review_page,
     preview_patterns,
+)
+from app.services.transfers import (
+    TransferReviewChange,
+    get_transfer_review_page,
+    review_transfer_pairs,
 )
 
 router = APIRouter(prefix="/transactions/review", tags=["assignment-review"])
 CurrentUser = Annotated[User, Depends(get_current_user)]
 CsrfUser = Annotated[User, Depends(require_csrf)]
 DatabaseSession = Annotated[Session, Depends(request_session)]
+
+
+def _user_summary(user: User) -> UserSummary:
+    return UserSummary(
+        id=user.id,
+        username=user.username,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        is_superuser=user.is_superuser,
+    )
+
+
+@router.get("/transfers", response_model=TransferReviewPageResponse)
+def transfer_review_list(
+    current_user: CurrentUser,
+    session: DatabaseSession,
+    query: Annotated[TransferReviewQuery, Query()],
+) -> TransferReviewPageResponse:
+    result = get_transfer_review_page(
+        session,
+        current_user,
+        status=query.status,
+        owner_id=query.owner_id,
+        account_id=query.account_id,
+        search_term=query.q,
+        page=query.page,
+        page_size=query.page_size,
+    )
+    return TransferReviewPageResponse(
+        items=[
+            TransferPairResponse(
+                outgoing=transaction_response(item.outgoing),
+                outgoing_owner=_user_summary(item.outgoing.bank_account.owner),
+                incoming=transaction_response(item.incoming),
+                incoming_owner=_user_summary(item.incoming.bank_account.owner),
+                day_gap=item.day_gap,
+                match_status=item.match_status,
+            )
+            for item in result.items
+            if item.outgoing.bank_account is not None and item.incoming.bank_account is not None
+        ],
+        page=result.page,
+        page_size=result.page_size,
+        total=result.total,
+        total_pages=result.total_pages,
+    )
+
+
+@router.patch("/transfers", response_model=TransferReviewUpdateResponse)
+def transfer_review_update(
+    payload: TransferReviewUpdateRequest,
+    current_user: CsrfUser,
+    session: DatabaseSession,
+) -> TransferReviewUpdateResponse:
+    updated = review_transfer_pairs(
+        session,
+        current_user,
+        tuple(
+            TransferReviewChange(
+                outgoing_transaction_id=item.outgoing_transaction_id,
+                incoming_transaction_id=item.incoming_transaction_id,
+                action=item.action,
+            )
+            for item in payload.items
+        ),
+    )
+    return TransferReviewUpdateResponse(updated=updated)
 
 
 @router.get("", response_model=AssignmentReviewPageResponse)

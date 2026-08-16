@@ -28,6 +28,7 @@ class TransactionResponse(BaseModel):
     contract_name: str | None
     category_reviewed: bool
     contract_reviewed: bool
+    internal_transfer_id: int | None
 
 
 class TransactionSummaryResponse(BaseModel):

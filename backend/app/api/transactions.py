@@ -48,6 +48,7 @@ def transaction_response(transaction: Transaction) -> TransactionResponse:
         contract_name=transaction.contract.name if transaction.contract is not None else None,
         category_reviewed=transaction.category_reviewed,
         contract_reviewed=transaction.contract_reviewed,
+        internal_transfer_id=transaction.internal_transfer_id,
     )
 
 
