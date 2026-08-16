@@ -208,7 +208,7 @@ export const CategoryTrendChart = ({ data }: { data: CashFlowData }) => {
           width={64}
         />
         <ChartTooltip
-          content={<ChartTooltipContent formatter={moneyTooltip} />}
+          content={<ChartTooltipContent formatter={moneyTooltip} reverseItems />}
           cursor={false}
           isAnimationActive={false}
         />
