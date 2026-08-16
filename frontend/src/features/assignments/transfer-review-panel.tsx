@@ -87,6 +87,10 @@ export const TransferReviewPanel = () => {
 
   const selectedPairs = review.data.items.filter((pair) => selected.has(pairKey(pair)))
   const selectablePairs = review.data.items.filter((pair) => pair.match_status === 'unique')
+  const allSelectablePairsSelected =
+    selectablePairs.length > 0 && selectablePairs.every((pair) => selected.has(pairKey(pair)))
+  const shouldClearSelection =
+    selectedPairs.length > 0 && (selectablePairs.length === 0 || allSelectablePairsSelected)
 
   return (
     <div className="grid gap-6">
@@ -153,19 +157,18 @@ export const TransferReviewPanel = () => {
             <Card size="sm">
               <CardContent className="flex flex-wrap items-center gap-3">
                 <Button
+                  disabled={selectablePairs.length === 0 && selectedPairs.length === 0}
                   onClick={() =>
-                    setSelected(
-                      selected.size === selectablePairs.length
+                    setSelected((current) =>
+                      shouldClearSelection
                         ? new Set()
-                        : new Set(selectablePairs.map(pairKey))
+                        : new Set([...current, ...selectablePairs.map(pairKey)])
                     )
                   }
                   variant="outline"
                 >
                   <CheckCheck aria-hidden />
-                  {selected.size === selectablePairs.length
-                    ? 'Auswahl aufheben'
-                    : 'Eindeutige auswählen'}
+                  {shouldClearSelection ? 'Auswahl aufheben' : 'Eindeutige auswählen'}
                 </Button>
                 <Button
                   disabled={selectedPairs.length === 0 || mutation.isPending}
@@ -188,7 +191,6 @@ export const TransferReviewPanel = () => {
                         aria-label="Umbuchung auswählen"
                         checked={selected.has(key)}
                         className="size-4 accent-primary"
-                        disabled={pair.match_status === 'ambiguous'}
                         onChange={(event) =>
                           setSelected((current) => {
                             const next = new Set(current)

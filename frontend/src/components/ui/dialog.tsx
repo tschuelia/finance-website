@@ -5,7 +5,16 @@ import { Dialog as DialogPrimitive } from 'radix-ui'
 
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { PortalContainerProvider } from '@/components/ui/portal-container'
 import { XIcon } from 'lucide-react'
+
+const assignRef = <Element,>(ref: React.Ref<Element> | undefined, value: Element | null) => {
+  if (typeof ref === 'function') {
+    ref(value)
+  } else if (ref !== undefined && ref !== null) {
+    ref.current = value
+  }
+}
 
 function Dialog({ ...props }: React.ComponentProps<typeof DialogPrimitive.Root>) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />
@@ -42,15 +51,26 @@ function DialogOverlay({
 function DialogContent({
   className,
   children,
+  ref,
   showCloseButton = true,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
 }) {
+  const portalContainerRef = React.useRef<HTMLDivElement | null>(null)
+  const setContentRef = React.useCallback(
+    (element: HTMLDivElement | null) => {
+      portalContainerRef.current = element
+      assignRef(ref, element)
+    },
+    [ref]
+  )
+
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Content
+        ref={setContentRef}
         data-slot="dialog-content"
         className={cn(
           'fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] min-w-0 w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-x-hidden overflow-y-auto rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 outline-none sm:max-w-sm',
@@ -58,7 +78,7 @@ function DialogContent({
         )}
         {...props}
       >
-        {children}
+        <PortalContainerProvider value={portalContainerRef}>{children}</PortalContainerProvider>
         {showCloseButton && (
           <DialogPrimitive.Close data-slot="dialog-close" asChild>
             <Button variant="ghost" className="absolute top-2 right-2" size="icon-sm">

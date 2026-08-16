@@ -18,23 +18,26 @@ const Toaster = ({ ...props }: ToasterProps) => {
       theme={theme as ToasterProps['theme']}
       className="toaster group"
       icons={{
-        success: <CircleCheckIcon className="size-4" />,
-        info: <InfoIcon className="size-4" />,
-        warning: <TriangleAlertIcon className="size-4" />,
-        error: <OctagonXIcon className="size-4" />,
-        loading: <Loader2Icon className="size-4 animate-spin" />
+        success: <CircleCheckIcon className="size-4 text-emerald-700 dark:text-emerald-400" />,
+        info: <InfoIcon className="size-4 text-primary" />,
+        warning: <TriangleAlertIcon className="size-4 text-amber-600" />,
+        error: <OctagonXIcon className="size-4 text-destructive" />,
+        loading: <Loader2Icon className="size-4 animate-spin text-muted-foreground" />
       }}
       style={
         {
-          '--normal-bg': 'var(--popover)',
-          '--normal-text': 'var(--popover-foreground)',
-          '--normal-border': 'var(--border)',
+          '--normal-bg': 'var(--secondary)',
+          '--normal-text': 'var(--secondary-foreground)',
+          '--normal-border': 'var(--primary)',
           '--border-radius': 'var(--radius)'
         } as React.CSSProperties
       }
       toastOptions={{
-        classNames: {
-          toast: 'cn-toast'
+        style: {
+          background: 'var(--secondary)',
+          borderColor: 'var(--primary)',
+          color: 'var(--secondary-foreground)',
+          transitionProperty: 'transform, height, box-shadow'
         }
       }}
       {...props}

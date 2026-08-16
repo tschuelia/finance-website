@@ -27,7 +27,7 @@ export const ApplicationProviders = ({ children }: ApplicationProvidersProps) =>
       <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
         <TooltipProvider>
           {children}
-          <Toaster closeButton position="top-right" richColors />
+          <Toaster closeButton position="top-right" />
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>
