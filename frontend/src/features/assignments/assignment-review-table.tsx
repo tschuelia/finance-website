@@ -17,6 +17,7 @@ import {
   ContractAssignmentCombobox
 } from '@/features/assignments/assignment-comboboxes'
 import { formatDate, formatDecimal } from '@/lib/format'
+import { cn } from '@/lib/utils'
 import type { Category } from '@/types/categories'
 import type { ContractSummary } from '@/types/contracts'
 import type { RuleMatch } from '@/types/matching'
@@ -153,7 +154,7 @@ export const AssignmentReviewTable = ({
                   </div>
                 </TableCell>
                 <TableCell className="min-w-48 align-top">
-                  <div className="grid gap-1.5">
+                  <div className={cn('grid gap-1.5', onSubjectChange !== undefined && 'pt-6')}>
                     <CategoryAssignmentCombobox
                       ariaLabel={`Kategorie für „${row.recipient || row.subject}“`}
                       categories={categories}
@@ -185,7 +186,7 @@ export const AssignmentReviewTable = ({
                   </div>
                 </TableCell>
                 <TableCell className="min-w-48 align-top">
-                  <div className="grid gap-1.5">
+                  <div className={cn('grid gap-1.5', onSubjectChange !== undefined && 'pt-6')}>
                     <ContractAssignmentCombobox
                       ariaLabel={`Vertrag für „${row.recipient || row.subject}“`}
                       className="w-full min-w-36"
